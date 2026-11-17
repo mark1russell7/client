@@ -326,6 +326,55 @@
       "result": "1,500 ms"
     },
     {
+      "name": "exact-seconds-of-a-sum-of-decimal-hours",
+      "description": "The seconds of 0.1 h plus 0.2 h, with no rounding. rational adds the two decimals as exact fractions, and quantity converts the sum exactly. In floating point, the sum is 0.30000000000000004 h.",
+      "program": {
+        "$proc": [
+          "rational",
+          "toString"
+        ],
+        "input": {
+          "a": {
+            "$proc": [
+              "quantity",
+              "convertExact"
+            ],
+            "input": {
+              "value": {
+                "$proc": [
+                  "rational",
+                  "add"
+                ],
+                "input": {
+                  "a": {
+                    "$proc": [
+                      "rational",
+                      "fromDecimal"
+                    ],
+                    "input": {
+                      "text": "0.1"
+                    }
+                  },
+                  "b": {
+                    "$proc": [
+                      "rational",
+                      "fromDecimal"
+                    ],
+                    "input": {
+                      "text": "0.2"
+                    }
+                  }
+                }
+              },
+              "from": "h",
+              "to": "s"
+            }
+          }
+        }
+      },
+      "result": "1080"
+    },
+    {
       "name": "point-at-the-median-distance",
       "description": "The point south-west of Boston at the median of the distances in kilometres from Boston to New York, Philadelphia and Washington. geo gives the distances and the point, and statistics gives the median.",
       "program": {

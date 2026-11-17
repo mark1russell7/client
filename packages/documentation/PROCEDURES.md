@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 561 across 56 namespaces. Loaded 53 package register(s).
+**Total procedures:** 585 across 57 namespaces. Loaded 54 package register(s).
 
 ## Namespaces
 
@@ -48,6 +48,7 @@
 - [`procedure.*`](#procedure) — 13 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
 - [`quantity.*`](#quantity) — 31 procedure(s)
+- [`rational.*`](#rational) — 24 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
 - [`s3.*`](#s3) — 13 procedure(s)
 - [`schedule.*`](#schedule) — 4 procedure(s)
@@ -685,6 +686,35 @@
 | `quantity.unbounded` | _(no description)_ |
 | `quantity.valueIn` | This function gives the number that a quantity is in a unit. |
 | `quantity.whyNotConvertible` | This function gives the reason that `from` cannot become `to`, or undefined when it can. |
+
+## rational
+
+| Procedure | Description |
+|-----------|-------------|
+| `rational.abs` | This function gives `\|a\|`. The result is exact. |
+| `rational.add` | This function gives `a + b`. The result is exact. |
+| `rational.ceil` | This function gives the least integer that is not less than the value. The result is exact. |
+| `rational.cmp` | This function is `compare`, with the name that `@mark1russell7/quantity` uses. |
+| `rational.compare` | This function gives -1, 0 or 1 for `a < b`, `a = b` or `a > b`. The result is exact. |
+| `rational.div` | This function gives `a / b`. The result is exact. |
+| `rational.equals` | This function tells if `a = b`. Each rational is in lowest terms, so the test compares the fields. |
+| `rational.floor` | This function gives the greatest integer that is not more than the value. The result is exact. |
+| `rational.fromDecimal` | This function reads a decimal from its text, exactly. The text `"0.0254"` gives 127/5000, and `"1e-9"` gives 1/10^9. |
+| `rational.fromFloat` | This function gives the exact value of a finite double. Thus `0.1` gives 3602879701896397/2^55. The value `-0` gives 0. |
+| `rational.fromNumber` | This function reads a finite number as JavaScript prints it. That text is the shortest decimal that reads back as the same number. Thus `0.1` gives 1/10, not the exact value of the double. Use `fromFloat` for the exact value. |
+| `rational.gcd` | This function gives the greatest common divisor of `\|a\|` and `\|b\|`. The result for `0` and `0` is `0`. |
+| `rational.integerRoot` | This function gives the floor of the `k`-th root of `n`: the largest integer `r` with `r^k <= n`. The result is exact. The search starts above the root, from the bit length of `n`, and the Newton steps go down to the root. |
+| `rational.inverse` | This function gives `1 / a`. The result is exact. |
+| `rational.isInteger` | This function tells if the value is an integer. |
+| `rational.mul` | This function gives `a × b`. The result is exact. |
+| `rational.neg` | This function gives `-a`. The result is exact. |
+| `rational.pow` | This function gives `a` to an integer power. The result is exact. The power 0 of each value, 0 too, is 1. |
+| `rational.rational` | This function makes the rational `n / d` in lowest terms. The result is exact. |
+| `rational.root` | This function gives the `k`-th root of `a` when it is a rational, and `null` when it is not. The root of a rational in lowest terms is rational only when its numerator and its denominator are both `k`-th powers of integers. An odd index gives the negative root of a negative value. The result is exact. |
+| `rational.sign` | This function gives -1, 0 or 1 for a value that is less than 0, equal to 0 or more than 0. |
+| `rational.sub` | This function gives `a - b`. The result is exact. |
+| `rational.toNumber` | This function gives the nearest double to the value, with ties to even. The error is at most half a unit in the last place. A value past the range of the doubles gives an infinity, and a value too small gives 0 or a subnormal. |
+| `rational.toString` | This function gives the text `"n/d"`, or `"n"` for an integer. The text is exact. |
 
 ## restic
 

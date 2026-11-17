@@ -377,6 +377,12 @@
     "functions": 100,
     "branches": 100
   },
+  "@procedures/rational": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
   "@procedures/quantity": {
     "lines": 100,
     "statements": 100,

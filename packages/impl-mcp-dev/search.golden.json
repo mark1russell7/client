@@ -1,10 +1,10 @@
 {
-  "about": "The golden queries of the tool search (direction 40). Each query is a task in the words of a model, and expect lists the tools that answer it. The queries were written from the tool names before the first run. The test search-quality.test.ts ranks each query over the tools of the dev-tools server and holds the floors: a drop fails, and a gain fails until the floors record it.",
+  "about": "The golden queries of the tool search (direction 40). Each query is a task in the words of a model, and expect lists the tools that answer it. The first 48 queries were written from the tool names before the first run. The last 20 were written on 2026-11-16 before the first run of the synonyms, as a held-out set. The test search-quality.test.ts ranks each query over the tools of the dev-tools server and holds the floors: a drop fails, and a gain fails until the floors record it.",
   "floors": {
-    "queries": 48,
-    "hit1": 39,
-    "hit5": 43,
-    "mrr": 0.849
+    "queries": 68,
+    "hit1": 58,
+    "hit5": 67,
+    "mrr": 0.914
   },
   "queries": [
     {
@@ -295,6 +295,126 @@
       "query": "search the stored log lines",
       "expect": [
         "logs.query"
+      ]
+    },
+    {
+      "query": "kill a running container",
+      "expect": [
+        "docker.stop"
+      ]
+    },
+    {
+      "query": "fetch the latest image of a service",
+      "expect": [
+        "docker.pull"
+      ]
+    },
+    {
+      "query": "execute a shell inside a container",
+      "expect": [
+        "docker.exec"
+      ]
+    },
+    {
+      "query": "erase the documents that match a filter",
+      "expect": [
+        "mongo.documents.delete"
+      ]
+    },
+    {
+      "query": "add a new record to a mongo collection",
+      "expect": [
+        "mongo.documents.insert"
+      ]
+    },
+    {
+      "query": "modify the documents that match a query",
+      "expect": [
+        "mongo.documents.update"
+      ]
+    },
+    {
+      "query": "compare two json values",
+      "expect": [
+        "json.diff"
+      ]
+    },
+    {
+      "query": "combine two json objects into one",
+      "expect": [
+        "json.merge"
+      ]
+    },
+    {
+      "query": "convert a yaml string to an object",
+      "expect": [
+        "yaml.parse"
+      ]
+    },
+    {
+      "query": "execute the test suite",
+      "expect": [
+        "vitest.run"
+      ]
+    },
+    {
+      "query": "remove a mongo collection",
+      "expect": [
+        "mongo.collections.drop"
+      ]
+    },
+    {
+      "query": "show the images on this machine",
+      "expect": [
+        "docker.images"
+      ]
+    },
+    {
+      "query": "tear down the compose project",
+      "expect": [
+        "docker.compose.down"
+      ]
+    },
+    {
+      "query": "fold a list into one value",
+      "expect": [
+        "client.reduce"
+      ]
+    },
+    {
+      "query": "verify that a json document matches a schema",
+      "expect": [
+        "json.validate"
+      ]
+    },
+    {
+      "query": "remove an index from a collection",
+      "expect": [
+        "mongo.indexes.drop"
+      ]
+    },
+    {
+      "query": "run several calls concurrently",
+      "expect": [
+        "client.parallel"
+      ]
+    },
+    {
+      "query": "look up one procedure by its path",
+      "expect": [
+        "procedure.get"
+      ]
+    },
+    {
+      "query": "store a log line",
+      "expect": [
+        "logs.store"
+      ]
+    },
+    {
+      "query": "the stats of a mongo collection",
+      "expect": [
+        "mongo.collections.stats"
       ]
     }
   ]
