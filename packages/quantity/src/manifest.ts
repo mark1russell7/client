@@ -10,6 +10,105 @@ export const manifest: ExportsManifest = {
     "quantity"
   ],
   "$defs": {
+    "Atom": {
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string",
+          "description": "This text is how it prints, where that is not its symbol: °F, µs."
+        },
+        "vector": {
+          "type": "object",
+          "properties": {
+            "time": {
+              "type": "number"
+            },
+            "length": {
+              "type": "number"
+            },
+            "mass": {
+              "type": "number"
+            },
+            "temperature": {
+              "type": "number"
+            },
+            "data": {
+              "type": "number"
+            },
+            "money": {
+              "type": "number"
+            },
+            "current": {
+              "type": "number"
+            }
+          }
+        },
+        "factor": {
+          "$ref": "#/$defs/Rational"
+        },
+        "offset": {
+          "$ref": "#/$defs/Rational",
+          "description": "An affine unit (a temperature) has an offset: base = (value + offset) × factor."
+        },
+        "log": {
+          "const": true,
+          "description": "A logarithmic level converts only to itself, and it averages by energy."
+        },
+        "counts": {
+          "type": "string",
+          "description": "This name is what it counts, when it is a count of something: a GT is 10⁹ transfers, a bpm counts beats."
+        },
+        "percent": {
+          "const": true,
+          "description": "A percentage makes a unit with no dimension a ratio."
+        },
+        "param": {
+          "const": "hz",
+          "description": "Its size changes with the system that it measures: a jiffy is 1/HZ seconds."
+        },
+        "decimals": {
+          "type": "number",
+          "description": "An amount keeps this many decimal places: money keeps the cent."
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "symbol",
+        "name",
+        "vector",
+        "factor"
+      ]
+    },
+    "Component": {
+      "type": "object",
+      "properties": {
+        "atom": {
+          "$ref": "#/$defs/Atom"
+        },
+        "annotation": {
+          "type": "string",
+          "description": "The annotation `{rep}` counts reps, and `%{1RM}` is a percentage of a one-rep max."
+        },
+        "exponent": {
+          "type": "number",
+          "description": "The exponent has a sign: what follows the slash divides."
+        }
+      },
+      "required": [
+        "exponent"
+      ]
+    },
     "Extent": {
       "anyOf": [
         {
@@ -55,6 +154,25 @@ export const manifest: ExportsManifest = {
       "required": [
         "value",
         "unit"
+      ]
+    },
+    "Rational": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)$",
+          "x-procedures-codec": "bigint"
+        },
+        "d": {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)$",
+          "x-procedures-codec": "bigint"
+        }
+      },
+      "required": [
+        "n",
+        "d"
       ]
     },
     "Scale": {
@@ -130,6 +248,503 @@ export const manifest: ExportsManifest = {
       "required": [
         "value",
         "unit"
+      ]
+    },
+    "Unit": {
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "The symbol is its canonical spelling: the symbols of the atoms, `·` between factors, and one `/`."
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Component"
+          }
+        },
+        "vector": {
+          "type": "object",
+          "properties": {
+            "time": {
+              "type": "number"
+            },
+            "length": {
+              "type": "number"
+            },
+            "mass": {
+              "type": "number"
+            },
+            "temperature": {
+              "type": "number"
+            },
+            "data": {
+              "type": "number"
+            },
+            "money": {
+              "type": "number"
+            },
+            "current": {
+              "type": "number"
+            }
+          }
+        },
+        "factor": {
+          "$ref": "#/$defs/Rational"
+        },
+        "offset": {
+          "$ref": "#/$defs/Rational",
+          "description": "Only a lone affine unit (°F, °C) has an offset. A compound of it is a difference."
+        },
+        "kind": {
+          "enum": [
+            "time",
+            "length",
+            "mass",
+            "temperature",
+            "data",
+            "money",
+            "current",
+            "count",
+            "ratio",
+            "level",
+            "frequency",
+            "transfer-rate",
+            "data-rate",
+            "speed",
+            "area",
+            "volume",
+            "energy",
+            "power",
+            "voltage",
+            "charge",
+            "resistance",
+            "specific-power",
+            "specific-volume-rate",
+            "money-rate",
+            "energy-price",
+            "derived"
+          ]
+        },
+        "counts": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "The counts are what it counts, with exponents: bpm counts beats, and `{set}/wk` counts sets per week."
+        },
+        "log": {
+          "type": "boolean"
+        },
+        "param": {
+          "const": "hz",
+          "description": "The parameter is what its size changes with: a jiffy needs the HZ of the kernel."
+        }
+      },
+      "required": [
+        "symbol",
+        "components",
+        "vector",
+        "factor",
+        "kind",
+        "counts",
+        "log"
+      ]
+    },
+    "UnitSystem": {
+      "type": "object",
+      "properties": {
+        "atoms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Atom"
+          }
+        },
+        "atomBySymbol": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Atom"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "x-procedures-codec": "map"
+        },
+        "lookupAtom": {
+          "type": "object",
+          "description": "This function gives the atom that a spelling names: its symbol or one of its aliases.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "spelling"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "$ref": "#/$defs/Atom"
+            },
+            "undefinedForNull": true
+          }
+        },
+        "parseUnit": {
+          "type": "object",
+          "description": "This function resolves a unit from its spelling. The spelling has symbols or their aliases, factors joined by `·` or `*`, and one `/` at most. All that follows the slash divides: \"kcal/h·kg\" is per hour per kilogram. A factor can have a power (`m^2`) and say what it counts (`{rep}`).",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "spelling"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "$ref": "#/$defs/Unit"
+            }
+          }
+        },
+        "tryParseUnit": {
+          "type": "object",
+          "description": "This function gives the unit of a spelling, or undefined when the spelling names no unit.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "spelling"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "$ref": "#/$defs/Unit"
+            },
+            "undefinedForNull": true
+          }
+        },
+        "isCanonicalUnit": {
+          "type": "object",
+          "description": "This function tells if stored data can have this spelling. Only the canonical spelling is correct.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "spelling"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "type": "boolean"
+            }
+          }
+        },
+        "canonicalUnit": {
+          "type": "object",
+          "description": "This function gives the canonical spelling of a unit, for data from another system: \"hr\" is \"h\".",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "spelling"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "type": "string"
+            }
+          }
+        },
+        "kindOf": {
+          "type": "object",
+          "description": "One call of a pure procedure, as data, for the function (spelling: string) => Kind | \"derived\". It reads each parameter as {\"$ref\": \"<name>\"}: spelling.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "spelling"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "enum": [
+                "time",
+                "length",
+                "mass",
+                "temperature",
+                "data",
+                "money",
+                "current",
+                "count",
+                "ratio",
+                "level",
+                "frequency",
+                "transfer-rate",
+                "data-rate",
+                "speed",
+                "area",
+                "volume",
+                "energy",
+                "power",
+                "voltage",
+                "charge",
+                "resistance",
+                "specific-power",
+                "specific-volume-rate",
+                "money-rate",
+                "energy-price",
+                "derived"
+              ]
+            }
+          }
+        },
+        "whyNotConvertible": {
+          "type": "object",
+          "description": "This function gives the reason that `from` cannot become `to`, or undefined when it can.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "from",
+              "to"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "type": "string"
+            },
+            "undefinedForNull": true
+          }
+        },
+        "convertible": {
+          "type": "object",
+          "description": "One call of a pure procedure, as data, for the function (from: string, to: string) => boolean. It reads each parameter as {\"$ref\": \"<name>\"}: from, to.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "from",
+              "to"
+            ],
+            "inputs": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "output": {
+              "type": "boolean"
+            }
+          }
+        },
+        "convertExact": {
+          "type": "object",
+          "description": "This function converts a value in one unit, exactly, into another unit.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "value",
+              "from",
+              "to",
+              "on"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/Rational"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/MeasuredOn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            ],
+            "output": {
+              "$ref": "#/$defs/Rational"
+            }
+          }
+        }
+      },
+      "required": [
+        "atoms",
+        "atomBySymbol",
+        "lookupAtom",
+        "parseUnit",
+        "tryParseUnit",
+        "isCanonicalUnit",
+        "canonicalUnit",
+        "kindOf",
+        "whyNotConvertible",
+        "convertible",
+        "convertExact"
       ]
     },
     "Unknown": {
@@ -280,6 +895,50 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "$ref": "#/$defs/Quantity"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "convertExact",
+      "path": [
+        "quantity",
+        "convertExact"
+      ],
+      "description": "This function converts a value in one unit, exactly, into another unit.",
+      "params": [
+        "value",
+        "from",
+        "to",
+        "on"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/$defs/Rational"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "on": {
+            "$ref": "#/$defs/MeasuredOn"
+          }
+        },
+        "required": [
+          "value",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/Rational"
       },
       "effects": {
         "reads": [],
@@ -675,6 +1334,43 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "lookupAtom",
+      "path": [
+        "quantity",
+        "lookupAtom"
+      ],
+      "description": "This function gives the atom that a spelling names: its symbol or one of its aliases.",
+      "params": [
+        "spelling"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "spelling": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "spelling"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Atom"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "max",
       "path": [
         "quantity",
@@ -780,6 +1476,36 @@ export const manifest: ExportsManifest = {
       "generics": [
         "T"
       ],
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "parseUnit",
+      "path": [
+        "quantity",
+        "parseUnit"
+      ],
+      "description": "This function resolves a unit from its spelling. The spelling has symbols or their aliases, factors joined by `·` or `*`, and one `/` at most. All that follows the slash divides: \"kcal/h·kg\" is per hour per kilogram. A factor can have a power (`m^2`) and say what it counts (`{rep}`).",
+      "params": [
+        "spelling"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "spelling": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "spelling"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/Unit"
+      },
       "effects": {
         "reads": [],
         "writes": []
@@ -1075,6 +1801,43 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "tryParseUnit",
+      "path": [
+        "quantity",
+        "tryParseUnit"
+      ],
+      "description": "This function gives the unit of a spelling, or undefined when the spelling names no unit.",
+      "params": [
+        "spelling"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "spelling": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "spelling"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Unit"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "unbounded",
       "path": [
         "quantity",
@@ -1187,29 +1950,9 @@ export const manifest: ExportsManifest = {
   ],
   "exempt": [
     {
-      "name": "convertExact",
-      "reason": "input-not-json",
-      "detail": "value.n: bigint"
-    },
-    {
-      "name": "lookupAtom",
-      "reason": "output-not-json",
-      "detail": "factor.n: bigint"
-    },
-    {
-      "name": "parseUnit",
-      "reason": "output-not-json",
-      "detail": "components.atom.factor.n: bigint"
-    },
-    {
-      "name": "tryParseUnit",
-      "reason": "output-not-json",
-      "detail": "components.atom.factor.n: bigint"
-    },
-    {
       "name": "unitSystem",
-      "reason": "input-not-json",
-      "detail": "atoms.factor.n: bigint"
+      "reason": "output-not-json",
+      "detail": "lookupAtom: a function"
     }
   ],
   "others": {

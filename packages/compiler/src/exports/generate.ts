@@ -2,8 +2,8 @@
  * The generator of an exports manifest: the procedures of a package from its declaration files.
  *
  * It reads the entry `.d.ts` file of a package with the type checker of TypeScript. It gives a
- * procedure for each public function whose inputs and output are JSON. The schemas come from the
- * types, and the descriptions come from the doc comments.
+ * procedure for each public function whose inputs and output are JSON, or have a codec
+ * (`./codecs.ts`). The schemas come from the types, and the descriptions come from the doc comments.
  *
  * TypeScript 7 has no compiler API in JavaScript. So this module reads the compiler API of
  * TypeScript 5 as the package `typescript-api` (`npm:typescript@^5.9.3`), as the site of this
@@ -14,10 +14,13 @@
 import ts from "typescript-api";
 import type * as TS from "typescript-api";
 import type { Effects } from "@procedures/client/browser";
+import { BIGINT_PATTERN } from "./codecs.js";
 import {
+  CODEC_KEYWORD,
   CONSTRUCT_KEYWORD,
   EXPORTS_MANIFEST_FORMAT,
   PROGRAM_KEYWORD,
+  type ExportsCodec,
   type ExportExemption,
   type ExportProcedure,
   type ExportsConstruct,
@@ -117,6 +120,15 @@ const NOT_JSON_GLOBALS = new Set([
   "BigInt64Array", "BigUint64Array", "ReadableStream", "WritableStream", "AbortSignal",
   "AbortController", "Blob", "URL", "Iterator", "IterableIterator", "Generator", "AsyncGenerator",
   "AsyncIterable", "AsyncIterableIterator", "Iterable", "Symbol",
+]);
+
+/** The codec of each global type that has one, by the name of the type. */
+const CODEC_TYPES: ReadonlyMap<string, ExportsCodec> = new Map([
+  ["Map", "map"],
+  ["ReadonlyMap", "map"],
+  ["Set", "set"],
+  ["ReadonlySet", "set"],
+  ["Iterable", "iterable"],
 ]);
 
 /**
@@ -275,6 +287,9 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     // A named type serves inputs and outputs, so a function in it can reach an output as a sub-program
     const programAt = programPath(output);
     if (programAt !== undefined) return { name, reason: "output-not-json", detail: programAt ? `${programAt}: a function` : "a function" };
+    // In the same way, an Iterable in a named type can reach an output
+    const iterableAt = iterablePath(output);
+    if (iterableAt !== undefined) return { name, reason: "output-not-json", detail: iterableAt ? `${iterableAt}: Iterable` : "Iterable" };
 
     const description = firstParagraph(text(symbol.getDocumentationComment(checker)));
     return {
@@ -416,7 +431,12 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       if (output) return { type: "null" };
       throw new NotJson("undefined", false);
     }
-    if (flags & (ts.TypeFlags.BigInt | ts.TypeFlags.BigIntLiteral)) throw new NotJson("bigint", false);
+    // A bigint is its decimal string: the codec `bigint`
+    if (flags & ts.TypeFlags.BigIntLiteral) {
+      const { negative, base10Value } = (type as TS.BigIntLiteralType).value;
+      return { const: `${negative && base10Value !== "0" ? "-" : ""}${base10Value}`, [CODEC_KEYWORD]: "bigint" };
+    }
+    if (flags & ts.TypeFlags.BigInt) return { type: "string", pattern: BIGINT_PATTERN, [CODEC_KEYWORD]: "bigint" };
     if (flags & (ts.TypeFlags.ESSymbol | ts.TypeFlags.UniqueESSymbol)) throw new NotJson("symbol", false);
     if (flags & ts.TypeFlags.TypeParameter) {
       const constraint = checker.getBaseConstraintOfType(type);
@@ -473,6 +493,8 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       throw new NotJson(checker.typeToString(type), true);
     }
     const symbol = type.getSymbol() ?? type.aliasSymbol;
+    const codec = symbol && isGlobal(symbol) ? codecSchema(symbol.name, type, output) : undefined;
+    if (codec !== undefined) return codec;
     if (symbol && NOT_JSON_GLOBALS.has(symbol.name) && isGlobal(symbol)) throw new NotJson(symbol.name, false);
     if (checker.isTupleType(type)) {
       const reference = type as TS.TupleTypeReference;
@@ -490,6 +512,24 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     // A named type goes into $defs one time, and a reference stands for it. This also ends a cycle.
     const named = definitionName(type);
     return named !== undefined ? definition(type, named, () => plainObjectSchema(type)) : plainObjectSchema(type);
+  }
+
+  /**
+   * The schema of a global type with a codec, or undefined. A `Map` or a `ReadonlyMap` is a list of
+   * entries, and a `Set` or a `ReadonlySet` is a list of values. An `Iterable` is a list in an input.
+   * In an output it is not JSON, because an iterable can have no end.
+   */
+  function codecSchema(name: string, type: TS.Type, output: boolean): ExportsJsonSchema | undefined {
+    const codec = CODEC_TYPES.get(name);
+    if (codec === undefined) return undefined;
+    if (codec === "iterable" && output) throw new NotJson(name, false);
+    // Only a reference to the generic type has type arguments, for example Map<string, number>
+    if (!((type as TS.ObjectType).objectFlags & ts.ObjectFlags.Reference)) return undefined;
+    const [first, second] = checker.getTypeArguments(type as TS.TypeReference);
+    const items = first === undefined ? {} : schemaOf(first, output);
+    if (codec !== "map") return { type: "array", items, [CODEC_KEYWORD]: codec };
+    const entry = { type: "array", prefixItems: [items, second === undefined ? {} : schemaOf(second, output)], minItems: 2, maxItems: 2 };
+    return { type: "array", items: entry, [CODEC_KEYWORD]: codec };
   }
 
   /** True for the type `{}`: an object type with no property, no signature and no index. */
@@ -587,7 +627,9 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         if (!declaration || !ts.isParameter(declaration) || declaration.dotDotDotToken) throw new NotJson(what, true);
         params.push(ts.isIdentifier(declaration.name) ? declaration.name.text : `arg${index}`);
         // The package gives these values to the function, as it gives an output
-        inputs.push(schemaOf(checker.getTypeOfSymbolAtLocation(parameter, declaration), true));
+        const input = schemaOf(checker.getTypeOfSymbolAtLocation(parameter, declaration), true);
+        if (iterablePath(input) !== undefined) throw new NotJson(what, true);
+        inputs.push(input);
       }
       const result = signature.getReturnType();
       if (promisedType(result) || result.flags & (ts.TypeFlags.Void | ts.TypeFlags.Undefined)) throw new NotJson(what, true);
@@ -619,11 +661,21 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     }
   }
 
-  /**
-   * This function gives the path from a schema to its first sub-program, through the definitions.
-   * The path of the schema itself is `""`. The result is `undefined` when the schema has no sub-program.
-   */
+  /** The path from a schema to its first sub-program (see `nodePath()`). */
   function programPath(schema: ExportsJsonSchema): string | undefined {
+    return nodePath(schema, (record) => PROGRAM_KEYWORD in record);
+  }
+
+  /** The path from a schema to its first `Iterable`, which only an input can hold (see `nodePath()`). */
+  function iterablePath(schema: ExportsJsonSchema): string | undefined {
+    return nodePath(schema, (record) => record[CODEC_KEYWORD] === "iterable");
+  }
+
+  /**
+   * This function gives the path from a schema to its first node that `found` accepts, through the
+   * definitions. The path of the schema itself is `""`. The result is `undefined` when no node agrees.
+   */
+  function nodePath(schema: ExportsJsonSchema, found: (record: Record<string, unknown>) => boolean): string | undefined {
     const seen = new Set<string>();
     const visit = (node: unknown, path: readonly string[]): string | undefined => {
       if (node === null || typeof node !== "object") return undefined;
@@ -636,7 +688,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       }
       const record = node as Record<string, unknown>;
       // path-check: a position in the input schema, the property names, not a procedure path
-      if (PROGRAM_KEYWORD in record) return path.join(".");
+      if (found(record)) return path.join(".");
       const ref = record["$ref"];
       if (typeof ref === "string" && ref.startsWith("#/$defs/")) {
         const key = ref.slice("#/$defs/".length);

@@ -22,12 +22,20 @@ describe("@procedures/quantity", () => {
     await expect(call("convert", { amount: home.quantity(1, "s"), to: "m" })).rejects.toThrow();
   });
 
-  it("names the functions with a bigint in their types as exemptions", () => {
-    expect(quantityManifest.exempt.map((exemption) => exemption.name)).toEqual(["convertExact", "lookupAtom", "parseUnit", "tryParseUnit", "unitSystem"]);
+  it("gives each bigint of an exact value its decimal string, in the input and in the output", async () => {
+    expect(await call("convertExact", { value: { n: "3", d: "2" }, from: "h", to: "s" })).toEqual({ n: "5400", d: "1" });
+    const unit = await call<{ components: Array<{ atom: { factor: unknown } }> }>("parseUnit", { spelling: "km/h" });
+    expect(unit.components.map((component) => component.atom.factor)).toEqual([{ n: "1000", d: "1" }, { n: "3600", d: "1" }]);
+    expect(await call("tryParseUnit", { spelling: "no unit" })).toBe(null);
+    await expect(call("convertExact", { value: { n: 3, d: 2 }, from: "h", to: "s" })).rejects.toThrow();
+  });
+
+  it("names unitSystem as an exemption, because its output holds a function", () => {
+    expect(quantityManifest.exempt.map((exemption) => exemption.name)).toEqual(["unitSystem"]);
   });
 
   it("has a procedure with no effect for each function of the home", () => {
-    expect(quantityManifest.procedures).toHaveLength(27);
+    expect(quantityManifest.procedures).toHaveLength(31);
     for (const procedure of quantityManifest.procedures) expect(procedure.effects).toEqual({ reads: [], writes: [] });
   });
 });

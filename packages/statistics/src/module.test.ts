@@ -33,6 +33,10 @@ describe("@procedures/statistics", () => {
     await expect(call("bootstrap", { data: [1, 2], statistic })).rejects.toThrow("calls shell.run, which is not an operator that this caller reaches");
   });
 
+  it("takes a list for an iterable", async () => {
+    expect(await call("runningOf", { values: [3, 1, 2] })).toEqual(statistics.runningOf([3, 1, 2]));
+  });
+
   it("refuses an input that does not match the schema", async () => {
     await expect(call("median", { values: "3, 1, 2" })).rejects.toThrow();
   });

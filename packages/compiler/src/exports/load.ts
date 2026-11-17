@@ -7,6 +7,7 @@ import * as z from "zod";
 import { defineModule, defineProcedure, type AnyProcedure, type Effects, type ProcedureContext, type ProcedureModule } from "@procedures/client/browser";
 import type { ExportProcedure, ExportsConstruct, ExportsJsonSchema, ExportsManifest } from "./types.js";
 import { CONSTRUCT_KEYWORD, EXPORTS_MANIFEST_FORMAT } from "./types.js";
+import { codecDecoder } from "./codecs.js";
 import { withDefinitions } from "./definitions.js";
 import { jsonValue } from "./json.js";
 import { reachesProgram, registerOperator, withSubPrograms } from "./programs.js";
@@ -24,7 +25,8 @@ export interface ExportsModuleOptions {
  * package, for example `exportsModule(manifest, await import("@mark1russell7/rigor-statistics"))`.
  * Each procedure gives the properties of its input to its function in the order of `params`.
  * A call at a sub-program position of the input becomes a function (`./programs.ts`). The value
- * of a constructed input comes from its function of the package, before each call.
+ * of a constructed input comes from its function of the package, before each call. The value of a
+ * codec, for example a bigint, comes from its JSON form (`./codecs.ts`).
  *
  * The function throws when the manifest names a function that the package does not export: then
  * the manifest is older or newer than the package.
@@ -73,7 +75,10 @@ function procedureOf(
   const makers = constructsOf(procedure).map((construct) =>
     construct === undefined ? undefined : { make: functions[construct.function] as PackageFunction, params: construct.params },
   );
-  const call = (record: Record<string, unknown>): unknown => fn(...argumentsOf(procedure, record, makers));
+  // The decoded form of each codec of the input, for example a bigint for its decimal string
+  const decode = codecDecoder(procedure.input, defs);
+  const call = (record: Record<string, unknown>): unknown =>
+    fn(...argumentsOf(procedure, decode === undefined ? record : (decode(record) as Record<string, unknown>), makers));
   const defined = defineProcedure({
     path: [...procedure.path],
     input,

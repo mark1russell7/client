@@ -251,8 +251,8 @@ Each other function gets an exemption with its reason and the part of the signat
 | Reason | The cause | The plan |
 |---|---|---|
 | `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
-| `input-not-json` | An input is not JSON: a `Map` or a `ReadonlyMap`, a `Date`, a `bigint`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
-| `output-not-json` | The output is not JSON, for example a class instance. | The handle of the instance. |
+| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
+| `output-not-json` | The output is not JSON, for example a class instance or an `Iterable`. | The handle of the instance. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
 | `overlay` | The overlay exempts the function. | No change. |
 | `unresolved` | A re-export does not resolve, for example because its module is not installed. | Install the module. |
@@ -286,6 +286,28 @@ A function parameter, for example the statistic of a bootstrap, gets a sub-progr
 - A sub-program gives JSON. So a function whose result is a function stays exempt with the reason `function-parameter`.
 
 Thus a sub-program changes nothing, and it gives the same value for the same input.
+
+### A codec
+
+Some values have no JSON type, but they have a JSON form. Their schema has the keyword `x-procedures-codec`, with the name of the codec:
+
+| Codec | The type | The JSON form |
+|---|---|---|
+| `bigint` | `bigint` or a bigint literal | A decimal string, for example `"-42"`. It has no plus sign, no point and no leading zero. |
+| `map` | `Map` or `ReadonlyMap` | A list of entries. Each entry is a list of a key and a value. |
+| `set` | `Set` or `ReadonlySet` | A list of the values. |
+| `iterable` | `Iterable`, only in an input | A list of the values. |
+
+```json
+{ "$proc": ["quantity", "convertExact"], "input": { "value": { "n": "3", "d": "2" }, "from": "h", "to": "s" } }
+```
+
+- Before the call, the loader decodes the input with its schema. The function gets a `bigint`, a `Map` or a `Set`.
+- In a union, the value goes to the first member whose schema accepts it.
+- The loader encodes the output from the value: a `bigint`, a `Map` and a `Set` get their JSON form at each depth.
+- A sub-program gets the JSON form of each argument. The function of the package gets the decoded result.
+- The codec of a constructed input is decoded before its factory makes the value.
+- An `Iterable` in an output is not JSON, because an iterable can have no end. Thus a sub-program cannot take an `Iterable`.
 
 ### A constructed input
 
