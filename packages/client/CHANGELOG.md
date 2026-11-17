@@ -1,5 +1,59 @@
 # @procedures/client
 
+## 0.61.0
+
+### Minor Changes
+
+- f9a78f9: The MCP face puts the untrusted text of an output in envelopes at each depth of the output, also when the text comes from a nested call.
+  
+  - The invocation marks each output object of a procedure with `metadata.untrusted`. The mark goes with the object and does not change its value. The HTTP and WebSocket faces give the same output as before.
+  - The output check of a caller keeps the marks: each object of the checked output gets the mark of the object at the same path.
+  - The new exports `markUntrusted()` and `untrustedMarkOf()` of `@procedures/client` set and read the mark.
+  - The MCP face finds the marked fields in the output of `client.chain`, of a procedure of `procedure.define` and of a procedure of code that gives the output of another procedure.
+  - The first block of the answer has the data without these fields. The second block has their texts in envelopes. The attribute `field` of each envelope gives the path of its field, for example `pages.0.web_content`.
+  - In the structured content, each text of a nested field is in its envelope, and the shape of the field does not change. Thus the structured content agrees with the output schema of the tool.
+  - A field that the tool declares keeps its old form.
+  
+  ## Break
+  
+  A code caller of an MCP tool gets each nested untrusted string of the structured content in its envelope, not as the raw text.
+  
+  Migration for the site and each app:
+  
+  1. Find each MCP client that reads a nested field of the structured content, where a nested procedure declares that field untrusted.
+  2. Read the text inside the envelope, or read the output of the procedure over HTTP or WebSocket, which has the raw text.
+  
+  ```typescript
+  // Before: the raw text
+  const text = result.structuredContent.pages[0].web_content[0].text;
+  // After: the text is in its envelope
+  const sealed = result.structuredContent.pages[0].web_content[0].text; // "<untrusted-content ...>...</untrusted-content>"
+  ```
+- 3eb4b59: Each network face of `@procedures/client` keeps the metadata key `auth` out of the metadata of a handler. The key holds credentials, and the credentials of a network request go to the request hook and to the token check (roadmap R18).
+  
+  - The HTTP face drops the key `auth` from the query, from the custom headers and from `X-Metadata`, in each case of its letters. A call of a batch gets the same rule.
+  - The WebSocket server drops the key `auth` from the metadata of a request frame. The credentials of a call are those of its connection.
+  - The WebSocket client drops the key `auth` from the metadata of a call that the server sends to it.
+  - A local face keeps the key: a call in the process and `PortTransport`.
+  
+  This is a MINOR: an earlier `docs/SERVER.md` showed a handler that reads `context.request.metadata.auth?.token`, and that worked over WebSocket.
+  
+  Migration for a server and each app:
+  
+  1. A handler or a middleware reads the token from `context.request.credentials?.bearer`, not from `context.request.metadata.auth`. `docs/SERVER.md` shows this.
+  2. A WebSocket client gives its token in the upgrade: `?token=<token>` in the `url` of `WebSocketTransport`, or a cookie. A token in the metadata of a call does not reach the handler.
+  3. An HTTP client does not change: `createAuthMiddleware` sends the token as the `Authorization` header, and the server reads it into `request.credentials`.
+  
+  The WebSocket client still sends the key `auth` in its frames. This is deprecated: a later MINOR stops sending it.
+
+### Patch Changes
+
+- 8506442: The cache middleware and `hashOf` use `canonicalJson` of `@mark1russell7/rigor-generators` for their text (CLI-128). The two local copies of this function are removed.
+  
+  - **Cache keys:** two calls that differ only in a `Date`, a `RegExp`, a `Map` or a `Set` get two keys. Before this fix, the key of each of these values was `{}`. The second call got the cached response of the first call.
+  - **A call with no key:** when the key generator throws, the call goes past the cache, with no read and no store. The default generator throws for a function, a symbol or a cycle in the payload or the metadata.
+  - **`hashOf`:** a JSON value keeps its hash, so the hash of a manifest does not change. A value with a function, a symbol or a cycle causes a `TypeError`.
+
 ## 0.60.1
 
 ### Patch Changes
