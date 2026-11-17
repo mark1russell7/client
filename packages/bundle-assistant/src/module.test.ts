@@ -6,13 +6,14 @@
 import { describe, expect, it } from "vitest";
 import { createRegistry, effectsOf, invokePath, outputValue, registerModules, surfaceRule } from "@procedures/client";
 import { isHostNotAllowed } from "@procedures/http";
-import geoModule from "@procedures/geo/module";
+import geoModule, { geoManifest } from "@procedures/geo/module";
 import icsModule from "@procedures/ics/module";
 import { bundleAssistantModule, mcpExclude, mcpHostModules, mcpNamespaces } from "./module.js";
 
 const TOOLS = [
   "exif.read",
   "geo.distance",
+  "geo.distanceKm",
   "geo.geocode",
   "geo.geohash",
   "geo.route",
@@ -42,6 +43,15 @@ describe("bundle-assistant", () => {
       expect(tools).not.toContain(key);
     }
     for (const key of ["notify.send", "restic.run", "tailscale.run"]) expect(registry.get(key.split("."))).toBeUndefined();
+  });
+
+  it("has the generated procedures of geo, and only geo.distanceKm of them is a tool", () => {
+    const generated = geoManifest.procedures.map((procedure) => procedure.path.join("."));
+    expect(generated.length).toBeGreaterThan(1);
+    for (const key of generated) {
+      expect(registry.get(key.split("."))?.handler, key).toBeDefined();
+      expect(tools.includes(key), key).toBe(key === "geo.distanceKm");
+    }
   });
 
   // Audit pass 2 (O55): before, these procedures fetched each URL of their caller with the global fetch

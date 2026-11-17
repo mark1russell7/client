@@ -20,7 +20,8 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | `ics.write` | It writes a calendar file from events. It is pure. |
 | `mail.parse` | It reads the headers and the text of a message. It is pure. |
 | `geo.geocode`, `geo.route` | They read one public service each. |
-| `geo.distance`, `geo.geohash` | They give the distance between two points and the geohash of a point. They are pure. |
+| `geo.distanceKm`, `geo.geohash` | They give the distance between two points and the geohash of a point. They are pure. |
+| `geo.distance` | It gives the same distance as `geo.distanceKm` with `radiusKm: 6371`. It is deprecated: use `geo.distanceKm`. |
 | `weather.forecast` | It reads one public service. |
 | `exif.read` | It reads the date and the place of a photo on the host. |
 
@@ -42,6 +43,7 @@ These procedures are not tools:
 
 - `ics.fetch` fetches any URL, so a tool call can carry data out in the URL.
 - `mail.headers` reads a private mailbox.
+- The other procedures of `geoManifest` are pure, but each tool adds approximately 386 tokens to the tool list of each session. The bundle has them, so a call in process can use them.
 - `notify.send`, `restic.run` and `tailscale.run` are not in the bundle. The first one posts to any topic of a public server, and the others run destructive commands.
 
 A test pins the list of tools. Each tool changes nothing.
