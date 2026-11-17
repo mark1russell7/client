@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 510 across 56 namespaces. Loaded 53 package register(s).
+**Total procedures:** 511 across 56 namespaces. Loaded 53 package register(s).
 
 ## Namespaces
 
@@ -45,7 +45,7 @@
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
 - [`predicates.*`](#predicates) — 13 procedure(s)
 - [`privacyScan.*`](#privacyScan) — 2 procedure(s)
-- [`procedure.*`](#procedure) — 12 procedure(s)
+- [`procedure.*`](#procedure) — 13 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
 - [`quantity.*`](#quantity) — 27 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
@@ -592,6 +592,7 @@
 | `procedure.new` | Scaffold a new procedure with types and registration boilerplate |
 | `procedure.register` | Register a procedure at runtime |
 | `procedure.remote` | The status of the program store of the registry |
+| `procedure.search` | Search the procedures by words: the best matches of the key, the tags and the description |
 | `procedure.store` | Write the program of a procedure that procedure.define made to the program store |
 | `procedure.sync` | Synchronize the runtime-defined procedures of the registry with the program store |
 

@@ -4,6 +4,7 @@
  * Configuration options for the MCP server transport.
  */
 
+import type { McpToolListing } from "./transport/search-listing.js";
 import type { Readable, Writable } from "node:stream";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { BrowserGuardOptions, ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
@@ -170,6 +171,14 @@ export interface McpServerTransportOptions {
 
   /** Tool filtering options */
   toolFilter?: McpToolFilter;
+
+  /**
+   * How the server lists its tools (direction 40, the tool surface). `"each"` (the default) lists
+   * each tool. `"search"` lists three tools: `search_tools`, `describe_tool` and `call_tool`. Then
+   * the model loads the schema of a tool only when it needs the tool. The expose rule and the call
+   * policy do not change.
+   */
+  listing?: McpToolListing | undefined;
 
   /**
    * The name of the tool of a procedure. The default joins the segments of the path with dots

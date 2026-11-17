@@ -49,7 +49,8 @@ import {
 } from "./ref.js";
 import { hydrateInput, runProgram } from "./program.js";
 import { INFERRED_EFFECTS_METADATA_KEY, PURE_EFFECTS, REGISTRY_READ_EFFECTS, effectsValue, withEffects } from "./effects.js";
-import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, type ProcedureManifest } from "./manifest.js";
+import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, exposedProcedures, type ProcedureManifest } from "./manifest.js";
+import { SEARCH_MAX_LIMIT, searchDocuments } from "./search.js";
 import type { JsonSchema } from "./schema.js";
 import { isRuntimeDefined, markRuntimeProgram, runtimeProgramOfHandler } from "./runtime-programs.js";
 import { InvocationError } from "./invoke.js";
@@ -573,6 +574,99 @@ export const manifestProcedure: Procedure<{ namespace?: string | undefined }, Pr
   },
 });
 
+/** The input of `procedure.search` */
+export interface ProcedureSearchInput {
+  /** The words to find */
+  query: string;
+  /** The most hits, from 1 to 100. The default is 10. */
+  limit?: number | undefined;
+  /** Only the procedures under this first path segment */
+  namespace?: string | undefined;
+}
+
+/** One hit of `procedure.search` */
+export interface ProcedureSearchHit {
+  /** The path of the procedure */
+  path: ProcedurePath;
+  /** The path as a dotted key */
+  key: string;
+  /** The first line of the description, at most 200 characters */
+  description: string | undefined;
+  /** The score of the match: a better match has a higher score */
+  score: number;
+}
+
+/** The output of `procedure.search` */
+export interface ProcedureSearchOutput {
+  /** The best matches, the best first */
+  hits: ProcedureSearchHit[];
+  /** The number of procedures that match one word of the query or more */
+  matched: number;
+  /** The number of procedures of the search */
+  total: number;
+}
+
+const searchInputSchema: z.ZodType<ProcedureSearchInput> = z.object({
+  query: z.string().min(1).describe('The words to find, for example "median interval"'),
+  limit: z.number().int().min(1).max(SEARCH_MAX_LIMIT).optional().describe("The most hits, from 1 to 100. The default is 10."),
+  namespace: z.string().optional().describe("Only the procedures under this first path segment"),
+});
+
+const SearchOutputSchema = z.looseObject({
+  hits: z
+    .array(
+      z.looseObject({
+        path: z.array(z.string()).describe("The path of the procedure"),
+        key: z.string().describe("The path as a dotted key"),
+        description: z.string().optional().describe("The first line of the description, at most 200 characters"),
+        score: z.number().describe("The score of the match: a better match has a higher score"),
+      }),
+    )
+    .describe("The best matches, the best first"),
+  matched: z.number().describe("The number of procedures that match one word of the query or more"),
+  total: z.number().describe("The number of procedures of the search"),
+}) as z.ZodType<ProcedureSearchOutput>;
+
+/**
+ * Search the procedures of the caller's registry by words (direction 40, the tool surface). The
+ * search reads the key, the tags and the description of each procedure that the host exposes and
+ * that can run. A session finds a procedure with it, reads its schemas with `procedure.get`, and
+ * calls it.
+ */
+export const searchProceduresProcedure: Procedure<ProcedureSearchInput, ProcedureSearchOutput, ProcedureMetadata> = defineProcedure({
+  path: ["procedure", "search"],
+  input: searchInputSchema,
+  output: SearchOutputSchema,
+  metadata: {
+    description: "Search the procedures by words: the best matches of the key, the tags and the description",
+    tags: ["core", "meta"],
+    args: ["query"],
+    shorts: { limit: "l", namespace: "n" },
+    output: "json",
+  },
+  handler: async (input: ProcedureSearchInput, ctx?: ProcedureContext) => {
+    const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
+    // A lazy registry loads each package first: the search reads each procedure (roadmap O93)
+    await loadAllIn(registry);
+    const namespace = input.namespace;
+    const procedures = exposedProcedures(registry, {
+      ...(ctx?.expose ? { expose: ctx.expose } : {}),
+      ...(namespace ? { include: (procedure: AnyProcedure) => procedure.path[0] === namespace } : {}),
+    });
+    const byKey = new Map(procedures.map((procedure) => [pathToKey(procedure.path), procedure]));
+    const documents = procedures.map((procedure) => {
+      const meta = procedure.metadata as ProcedureMetadata | undefined;
+      return { name: pathToKey(procedure.path), words: procedure.path, description: meta?.description, tags: meta?.tags };
+    });
+    const result = searchDocuments(documents, input.query, { limit: input.limit });
+    return {
+      hits: result.hits.map((hit) => ({ path: byKey.get(hit.name)!.path, key: hit.name, description: hit.description, score: hit.score })),
+      matched: result.matched,
+      total: result.total,
+    };
+  },
+});
+
 /**
  * Delete a runtime-defined procedure. A procedure outside the expose rule of the host is not
  * found (R17), so a caller cannot delete a hidden procedure.
@@ -624,6 +718,7 @@ export const metaProcedures: AnyProcedure[] = [
     getProcedureProcedure as AnyProcedure,
     listProceduresProcedure as AnyProcedure,
     manifestProcedure as AnyProcedure,
+    searchProceduresProcedure as AnyProcedure,
   ]),
   ...withEffects({ reads: ["registry"], writes: ["registry"] }, [deleteProcedureProcedure as AnyProcedure]),
 ];

@@ -79,6 +79,7 @@ procedure.get: read only
 procedure.list: read only
 procedure.manifest: read only
 procedure.new: additive
+procedure.search: read only
 program.check: read only
 program.compile: read only
 program.diagram: read only

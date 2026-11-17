@@ -111,6 +111,25 @@ describe("createMcpHost", () => {
     expect(result.structuredContent).toEqual({ text: "doc" });
   });
 
+  it("lists the three search tools with listing search, and finds only the tools of the surface", async () => {
+    const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+    const host = createMcpHost({
+      modules: [appModule],
+      surface: { namespaces: ["app"] },
+      listing: "search",
+      faces: { sdk: serverSide },
+    });
+    const client = await connect(host, clientSide);
+    expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(["search_tools", "describe_tool", "call_tool"]);
+    const search = (await client.callTool({ name: "search_tools", arguments: { query: "app dump get" } })) as { structuredContent?: { hits: { name: string }[] } };
+    expect(search.structuredContent!.hits.map((hit) => hit.name)).not.toContain("admin.dump");
+    expect(search.structuredContent!.hits.map((hit) => hit.name)).toContain("app.get");
+    const called = (await client.callTool({ name: "call_tool", arguments: { name: "app.get" } })) as { structuredContent?: unknown };
+    expect(called.structuredContent).toEqual({ text: "doc" });
+    const refused = (await client.callTool({ name: "call_tool", arguments: { name: "admin.dump" } })) as { isError?: boolean };
+    expect(refused.isError).toBe(true);
+  });
+
   it("gives the interceptors the registry and the expose rule of the host", async () => {
     let seen: { expose?: ((path: ProcedurePath) => boolean) | undefined; calls: number } = { calls: 0 };
     const counter: Interceptor = (_invocation, next) => {

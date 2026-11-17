@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 66. **Procedures:** 510. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 66. **Procedures:** 511. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -16,7 +16,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/better-auth` | `packages/better-auth` | Better Auth for a procedures server: the sign-in with GitHub, Google and passkeys over MongoDB, and a request hook that gives the principal of a session or of an agent token. | — | `client` |
 | `@procedures/browser` | `packages/browser` | Find a Chromium browser that is already installed (Edge, Chrome or Chromium), and render a page with it: a PDF file or a screenshot, with no browser download. Find and read the bookmarks files of the profiles of Chrome, Edge and Chromium. | — | `http`, `shell` |
 | `@procedures/bundle-assistant` | `packages/bundle-assistant` | The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out. | — | `client`, `exif`, `geo`, `http`, `ics`, `mail`, `weather` |
-| `@procedures/bundle-dev` | `packages/bundle-dev` | One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding. | `client.*` (16), `procedure.*` (5) | `cli-run`, `client`, `compiler`, `dag`, `fs`, `git`, `lib`, `pnpm`, `procedure`, `shell` |
+| `@procedures/bundle-dev` | `packages/bundle-dev` | One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding. | `client.*` (16), `procedure.*` (6) | `cli-run`, `client`, `compiler`, `dag`, `fs`, `git`, `lib`, `pnpm`, `procedure`, `shell` |
 | `@procedures/bundle-mcp` | `packages/bundle-mcp` | The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes. | — | `client`, `compiler`, `cue`, `dag`, `docker`, `json`, `lib`, `mongo`, `procedure`, `sqlite`, `vitest` |
 | `@procedures/claude-cli` | `packages/claude-cli` | One turn of the Claude Code CLI as a detached process that writes stream-json to a file: start, follow, normalised events and cancel. | `claude.*` (4) | `client`, `shell` |
 | `@procedures/cli-kit` | `packages/cli-kit` | A command line for any procedure registry: flags from the input schemas, help, --json, questions for missing arguments, @file input, short flags and a format hook for each procedure. | — | `client` |
