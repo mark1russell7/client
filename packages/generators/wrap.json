@@ -4,7 +4,8 @@
   "namespace": ["generators"],
   "manifest": "src/manifest.ts",
   "overlay": {
-    "effects": { "reads": [], "writes": [] }
+    "effects": { "reads": [], "writes": [] },
+    "constructors": { "Random": "random" }
   },
   "pure": true
 }

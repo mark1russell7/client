@@ -130,6 +130,50 @@
         0.2,
         0.5
       ]
+    },
+    {
+      "name": "latin-hypercube-from-a-label",
+      "description": "A Latin hypercube of four points in two dimensions. The procedure makes its Random from a seed, and the seed comes from a label, through deriveSeed.",
+      "program": {
+        "$proc": [
+          "generators",
+          "latinHypercube"
+        ],
+        "input": {
+          "n": 4,
+          "d": 2,
+          "r": {
+            "seed": {
+              "$proc": [
+                "generators",
+                "deriveSeed"
+              ],
+              "input": {
+                "seed": 7,
+                "label": "design"
+              }
+            }
+          }
+        }
+      },
+      "result": [
+        [
+          0.8873362895683385,
+          0.8690022618393414
+        ],
+        [
+          0.5519742068136111,
+          0.4157125820638612
+        ],
+        [
+          0.09121613699244335,
+          0.5413490640348755
+        ],
+        [
+          0.3456299683894031,
+          0.19666967575903982
+        ]
+      ]
     }
   ]
 }

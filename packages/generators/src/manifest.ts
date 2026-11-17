@@ -66,6 +66,19 @@ export const manifest: ExportsManifest = {
         "missing"
       ]
     },
+    "CoveringOptions": {
+      "type": "object",
+      "properties": {
+        "strength": {
+          "type": "number",
+          "description": "The strength `t`: each `t` values of `t` different dimensions are in one row or more. The default is 2."
+        },
+        "candidates": {
+          "type": "number",
+          "description": "The count of candidate rows for each row that the array keeps. The default is `COVERING_CANDIDATES`."
+        }
+      }
+    },
     "Dimension": {
       "type": "object",
       "properties": {
@@ -449,6 +462,47 @@ export const manifest: ExportsManifest = {
         "quantiles"
       ]
     },
+    "SaltelliDesign": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "b": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "ab": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "description": "`ab[i]` is `a` with the column `i` of `b`."
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "ab"
+      ]
+    },
     "Sha256Options": {
       "type": "object",
       "properties": {
@@ -634,6 +688,77 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "coveringArray",
+      "path": [
+        "generators",
+        "coveringArray"
+      ],
+      "description": "This function gives a covering array of strength `t` over dimensions with `levels[i]` levels each. Each row has the index of one level of each dimension. With fewer dimensions than `t`, the array covers each combination of all the dimensions. Thus no dimensions give one empty row, as the product of no sets has one item.",
+      "params": [
+        "levels",
+        "r",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "r": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of random: the procedure makes the Random with random(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "random",
+              "params": [
+                "seed"
+              ]
+            }
+          },
+          "options": {
+            "$ref": "#/$defs/CoveringOptions"
+          }
+        },
+        "required": [
+          "levels",
+          "r"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "dependsOnLibm",
       "path": [
         "generators",
@@ -699,6 +824,82 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "familyPoints",
+      "path": [
+        "generators",
+        "familyPoints"
+      ],
+      "description": "This function gives the points of the family at the points of a unit design.",
+      "params": [
+        "family",
+        "unit",
+        "r"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "family": {
+            "$ref": "#/$defs/InputFamily"
+          },
+          "unit": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "r": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of random: the procedure makes the Random with random(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "random",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "family",
+          "unit",
+          "r"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "fnv1a32",
       "path": [
         "generators",
@@ -735,6 +936,75 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "latinHypercube",
+      "path": [
+        "generators",
+        "latinHypercube"
+      ],
+      "description": "This function gives a Latin hypercube of `n` points in `d` dimensions. Each column has exactly one point in each of the `n` strata `[k/n, (k+1)/n)`. For each column, the draws are one shuffle of the strata, then one draw in each point.",
+      "params": [
+        "n",
+        "d",
+        "r"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "number"
+          },
+          "d": {
+            "type": "number"
+          },
+          "r": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of random: the procedure makes the Random with random(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "random",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "n",
+          "d",
+          "r"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
       },
       "effects": {
         "reads": [],
@@ -916,6 +1186,75 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "randomDesign",
+      "path": [
+        "generators",
+        "randomDesign"
+      ],
+      "description": "This function gives `n` independent uniform points of the unit cube in `d` dimensions. The draws go row by row.",
+      "params": [
+        "n",
+        "d",
+        "r"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "number"
+          },
+          "d": {
+            "type": "number"
+          },
+          "r": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of random: the procedure makes the Random with random(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "random",
+              "params": [
+                "seed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "n",
+          "d",
+          "r"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "recordedSpec",
       "path": [
         "generators",
@@ -939,6 +1278,76 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "$ref": "#/$defs/DistributionSpec"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "saltelliDesign",
+      "path": [
+        "generators",
+        "saltelliDesign"
+      ],
+      "description": "This function gives the Saltelli design for the Sobol indices of a model with `d` inputs: `a`, `b` and the `d` matrices `ab`. The design has `n * (d + 2)` points for the model. `a` comes from `r.fork(\"A\")`, and `b` comes from `r.fork(\"B\")`. With `base` `\"latin\"`, each is a Latin hypercube.",
+      "params": [
+        "n",
+        "d",
+        "r",
+        "base"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "number"
+          },
+          "d": {
+            "type": "number"
+          },
+          "r": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of random: the procedure makes the Random with random(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "random",
+              "params": [
+                "seed"
+              ]
+            }
+          },
+          "base": {
+            "enum": [
+              "random",
+              "latin"
+            ]
+          }
+        },
+        "required": [
+          "n",
+          "d",
+          "r"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/SaltelliDesign"
       },
       "effects": {
         "reads": [],
@@ -1239,6 +1648,79 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "stratifiedDesign",
+      "path": [
+        "generators",
+        "stratifiedDesign"
+      ],
+      "description": "This function gives a stratified grid: `strata` strata on each axis, so `strata^d` cells, and one uniform point in each cell. The cells go in the order of their index in base `strata`, with the first dimension as the last digit.",
+      "params": [
+        "strata",
+        "d",
+        "r",
+        "limit"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "strata": {
+            "type": "number"
+          },
+          "d": {
+            "type": "number"
+          },
+          "r": {
+            "type": "object",
+            "properties": {
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "seed"
+            ],
+            "additionalProperties": false,
+            "description": "The input of random: the procedure makes the Random with random(seed) before the call.",
+            "x-procedures-construct": {
+              "function": "random",
+              "params": [
+                "seed"
+              ]
+            }
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "strata",
+          "d",
+          "r"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "tupleCoverage",
       "path": [
         "generators",
@@ -1290,34 +1772,19 @@ export const manifest: ExportsManifest = {
   ],
   "exempt": [
     {
-      "name": "coveringArray",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
-    },
-    {
       "name": "coveringRows",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
+      "reason": "output-not-json",
+      "detail": "D[string][number]"
     },
     {
       "name": "distributionOf",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
+      "reason": "output-not-json",
+      "detail": "an object with the method cdf"
     },
     {
       "name": "familyMap",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
-    },
-    {
-      "name": "familyPoints",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
-    },
-    {
-      "name": "latinHypercube",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
+      "reason": "output-not-json",
+      "detail": "(unit: readonly number[]) => Readonly<Record<string, number>>"
     },
     {
       "name": "mulberry32",
@@ -1326,38 +1793,23 @@ export const manifest: ExportsManifest = {
     },
     {
       "name": "random",
-      "reason": "output-not-json",
-      "detail": "an object with the method next"
-    },
-    {
-      "name": "randomDesign",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
+      "reason": "function-parameter",
+      "detail": "source: (seed: number) => Source"
     },
     {
       "name": "randomOf",
-      "reason": "output-not-json",
-      "detail": "an object with the method next"
-    },
-    {
-      "name": "saltelliDesign",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
+      "reason": "function-parameter",
+      "detail": "source: (seed: number) => Source"
     },
     {
       "name": "sampler",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
+      "reason": "output-not-json",
+      "detail": "() => number"
     },
     {
       "name": "shrinkPointAsync",
       "reason": "function-parameter",
       "detail": "fails: (point: Readonly<Record<string, number>>) => boolean | Promise<boolean>"
-    },
-    {
-      "name": "stratifiedDesign",
-      "reason": "input-not-json",
-      "detail": "r: an object with the method next"
     }
   ],
   "others": {

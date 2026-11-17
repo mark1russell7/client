@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { Client, ProcedureRegistry, registerModules, type ProcedureContext } from "@procedures/client/browser";
 import { generateExportsManifest } from "./generate.js";
 import { exportInputSchema, exportOutputSchema, exportsModule, jsonValue } from "./exports/load.js";
-import { PROGRAM_KEYWORD, type ExportsManifest, type ExportsProgram } from "./exports/types.js";
+import { CONSTRUCT_KEYWORD, PROGRAM_KEYWORD, type ExportsManifest, type ExportsProgram } from "./exports/types.js";
 import { stubTransport } from "../test/harness.js";
 import * as fixture from "../test/exports/functions.js";
 
@@ -45,18 +45,27 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "apply", "chain", "choose", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "minus", "norm", "nothing", "pair", "pick",
-      "read", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
+      "above", "add", "apply", "chain", "choose", "deal", "depth", "findIndex", "first", "flip", "greet", "identity", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair",
+      "pick", "read", "rolls", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
   it("gives each other function an exemption with its reason", () => {
     expect(manifest.exempt.map(({ name, reason }) => [name, reason])).toEqual([
+      ["bag", "input-not-json"],
       ["big", "input-not-json"],
       ["broken", "input-not-json"],
+      ["coin", "output-not-json"],
       ["counter", "output-not-json"],
+      ["curried", "function-parameter"],
+      ["deck", "output-not-json"],
+      ["die", "input-not-json"],
+      ["draw", "input-not-json"],
       ["each", "function-parameter"],
+      ["either", "input-not-json"],
       ["fail", "output-not-json"],
+      ["fairCoin", "output-not-json"],
+      ["flips", "input-not-json"],
       ["grow", "input-not-json"],
       ["handlerOf", "output-not-json"],
       ["keys", "input-not-json"],
@@ -76,7 +85,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 11 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 15 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -141,6 +150,79 @@ describe("generateExportsManifest", () => {
   it("fails closed on a type that grows at each level", () => {
     expect(manifest.exempt.find((exemption) => exemption.name === "grow")?.detail).toMatch(/^value\.next\.next\..*: a type deeper than 64 levels$/);
     expect(Object.keys(manifest.$defs).filter((name) => name.startsWith("Grow"))).toEqual([]);
+  });
+
+  it("makes a constructed input from the one pure function that gives its type", async () => {
+    const rolls = manifest.procedures.find((procedure) => procedure.name === "rolls")!;
+    expect((rolls.input as { properties: Record<string, unknown> }).properties["die"]).toEqual({
+      type: "object",
+      properties: { seed: { type: "number" } },
+      required: ["seed"],
+      additionalProperties: false,
+      description: "The input of die: the procedure makes the Die with die(seed) before the call.",
+      [CONSTRUCT_KEYWORD]: { function: "die", params: ["seed"] },
+    });
+    const client = clientOf(manifest);
+    // Each call makes a new die, so two calls give the same rolls
+    const expected = fixture.rolls(4, fixture.die(7));
+    expect(await client.exec(["fixture", "rolls"], { count: 4, die: { seed: 7 } })).toEqual(expected);
+    expect(await client.exec(["fixture", "rolls"], { count: 4, die: { seed: 7 } })).toEqual(expected);
+    expect(await client.exec(["fixture", "maybeRoll"], {})).toBe(0);
+    expect(await client.exec(["fixture", "maybeRoll"], { die: { seed: 2 } })).toBe(fixture.maybeRoll(fixture.die(2)));
+    await expect(client.exec(["fixture", "rolls"], { count: 1, die: { seed: "seven" } })).rejects.toThrow();
+    await expect(client.exec(["fixture", "rolls"], { count: 1, die: { seed: 7, faces: {} } })).rejects.toThrow();
+  });
+
+  it("makes a constructed input in a sub-program", async () => {
+    const client = clientOf(manifest);
+    const fn = { $proc: ["fixture", "maybeRoll"], input: { die: { seed: { $ref: "value" } } }, $when: "$never" };
+    expect(await client.exec(["fixture", "apply"], { values: [1, 2, 3], fn })).toEqual([1, 2, 3].map((seed) => fixture.maybeRoll(fixture.die(seed))));
+  });
+
+  it("names the factories when more than one gives the type, and takes the factory of overlay.constructors", async () => {
+    expect(manifest.exempt.find((exemption) => exemption.name === "flips")?.detail).toBe(
+      "coin: an object with the method flip. The functions coin, fairCoin give Coin: overlay.constructors names one",
+    );
+    const chosen = generateExportsManifest({
+      declarations: join(fixtureDir, "fixture.d.ts"),
+      package: "fixture",
+      namespace: ["fixture"],
+      overlay: { effects: PURE, constructors: { Coin: "fairCoin" } },
+    });
+    expect(chosen.procedures.find((procedure) => procedure.name === "flips")?.input).toMatchObject({
+      properties: { coin: { [CONSTRUCT_KEYWORD]: { function: "fairCoin", params: ["seed"] } } },
+    });
+    expect(await clientOf(chosen).exec(["fixture", "flips"], { coin: { seed: 3 } })).toBe(true);
+  }, GENERATE_TIMEOUT);
+
+  it("makes no constructed input from a function with an effect, or from a name of the overlay that is not a factory", () => {
+    const refused = generateExportsManifest({
+      declarations: join(fixtureDir, "fixture.d.ts"),
+      package: "fixture",
+      namespace: ["fixture"],
+      overlay: { effects: PURE, functions: { die: { effects: { reads: ["clock"], writes: [] } } }, constructors: { Coin: "nope" } },
+    });
+    const detail = (name: string) => refused.exempt.find((exemption) => exemption.name === name)?.detail;
+    expect(detail("rolls")).toBe("die: an object with the method roll");
+    expect(detail("flips")).toBe("coin: an object with the method flip. overlay.constructors names nope for Coin, but nope is not a pure function that gives it from JSON");
+  }, GENERATE_TIMEOUT);
+
+  it("refuses a sub-program for a function whose result is a function", () => {
+    expect(manifest.exempt.find((exemption) => exemption.name === "curried")?.detail).toBe("make: (seed: number) => () => number");
+  });
+
+  it("stops the input of a factory at a rest parameter, and makes no input for a union or a factory with no JSON input", async () => {
+    expect(manifest.procedures.find((procedure) => procedure.name === "deal")?.input).toMatchObject({
+      properties: { deck: { [CONSTRUCT_KEYWORD]: { function: "deck", params: ["seed"] } } },
+    });
+    expect(await clientOf(manifest).exec(["fixture", "deal"], { deck: { seed: 4 } })).toBe(4);
+    const detail = (name: string) => manifest.exempt.find((exemption) => exemption.name === name)?.detail;
+    expect(detail("draw")).toBe("bag: an object with the method take");
+    expect(detail("either")).toMatch(/^value: /);
+  });
+
+  it("throws when the package does not export the factory of a constructed input", () => {
+    expect(() => exportsModule(manifest, { ...fixture, die: undefined })).toThrow(/does not export the functions die of its manifest/);
   });
 
   it("gives each type of a union, and an enum for a union of literals", () => {

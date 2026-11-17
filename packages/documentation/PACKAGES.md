@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 62. **Procedures:** 403. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 62. **Procedures:** 409. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -47,7 +47,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/documentation` | `packages/documentation` | — | — | — |
 | `@procedures/env` | `packages/env` | Environment variables as procedures: one variable, the names, and the check of the required ones, with the secrets masked. | `env.*` (3) | `client` |
 | `@procedures/exif` | `packages/exif` | When and where a JPEG photo was taken, from its EXIF block (time, offset, GPS), without a dependency. | `exif.*` (1) | `client` |
-| `@procedures/generators` | `packages/generators` | The functions of @mark1russell7/rigor-generators as procedures, made from its types: seeds, hashes, canonical JSON, draws and designs as typed calls, MCP tools and CLI commands. | `generators.*` (17) | `@mark1russell7/rigor-generators` *(general)*, `client`, `compiler` |
+| `@procedures/generators` | `packages/generators` | The functions of @mark1russell7/rigor-generators as procedures, made from its types: seeds, hashes, canonical JSON, draws and designs as typed calls, MCP tools and CLI commands. | `generators.*` (23) | `@mark1russell7/rigor-generators` *(general)*, `client`, `compiler` |
 | `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim), the time and distance of a drive (OSRM), the great-circle distance and the geohash. | `geo.*` (4) | `@mark1russell7/geo` *(general)*, `client` |
 | `@procedures/gh` | `packages/gh` | The GitHub CLI as procedures: pull requests, workflow runs and artifacts, releases, issues and the GitHub API, with an argument list and no shell. Also a REST client with conditional requests and the limits of the rate. | `gh.*` (16) | `@mark1russell7/service` *(general)*, `client`, `http`, `shell` |
 | `@procedures/http` | `packages/http` | HTTP as procedures: request, JSON, NDJSON and server-sent events, with a host allowlist that refuses private addresses, size limits and the deadline of the call. | `http.*` (4) | `client` |

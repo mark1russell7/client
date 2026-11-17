@@ -16,11 +16,24 @@ A host registers the procedures with `createRegistry(generatorsModule)`, or with
 
 ## Procedures
 
-The package has 17 procedures in the namespace `generators`, one for each function of the library with JSON inputs and a JSON output. Each procedure has no effects: it reads nothing and writes nothing.
+The package has 23 procedures in the namespace `generators`, one for each function of the library with JSON inputs and a JSON output. Each procedure has no effects: it reads nothing and writes nothing.
 
 - The input is an object with one property for each parameter of the function, by its name.
 - The JSON Schemas of the input and the output come from the types. A named type, for example `DistributionSpec`, has one definition in `$defs`.
 - A function parameter is a sub-program: one call of a pure procedure, as data. The `keyOf` of `stablePick` is an example.
+- A parameter `r` of the type `Random` is a constructed input. Its value is the input of `random`, for example `{ "seed": 7 }`.
+
+## Constructed inputs
+
+A `Random` is an object with methods, so it is not JSON. The function `random(seed)` makes it from JSON.
+
+- Before each call, the procedure makes a new `Random` with `random(seed)`. Thus two calls with the same seed give the same value.
+- The parameter `source` of `random` is a function that gives a function. A sub-program gives only JSON, so the input has no `source`.
+- Two functions give a `Random`: `random` and `randomOf`. The field `overlay.constructors` of `wrap.json` names `random`.
+
+```ts
+const output = await invokePath(["generators", "latinHypercube"], { n: 5, d: 3, r: { seed: 7 } }, { registry });
+```
 
 `generatorsManifest` gives the names, the schemas and the effects of each procedure.
 
@@ -37,12 +50,14 @@ const seed = await outputValue(output);
 
 ## The functions with no procedure
 
-14 functions of the library have no procedure. The manifest gives each with its reason:
+8 functions of the library have no procedure. The manifest gives each with its reason:
 
 | Functions | Reason | The cause |
 | --- | --- | --- |
-| `coveringArray`, `coveringRows`, `distributionOf`, `familyMap`, `familyPoints`, `latinHypercube`, `randomDesign`, `saltelliDesign`, `sampler`, `stratifiedDesign` | `input-not-json` | The parameter `r` is a `Random`: an object with methods. |
-| `mulberry32`, `random`, `randomOf` | `output-not-json` | The result is a function or a `Random`. |
+| `familyMap`, `mulberry32`, `sampler` | `output-not-json` | The result is a function. |
+| `random`, `randomOf` | `function-parameter` | The parameter `source` is a function that gives a function. The result is a `Random`, a constructed input of the other procedures. |
+| `distributionOf` | `output-not-json` | The result is a `Distribution`: an object with methods. |
+| `coveringRows` | `output-not-json` | The type of the result is a generic mapped type. |
 | `shrinkPointAsync` | `function-parameter` | The function `fails` can give a promise. |
 
 ## Update the manifest
