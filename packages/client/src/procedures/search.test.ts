@@ -66,6 +66,30 @@ describe("searchDocuments", () => {
     expect(exact[0]!.score).toBeGreaterThan(exact[1]!.score);
   });
 
+  it("matches a synonym of the thesaurus at half weight, below the word itself", () => {
+    const hits = searchDocuments([doc("x.delete", "Delete a thing"), doc("y.remove", "Remove a thing"), doc("z.other", "Keep a thing")], "remove").hits;
+    expect(hits.map((hit) => hit.name)).toEqual(["y.remove", "x.delete"]);
+    expect(hits[0]!.score).toBeGreaterThan(hits[1]!.score);
+    // Each word of a group finds the other words of the group
+    expect(searchDocuments([doc("x.delete"), doc("y.remove"), doc("z.other")], "erase").hits.map((hit) => hit.name)).toEqual(["x.delete", "y.remove"]);
+  });
+
+  it("keeps the IDF of the word itself when its synonyms are common", () => {
+    // Five documents with the synonym delete, or five with a word of no group: the score of x.remove is the same
+    const common = ["a", "b", "c", "d", "e"].map((name) => doc(`${name}.delete`));
+    const other = ["a", "b", "c", "d", "e"].map((name) => doc(`${name}.keep`));
+    const scoreOf = (catalog: SearchDocument[]): number | undefined => searchDocuments([doc("x.remove"), ...catalog], "remove").hits.find((hit) => hit.name === "x.remove")?.score;
+    expect(scoreOf(common)).toBeDefined();
+    expect(scoreOf(common)).toBe(scoreOf(other));
+  });
+
+  it("matches the group of a phrase of two adjacent words of the query", () => {
+    const catalog = [doc("client.parallel", "Run calls in parallel"), doc("client.chain", "Run calls one after another"), doc("clock.time", "The time now")];
+    expect(searchDocuments(catalog, "run calls at the same time").hits[0]!.name).toBe("client.parallel");
+    // The two words in the other order are not the phrase
+    expect(searchDocuments(catalog, "time same").hits.map((hit) => hit.name)).toEqual(["clock.time"]);
+  });
+
   it("reads the tags", () => {
     expect(names("files")).toEqual(["fs.read", "fs.write"]);
   });
