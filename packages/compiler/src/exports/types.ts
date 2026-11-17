@@ -36,6 +36,24 @@ export interface ExportsProgram {
   readonly undefinedForNull?: true;
 }
 
+/**
+ * The keyword of the JSON Schema of a constructed input: a parameter whose value is not JSON. A
+ * pure function of the package makes the value from JSON before each call. Its value is an
+ * `ExportsConstruct`.
+ */
+export const CONSTRUCT_KEYWORD = "x-procedures-construct" as const;
+
+/**
+ * The function that makes the value of a constructed input. The input value is an object with one
+ * property for each parameter of the function, for example `{ "seed": 7 }` for `random(seed)`.
+ */
+export interface ExportsConstruct {
+  /** The name of the export that makes the value. */
+  readonly function: string;
+  /** The names of the parameters of the function, in order: the properties of the input value. */
+  readonly params: readonly string[];
+}
+
 /** The manifest of the procedures of one entry of a package. */
 export interface ExportsManifest {
   readonly format: typeof EXPORTS_MANIFEST_FORMAT;

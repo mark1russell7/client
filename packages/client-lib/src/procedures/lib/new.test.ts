@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { runChecks, type RuleResult } from "@mark1russell7/conventions";
 import { createRegistry, invokePath, outputValue } from "@procedures/client";
 import { libModule } from "../../module.js";
+import { joinGroup } from "./new.js";
 import type { LibNewOutput } from "../../types.js";
 
 const root = mkdtempSync(join(tmpdir(), "client-lib-new-"));
@@ -67,6 +68,8 @@ describe("lib.new", () => {
     const manifestPath = await libNew("fresh", ["dist", "src"]);
     const manifest = manifestOf(manifestPath);
     expect(manifest["name"]).toBe("@procedures/fresh");
+    // A workspace with no changeset config keeps the version of cue
+    expect(manifest["version"]).toBe("0.1.0");
     expect(manifest["files"]).toEqual(["dist", "!dist/.tsbuildinfo", "src"]);
     expect(check().status).toBe("pass");
 
@@ -80,5 +83,50 @@ describe("lib.new", () => {
     const manifestPath = await libNew("current", ["dist", "!dist/.tsbuildinfo", "src"]);
     expect(manifestOf(manifestPath)["files"]).toEqual(["dist", "!dist/.tsbuildinfo", "src"]);
     expect(check().status).toBe("pass");
+  });
+
+  it("joins the fixed group of the client, at the version of the group", async () => {
+    const configPath = join(root, ".changeset", "config.json");
+    mkdirSync(join(root, ".changeset"));
+    mkdirSync(join(root, "packages", "client"));
+    writeFileSync(join(root, "packages", "client", "package.json"), `${JSON.stringify({ name: "@procedures/client", version: "0.60.1" })}
+`);
+    const config = { baseBranch: "main", fixed: [["@procedures/other"], ["@procedures/client", "@procedures/mark"]] };
+    writeFileSync(configPath, `${JSON.stringify(config, null, 2)}
+`);
+
+    expect(manifestOf(await libNew("joined", ["dist", "src"]))["version"]).toBe("0.60.1");
+    expect(JSON.parse(readFileSync(configPath, "utf8"))).toEqual({
+      baseBranch: "main",
+      fixed: [["@procedures/other"], ["@procedures/client", "@procedures/mark", "@procedures/joined"]],
+    });
+
+    // With no group of the client, the package keeps the version of cue, and the config does not change
+    writeFileSync(configPath, `${JSON.stringify({ fixed: [["@procedures/other"]] }, null, 2)}
+`);
+    expect(manifestOf(await libNew("alone", ["dist", "src"]))["version"]).toBe("0.1.0");
+    expect(JSON.parse(readFileSync(configPath, "utf8"))).toEqual({ fixed: [["@procedures/other"]] });
+    rmSync(join(root, ".changeset"), { recursive: true, force: true });
+    rmSync(join(root, "packages", "client"), { recursive: true, force: true });
+  });
+});
+
+describe("joinGroup", () => {
+  it("adds a package to the group of the client one time", () => {
+    expect(joinGroup([["@procedures/client"]], "@procedures/new")).toEqual({ fixed: [["@procedures/client", "@procedures/new"]], changed: true });
+    expect(joinGroup([["@procedures/client", "@procedures/new"]], "@procedures/new")).toEqual({ fixed: [["@procedures/client", "@procedures/new"]], changed: false });
+  });
+
+  it("gives undefined for a value that is not a list of groups of names, or with no group of the client", () => {
+    expect(joinGroup(undefined, "@procedures/new")).toBeUndefined();
+    expect(joinGroup([["@procedures/client", 7]], "@procedures/new")).toBeUndefined();
+    expect(joinGroup(["@procedures/client"], "@procedures/new")).toBeUndefined();
+    expect(joinGroup([["@procedures/other"]], "@procedures/new")).toBeUndefined();
+  });
+
+  it("does not change the groups that it gets", () => {
+    const fixed = [["@procedures/client"]];
+    joinGroup(fixed, "@procedures/new");
+    expect(fixed).toEqual([["@procedures/client"]]);
   });
 });

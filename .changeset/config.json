@@ -66,7 +66,12 @@
       "@procedures/server",
       "@procedures/better-auth",
       "@procedures/access",
-      "@procedures/statistics"
+      "@procedures/statistics",
+      "@procedures/generators",
+      "@procedures/predicates",
+      "@procedures/quantity",
+      "@procedures/algebra",
+      "@procedures/optional"
     ]
   ],
   "linked": [],
