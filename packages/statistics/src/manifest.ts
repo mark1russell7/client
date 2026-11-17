@@ -5956,6 +5956,40 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "runningOf",
+      "path": [
+        "statistics",
+        "runningOf"
+      ],
+      "description": "This function gives the summary of the values of a list or another iterable, in their order.",
+      "params": [
+        "values"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "x-procedures-codec": "iterable"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/RunningSummary"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "runningSd",
       "path": [
         "statistics",
@@ -6790,13 +6824,7 @@ export const manifest: ExportsManifest = {
       }
     }
   ],
-  "exempt": [
-    {
-      "name": "runningOf",
-      "reason": "input-not-json",
-      "detail": "values: Iterable"
-    }
-  ],
+  "exempt": [],
   "others": {
     "classes": [],
     "values": 13,

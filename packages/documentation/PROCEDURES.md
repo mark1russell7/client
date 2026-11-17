@@ -4,12 +4,12 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 511 across 56 namespaces. Loaded 53 package register(s).
+**Total procedures:** 519 across 56 namespaces. Loaded 53 package register(s).
 
 ## Namespaces
 
 - [`_discovery.*`](#_discovery) — 1 procedure(s)
-- [`algebra.*`](#algebra) — 41 procedure(s)
+- [`algebra.*`](#algebra) — 44 procedure(s)
 - [`archive.*`](#archive) — 3 procedure(s)
 - [`claude.*`](#claude) — 4 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
@@ -47,7 +47,7 @@
 - [`privacyScan.*`](#privacyScan) — 2 procedure(s)
 - [`procedure.*`](#procedure) — 13 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
-- [`quantity.*`](#quantity) — 27 procedure(s)
+- [`quantity.*`](#quantity) — 31 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
 - [`s3.*`](#s3) — 13 procedure(s)
 - [`schedule.*`](#schedule) — 4 procedure(s)
@@ -57,7 +57,7 @@
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
 - [`sqlite.*`](#sqlite) — 7 procedure(s)
-- [`statistics.*`](#statistics) — 81 procedure(s)
+- [`statistics.*`](#statistics) — 82 procedure(s)
 - [`systems.*`](#systems) — 1 procedure(s)
 - [`tailscale.*`](#tailscale) — 1 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
@@ -100,6 +100,9 @@
 | `algebra.netemSchedule` | This function gives the outcome of each packet in a netem queue with a rate. A packet that the queue takes leaves at `max(last, at + latency) + time`. `last` is the time to send of the packet before it, and `time` is the time of `netemPacketTime`. The queue holds each packet until it leaves, thus a delay of 100 ms at 1,000 packets per second fills a limit of 100. |
 | `algebra.oomBadness` | This function gives the points of a task for the OOM killer. The points are its resident pages, its swap entries and the pages of its page tables. To this sum, the kernel adds `oom_score_adj` times `totalPages / 1000`, in integer arithmetic. A task at −1000 gives undefined, because the OOM killer does not take it. |
 | `algebra.oomVictim` | This function gives the index of the task that the OOM killer of a cgroup takes: the task with the most points. Of tasks with equal points, the last one in the order of the scan wins (`mm/oom_kill.c`, lines 342-351). A task replaces the choice unless its points are less. It gives undefined when the OOM killer can take no task. |
+| `algebra.parseExpr` | This function parses the arithmetic of a document, or it throws an error that tells where the text stops making sense. |
+| `algebra.portSearchChain` | This function gives the exact chain of the search: the share of each count of connects to one destination, over `rounds` rounds. Each round closes its connections with a reset, and the next round starts where the last connect of the round before put the start. The first round starts at each even offset with the same chance. |
+| `algebra.portSearchShares` | This function gives the law of the search: the share of each count of connects to one destination before `EADDRNOTAVAIL`, over `rounds` rounds. An even range, and a range of one port, give their size in each round: the two passes reach each port. An odd range gives its size or one less, from the exact chain, up to `PORT_SEARCH_CHAIN_LARGEST` ports. |
 | `algebra.portSearchSpan` | This function gives the size that the search reads: the size of the range, rounded down to an even number. |
 | `algebra.probeTrain` | This function gives the times of a train of probes, exactly, in seconds. The first probe is at `first`, and each next probe is one `interval` later, `count` probes in all. A first time without an end gives no probe. An interval without an end gives only the first probe. Keepalive at its defaults sends its probes at 7200 s, 7275 s, and so on to 7800 s. |
 | `algebra.pschedFactor` | This function gives the factor of a rate in bytes per second (`psched_ratecfg_precompute__`). The kernel doubles a factor of 10^9 until the quotient by the rate fills 32 bits. At 125,000 bytes per second, `mult` is 4,194,304,000 and `shift` is 19. |
@@ -613,6 +616,7 @@
 | `quantity.canonicalUnit` | This function gives the canonical spelling of a unit, for data from another system: "hr" is "h". |
 | `quantity.compare` | This function gives -1, 0 or 1. Infinity is larger than all amounts, and equal to itself. |
 | `quantity.convert` | _(no description)_ |
+| `quantity.convertExact` | This function converts a value in one unit, exactly, into another unit. |
 | `quantity.convertible` | _(no description)_ |
 | `quantity.format` | This function prints an amount: "$1,234.56", "$500/mo", "7,875 s", "34.5%", "72°F", "12 reps", "∞ s". |
 | `quantity.formatDuration` | This function prints a time as people say it: "2 h 11 min 15 s", "45 min", "2 days 3 h". A time of less than a second keeps its own unit ("250 ms"). The `parts` option sets the most units that it names, and it rounds the smallest. It is `formatOnScale` with a compound of days, hours, minutes and seconds. |
@@ -623,9 +627,11 @@
 | `quantity.isUnbounded` | _(no description)_ |
 | `quantity.kindOf` | _(no description)_ |
 | `quantity.kindOfQuantity` | This function gives the kind that a quantity measures. |
+| `quantity.lookupAtom` | This function gives the atom that a spelling names: its symbol or one of its aliases. |
 | `quantity.max` | _(no description)_ |
 | `quantity.mean` | This function gives the arithmetic mean. For a logarithmic level, it gives the energy mean: 10·log10 of the mean power. |
 | `quantity.min` | _(no description)_ |
+| `quantity.parseUnit` | This function resolves a unit from its spelling. The spelling has symbols or their aliases, factors joined by `·` or `*`, and one `/` at most. All that follows the slash divides: "kcal/h·kg" is per hour per kilogram. A factor can have a power (`m^2`) and say what it counts (`{rep}`). |
 | `quantity.quantity` | This function makes a quantity, and checks that it has a finite value and a canonical unit. |
 | `quantity.round` | This function rounds an amount to the decimals that its unit keeps (money to the cent), or to `decimals`. |
 | `quantity.sameVector` | _(no description)_ |
@@ -633,6 +639,7 @@
 | `quantity.sub` | _(no description)_ |
 | `quantity.sum` | This function gives the sum in `unit`, or in the unit of the first amount. An empty sum needs `unit`. |
 | `quantity.toNanoseconds` | This function gives a time as a whole number of nanoseconds, or refuses it. A double holds each whole nanosecond for approximately 104 days. |
+| `quantity.tryParseUnit` | This function gives the unit of a spelling, or undefined when the spelling names no unit. |
 | `quantity.unbounded` | _(no description)_ |
 | `quantity.valueIn` | This function gives the number that a quantity is in a unit. |
 | `quantity.whyNotConvertible` | This function gives the reason that `from` cannot become `to`, or undefined when it can. |
@@ -792,6 +799,7 @@
 | `statistics.responseCells` | This function gives the number of fitted places of a view before the view starts: the product of the lengths of its axes. A level axis counts its levels, and a continuous axis counts `steps`. The field `nearest` reads each point at each place, so the reads of a view are this count times the number of points. The default of `steps` is the default of a view. The function throws a RangeError for an unknown dimension, for one dimension named two times, and for a bad `steps`. |
 | `statistics.ridgeSolve` | This function gives the coefficients `beta` that solve `(gram + lambda * P) beta = moment`. - `gram` is the symmetric matrix `X'X` of size `k`, in row order. The function reads only its lower triangle. - `moment` is the vector `X'y` of length `k`. - With `lambda` 0, the result is the ordinary least-squares fit. |
 | `statistics.runningMean` | This function gives the mean of the values: `sum / n`. It throws a RangeError for the empty summary. |
+| `statistics.runningOf` | This function gives the summary of the values of a list or another iterable, in their order. |
 | `statistics.runningSd` | This function gives the sample standard deviation of the values (the divisor is n - 1). It needs 2 values or more. Equal values give exactly 0, as `sd` gives. A rounding error cannot make the result NaN. |
 | `statistics.sampleTotalInterval` | A bootstrap interval of the total of a population from a uniform sample of `m` of its `n` items, drawn without replacement. The estimate is `scale * sum(values)`. Each run draws `m` values with replacement, as `bootstrap` does. The deviation of each run from the sum of the sample gets the factor `scale * sqrt(1 - m / n)`, the finite population correction. When `m` is `n`, the interval is the estimate. |
 | `statistics.sd` | The sample standard deviation (the divisor is n - 1). It needs 2 values or more. Equal values give exactly 0. The rounding of the mean gives a small number that is not 0 for some equal values, so the function examines them first. |

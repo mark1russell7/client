@@ -126,6 +126,21 @@
         "y"
       ]
     },
+    "Source": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "x-procedures-codec": "iterable"
+        }
+      },
+      "required": [
+        "values"
+      ]
+    },
     "Spec": {
       "anyOf": [
         {
@@ -362,6 +377,40 @@
         "items": {
           "type": "number"
         }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "big",
+      "path": [
+        "fixture",
+        "big"
+      ],
+      "description": "Twice a big number: a bigint is a decimal string in JSON.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "pattern": "^-?(0|[1-9][0-9]*)$",
+            "x-procedures-codec": "bigint"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$",
+        "x-procedures-codec": "bigint"
       },
       "effects": {
         "reads": [],
@@ -620,6 +669,165 @@
       }
     },
     {
+      "name": "distinct",
+      "path": [
+        "fixture",
+        "distinct"
+      ],
+      "description": "The distinct words: a ReadonlySet is a list in JSON.",
+      "params": [
+        "words"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "x-procedures-codec": "iterable"
+          }
+        },
+        "required": [
+          "words"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "x-procedures-codec": "set"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "drain",
+      "path": [
+        "fixture",
+        "drain"
+      ],
+      "description": "The sum of the values of a source: an input can hold an iterable.",
+      "params": [
+        "source"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "draw",
+      "path": [
+        "fixture",
+        "draw"
+      ],
+      "description": "One number of a bag: a constructed input with a set.",
+      "params": [
+        "bag"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "bag": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "x-procedures-codec": "set"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "additionalProperties": false,
+            "description": "The input of bag: the procedure makes the Bag with bag(items) before the call.",
+            "x-procedures-construct": {
+              "function": "bag",
+              "params": [
+                "items"
+              ]
+            }
+          }
+        },
+        "required": [
+          "bag"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "exactly",
+      "path": [
+        "fixture",
+        "exactly"
+      ],
+      "description": "Twice a bigint literal: its decimal string.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "const": "7",
+                "x-procedures-codec": "bigint"
+              },
+              {
+                "const": "-7",
+                "x-procedures-codec": "bigint"
+              }
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$",
+        "x-procedures-codec": "bigint"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "findIndex",
       "path": [
         "fixture",
@@ -825,6 +1033,97 @@
       }
     },
     {
+      "name": "keys",
+      "path": [
+        "fixture",
+        "keys"
+      ],
+      "description": "A count of the keys of a map: a Map is a list of entries in JSON.",
+      "params": [
+        "map"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "map": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "x-procedures-codec": "map"
+          }
+        },
+        "required": [
+          "map"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "kindOf",
+      "path": [
+        "fixture",
+        "kindOf"
+      ],
+      "description": "The type of a number or of a stamp: a union with a bigint in a member.",
+      "params": [
+        "value"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string",
+                    "pattern": "^-?(0|[1-9][0-9]*)$",
+                    "x-procedures-codec": "bigint"
+                  }
+                },
+                "required": [
+                  "at"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "known",
       "path": [
         "fixture",
@@ -919,17 +1218,35 @@
             "properties": {
               "seed": {
                 "type": "number"
+              },
+              "faces": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "x-procedures-codec": "map"
               }
             },
             "required": [
               "seed"
             ],
             "additionalProperties": false,
-            "description": "The input of die: the procedure makes the Die with die(seed) before the call.",
+            "description": "The input of die: the procedure makes the Die with die(seed, faces) before the call.",
             "x-procedures-construct": {
               "function": "die",
               "params": [
-                "seed"
+                "seed",
+                "faces"
               ]
             }
           }
@@ -1232,17 +1549,35 @@
             "properties": {
               "seed": {
                 "type": "number"
+              },
+              "faces": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "x-procedures-codec": "map"
               }
             },
             "required": [
               "seed"
             ],
             "additionalProperties": false,
-            "description": "The input of die: the procedure makes the Die with die(seed) before the call.",
+            "description": "The input of die: the procedure makes the Die with die(seed, faces) before the call.",
             "x-procedures-construct": {
               "function": "die",
               "params": [
-                "seed"
+                "seed",
+                "faces"
               ]
             }
           }
@@ -1373,6 +1708,80 @@
             "type": "null"
           }
         ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sizeOf",
+      "path": [
+        "fixture",
+        "sizeOf"
+      ],
+      "description": "A callback with a map parameter: the sub-program gets the list of entries.",
+      "params": [
+        "fn"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "fn": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (map: Map<string, number>) => number. It reads each parameter as {\"$ref\": \"<name>\"}: map.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "map"
+              ],
+              "inputs": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "x-procedures-codec": "map"
+                }
+              ],
+              "output": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
       },
       "effects": {
         "reads": [],
@@ -1534,6 +1943,119 @@
       }
     },
     {
+      "name": "stamp",
+      "path": [
+        "fixture",
+        "stamp"
+      ],
+      "description": "A bigint in a property: its decimal string.",
+      "params": [
+        "record"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)$",
+                "x-procedures-codec": "bigint"
+              }
+            },
+            "required": [
+              "at"
+            ]
+          }
+        },
+        "required": [
+          "record"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "step",
+      "path": [
+        "fixture",
+        "step"
+      ],
+      "description": "One more than the step of a bigint: a sub-program gives a bigint to the package.",
+      "params": [
+        "value",
+        "by"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "pattern": "^-?(0|[1-9][0-9]*)$",
+            "x-procedures-codec": "bigint"
+          },
+          "by": {
+            "type": "object",
+            "description": "One call of a pure procedure, as data, for the function (value: bigint) => bigint. It reads each parameter as {\"$ref\": \"<name>\"}: value.",
+            "required": [
+              "$proc"
+            ],
+            "properties": {
+              "$proc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "input": {},
+              "$when": {
+                "const": "$never"
+              }
+            },
+            "x-procedures-program": {
+              "params": [
+                "value"
+              ],
+              "inputs": [
+                {
+                  "type": "string",
+                  "pattern": "^-?(0|[1-9][0-9]*)$",
+                  "x-procedures-codec": "bigint"
+                }
+              ],
+              "output": {
+                "type": "string",
+                "pattern": "^-?(0|[1-9][0-9]*)$",
+                "x-procedures-codec": "bigint"
+              }
+            }
+          }
+        },
+        "required": [
+          "value",
+          "by"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$",
+        "x-procedures-codec": "bigint"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "strict",
       "path": [
         "fixture",
@@ -1565,6 +2087,87 @@
       },
       "output": {
         "const": "yes"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sumOf",
+      "path": [
+        "fixture",
+        "sumOf"
+      ],
+      "description": "The sum of the values of an iterable: a list in JSON.",
+      "params": [
+        "values"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "x-procedures-codec": "iterable"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "tally",
+      "path": [
+        "fixture",
+        "tally"
+      ],
+      "description": "The count of each word: a ReadonlyMap is a list of entries in JSON.",
+      "params": [
+        "words"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "words"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "x-procedures-codec": "map"
       },
       "effects": {
         "reads": [],
@@ -1699,13 +2302,8 @@
   "exempt": [
     {
       "name": "bag",
-      "reason": "input-not-json",
-      "detail": "items: Set"
-    },
-    {
-      "name": "big",
-      "reason": "input-not-json",
-      "detail": "value: bigint"
+      "reason": "output-not-json",
+      "detail": "an object with the method take"
     },
     {
       "name": "broken",
@@ -1735,12 +2333,7 @@
     {
       "name": "die",
       "reason": "input-not-json",
-      "detail": "faces: Map"
-    },
-    {
-      "name": "draw",
-      "reason": "input-not-json",
-      "detail": "bag: an object with the method take"
+      "detail": "clock: Date"
     },
     {
       "name": "each",
@@ -1763,6 +2356,11 @@
       "detail": "an object with the method flip"
     },
     {
+      "name": "feed",
+      "reason": "function-parameter",
+      "detail": "fn: (values: Iterable<number>) => number"
+    },
+    {
       "name": "flips",
       "reason": "input-not-json",
       "detail": "coin: an object with the method flip. The functions coin, fairCoin give Coin: overlay.constructors names one"
@@ -1778,14 +2376,14 @@
       "detail": "run: a function"
     },
     {
-      "name": "keys",
-      "reason": "input-not-json",
-      "detail": "map: Map"
-    },
-    {
       "name": "later",
       "reason": "function-parameter",
       "detail": "fn: (value: number) => Promise<number>"
+    },
+    {
+      "name": "lock",
+      "reason": "input-not-json",
+      "detail": "at: Date"
     },
     {
       "name": "measure",
@@ -1793,24 +2391,24 @@
       "detail": "shape: an object with the method area"
     },
     {
+      "name": "naturals",
+      "reason": "output-not-json",
+      "detail": "Iterable"
+    },
+    {
+      "name": "opens",
+      "reason": "input-not-json",
+      "detail": "lock: an object with the method open"
+    },
+    {
       "name": "parse",
       "reason": "overload",
       "detail": "2 signatures"
     },
     {
-      "name": "sizeOf",
-      "reason": "function-parameter",
-      "detail": "fn: (map: Map<string, number>) => number"
-    },
-    {
-      "name": "stamp",
-      "reason": "input-not-json",
-      "detail": "record.at: bigint"
-    },
-    {
-      "name": "tally",
+      "name": "sourceOf",
       "reason": "output-not-json",
-      "detail": "ReadonlyMap"
+      "detail": "values: Iterable"
     },
     {
       "name": "twice",
@@ -1833,6 +2431,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 15
+    "types": 17
   }
 }

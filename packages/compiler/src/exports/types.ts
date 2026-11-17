@@ -54,6 +54,23 @@ export interface ExportsConstruct {
   readonly params: readonly string[];
 }
 
+/**
+ * The keyword of the JSON Schema of a value that JSON cannot hold, for example a `bigint`. Its value
+ * is an `ExportsCodec`. The loader decodes the JSON form of an input before the call. `jsonValue()`
+ * gives the JSON form of an output.
+ */
+export const CODEC_KEYWORD = "x-procedures-codec" as const;
+
+/**
+ * The JSON form of a value that JSON cannot hold (d40-generator-codecs):
+ *
+ * - `bigint`: a decimal string, for example `"-42"`.
+ * - `map`: a `Map` or a `ReadonlyMap` is a list of entries, each one `[key, value]`.
+ * - `set`: a `Set` or a `ReadonlySet` is a list of values.
+ * - `iterable`: an `Iterable` input is a list. An output stays exempt, because an iterable can have no end.
+ */
+export type ExportsCodec = "bigint" | "map" | "set" | "iterable";
+
 /** The manifest of the procedures of one entry of a package. */
 export interface ExportsManifest {
   readonly format: typeof EXPORTS_MANIFEST_FORMAT;
@@ -110,9 +127,9 @@ export type ExportExemptionReason =
    * has a type that is not JSON.
    */
   | "function-parameter"
-  /** An input is not JSON, for example a `Map`, a `bigint` or a class instance. */
+  /** An input is not JSON and has no codec, for example a `Date`, a `WeakMap` or a class instance. */
   | "input-not-json"
-  /** The output is not JSON, for example a class instance: a handle (d40-handles). */
+  /** The output is not JSON, for example a class instance (a handle, d40-handles) or an `Iterable`. */
   | "output-not-json"
   /** The function has more than one signature. */
   | "overload"

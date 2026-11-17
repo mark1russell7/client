@@ -20,12 +20,19 @@ describe("@procedures/algebra", () => {
     await expect(call("udpFrameLength", { payload: 1000, family: 5 })).rejects.toThrow();
   });
 
+  it("gives a map the list of its entries, and a bigint its decimal string", async () => {
+    expect(await call("portSearchShares", { size: 4, rounds: 2 })).toEqual([...home.portSearchShares(4, 2)]);
+    expect(await call("portSearchChain", { size: 3 })).toEqual([...home.portSearchChain(3)]);
+    const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (_key, item: unknown) => (typeof item === "bigint" ? String(item) : item)));
+    expect(await call("parseExpr", { text: "1 + 2 * x" })).toEqual(json(home.parseExpr("1 + 2 * x")));
+  });
+
   it("names runMachine as an exemption, because its clock is not JSON", () => {
     expect(algebraManifest.exempt.find((exemption) => exemption.name === "runMachine")?.detail).toBe("options.clock: an object with the method now");
   });
 
   it("has a procedure with no effect for each function of the home", () => {
-    expect(algebraManifest.procedures).toHaveLength(41);
+    expect(algebraManifest.procedures).toHaveLength(44);
     for (const procedure of algebraManifest.procedures) expect(procedure.effects).toEqual({ reads: [], writes: [] });
   });
 });

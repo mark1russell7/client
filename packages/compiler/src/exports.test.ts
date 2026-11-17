@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 import { Client, ProcedureRegistry, registerModules, type ProcedureContext } from "@procedures/client/browser";
 import { generateExportsManifest } from "./generate.js";
 import { exportInputSchema, exportOutputSchema, exportsModule, jsonValue } from "./exports/load.js";
-import { CONSTRUCT_KEYWORD, PROGRAM_KEYWORD, type ExportsManifest, type ExportsProgram } from "./exports/types.js";
+import { codecDecoder } from "./exports/codecs.js";
+import { CODEC_KEYWORD, CONSTRUCT_KEYWORD, PROGRAM_KEYWORD, type ExportsManifest, type ExportsProgram } from "./exports/types.js";
 import { stubTransport } from "../test/harness.js";
 import * as fixture from "../test/exports/functions.js";
 
@@ -45,36 +46,36 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "anything", "apply", "chain", "choose", "deal", "definite", "depth", "findIndex", "first", "flip", "greet", "identity", "known", "lookup", "maybeRoll", "minus",
-      "norm", "nothing", "pair", "pick", "present", "read", "rolls", "scale", "sideOf", "sizes", "sortBy", "strict", "toggle", "total", "useHandler", "weight",
+      "above", "add", "anything", "apply", "big", "chain", "choose", "deal", "definite", "depth", "distinct", "drain", "draw", "exactly", "findIndex", "first",
+      "flip", "greet", "identity", "keys", "kindOf", "known", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair", "pick", "present", "read", "rolls",
+      "scale", "sideOf", "sizeOf", "sizes", "sortBy", "stamp", "step", "strict", "sumOf", "tally", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
   it("gives each other function an exemption with its reason", () => {
     expect(manifest.exempt.map(({ name, reason }) => [name, reason])).toEqual([
-      ["bag", "input-not-json"],
-      ["big", "input-not-json"],
+      ["bag", "output-not-json"],
       ["broken", "input-not-json"],
       ["coin", "output-not-json"],
       ["counter", "output-not-json"],
       ["curried", "function-parameter"],
       ["deck", "output-not-json"],
       ["die", "input-not-json"],
-      ["draw", "input-not-json"],
       ["each", "function-parameter"],
       ["either", "input-not-json"],
       ["fail", "output-not-json"],
       ["fairCoin", "output-not-json"],
+      ["feed", "function-parameter"],
       ["flips", "input-not-json"],
       ["grow", "input-not-json"],
       ["handlerOf", "output-not-json"],
-      ["keys", "input-not-json"],
       ["later", "function-parameter"],
+      ["lock", "input-not-json"],
       ["measure", "input-not-json"],
+      ["naturals", "output-not-json"],
+      ["opens", "input-not-json"],
       ["parse", "overload"],
-      ["sizeOf", "function-parameter"],
-      ["stamp", "input-not-json"],
-      ["tally", "output-not-json"],
+      ["sourceOf", "output-not-json"],
       ["twice", "function-parameter"],
       ["unset", "input-not-json"],
       ["vanished", "unresolved"],
@@ -86,7 +87,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 15 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 17 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -157,11 +158,14 @@ describe("generateExportsManifest", () => {
     const rolls = manifest.procedures.find((procedure) => procedure.name === "rolls")!;
     expect((rolls.input as { properties: Record<string, unknown> }).properties["die"]).toEqual({
       type: "object",
-      properties: { seed: { type: "number" } },
+      properties: {
+        seed: { type: "number" },
+        faces: { type: "array", items: { type: "array", prefixItems: [{ type: "number" }, { type: "number" }], minItems: 2, maxItems: 2 }, [CODEC_KEYWORD]: "map" },
+      },
       required: ["seed"],
       additionalProperties: false,
-      description: "The input of die: the procedure makes the Die with die(seed) before the call.",
-      [CONSTRUCT_KEYWORD]: { function: "die", params: ["seed"] },
+      description: "The input of die: the procedure makes the Die with die(seed, faces) before the call.",
+      [CONSTRUCT_KEYWORD]: { function: "die", params: ["seed", "faces"] },
     });
     const client = clientOf(manifest);
     // Each call makes a new die, so two calls give the same rolls
@@ -218,7 +222,7 @@ describe("generateExportsManifest", () => {
     });
     expect(await clientOf(manifest).exec(["fixture", "deal"], { deck: { seed: 4 } })).toBe(4);
     const detail = (name: string) => manifest.exempt.find((exemption) => exemption.name === name)?.detail;
-    expect(detail("draw")).toBe("bag: an object with the method take");
+    expect(detail("opens")).toBe("lock: an object with the method open");
     expect(detail("either")).toMatch(/^value: /);
   });
 
@@ -357,7 +361,7 @@ describe("sub-programs", () => {
     expect(detail("later")).toBe("fn: (value: number) => Promise<number>");
     expect(detail("each")).toBe("fn: (value: number) => void");
     expect(detail("twice")).toBe("fn: <T>(value: T) => T");
-    expect(detail("sizeOf")).toBe("fn: (map: Map<string, number>) => number");
+    expect(detail("feed")).toBe("fn: (values: Iterable<number>) => number");
     expect(detail("handlerOf")).toBe("run: a function");
   });
 
@@ -413,8 +417,8 @@ describe("sub-programs", () => {
   });
 
   it("names the property that is not JSON in the detail of an exemption", () => {
-    expect(manifest.exempt.find((exemption) => exemption.name === "stamp")?.detail).toBe("record.at: bigint");
-    expect(manifest.exempt.find((exemption) => exemption.name === "tally")?.detail).toBe("ReadonlyMap");
+    expect(manifest.exempt.find((exemption) => exemption.name === "sourceOf")?.detail).toBe("values: Iterable");
+    expect(manifest.exempt.find((exemption) => exemption.name === "naturals")?.detail).toBe("Iterable");
   });
 
   it("takes a call with no $when outside a program, as an MCP tool gets it", async () => {
@@ -489,5 +493,75 @@ describe("sub-programs", () => {
     const ctx = { registry, expose: (path: readonly string[]) => path[1] !== "add" } as unknown as ProcedureContext;
     await expect(apply.handler!({ values: [1], fn: sum(ref("value"), 1) }, ctx)).rejects.toThrow("calls fixture.add, which is not an operator that this caller reaches");
     expect(await apply.handler!({ values: [1], fn: op(["fixture", "minus"], { a: ref("value"), b: 1 }) }, ctx)).toEqual([0]);
+  });
+});
+
+describe("codecs", () => {
+  const client = clientOf(manifest);
+  const inputOf = (name: string) => manifest.procedures.find((procedure) => procedure.name === name)!.input;
+
+  it("gives a bigint its decimal string, in an input and in an output, also past the safe integers", async () => {
+    expect(inputOf("big")).toMatchObject({ properties: { value: { type: "string", pattern: "^-?(0|[1-9][0-9]*)$", [CODEC_KEYWORD]: "bigint" } } });
+    expect(await client.exec(["fixture", "big"], { value: "9007199254740993" })).toBe("18014398509481986");
+    expect(await client.exec(["fixture", "big"], { value: "-21" })).toBe("-42");
+    expect(await client.exec(["fixture", "stamp"], { record: { at: "5" } })).toBe(5);
+    for (const value of [7, "1.5", "007", "+7", ""]) await expect(client.exec(["fixture", "big"], { value }), String(value)).rejects.toThrow();
+  });
+
+  it("gives a bigint literal its decimal string", async () => {
+    expect(await client.exec(["fixture", "exactly"], { value: "-7" })).toBe("-14");
+    await expect(client.exec(["fixture", "exactly"], { value: "8" })).rejects.toThrow();
+  });
+
+  it("decodes a union with the first member that accepts the value", async () => {
+    expect(await client.exec(["fixture", "kindOf"], { value: 3 })).toBe("number");
+    expect(await client.exec(["fixture", "kindOf"], { value: { at: "3" } })).toBe("bigint");
+  });
+
+  it("gives a map the list of its entries, and a set the list of its values", async () => {
+    expect(await client.exec(["fixture", "keys"], { map: [["a", 1], ["b", 2]] })).toBe(2);
+    expect(await client.exec(["fixture", "tally"], { words: ["a", "b", "a"] })).toEqual([["a", 2], ["b", 1]]);
+    expect(await client.exec(["fixture", "distinct"], { words: ["a", "b", "a"] })).toEqual(["a", "b"]);
+    await expect(client.exec(["fixture", "keys"], { map: { a: 1 } })).rejects.toThrow();
+    await expect(client.exec(["fixture", "keys"], { map: [["a"]] })).rejects.toThrow();
+  });
+
+  it("takes a list for an iterable input, and refuses an iterable output", async () => {
+    expect(await client.exec(["fixture", "sumOf"], { values: [1, 2, 3] })).toBe(6);
+    expect(await client.exec(["fixture", "drain"], { source: { values: [1, 2] } })).toBe(3);
+    const detail = (name: string) => manifest.exempt.find((exemption) => exemption.name === name)?.detail;
+    expect(detail("naturals")).toBe("Iterable");
+    expect(detail("sourceOf")).toBe("values: Iterable");
+    expect(detail("feed")).toBe("fn: (values: Iterable<number>) => number");
+  });
+
+  it("decodes the codecs of a constructed input before its factory makes the value", async () => {
+    const faces: Array<[number, number]> = [[1, 6], [3, 2]];
+    expect(await client.exec(["fixture", "rolls"], { count: 6, die: { seed: 7, faces } })).toEqual(fixture.rolls(6, fixture.die(7, new Map(faces))));
+    expect(await client.exec(["fixture", "draw"], { bag: { items: [3, 1, 3] } })).toBe(3);
+  });
+
+  it("gives a sub-program the JSON form of a value, and the package the decoded result", async () => {
+    const keys = { $proc: ["fixture", "keys"], input: { map: { $ref: "map" } }, $when: "$never" };
+    expect(await client.exec(["fixture", "sizeOf"], { fn: keys })).toBe(2);
+    const twice = { $proc: ["fixture", "big"], input: { value: { $ref: "value" } }, $when: "$never" };
+    expect(await client.exec(["fixture", "step"], { value: "5", by: twice })).toBe("11");
+  });
+
+  it("gives the JSON form of a bigint, a map and a set in jsonValue()", () => {
+    expect(jsonValue({ count: 1n, index: new Map([[2n, new Set([3n, undefined])]]) })).toEqual({ count: "1", index: [["2", ["3", null]]] });
+  });
+
+  it("gives no decoder for a schema with no codec, and keeps a value that no member of a union accepts", () => {
+    expect(codecDecoder({ type: "object", properties: { at: { type: "number" } } }, {})).toBeUndefined();
+    const bigint = { type: "string", pattern: "^-?(0|[1-9][0-9]*)$", [CODEC_KEYWORD]: "bigint" };
+    const decode = codecDecoder({ anyOf: [bigint, { type: "boolean" }] }, {})!;
+    expect(decode("12")).toBe(12n);
+    expect(decode(true)).toBe(true);
+    expect(decode(null)).toBe(null);
+    // Through a definition, also one that refers to itself
+    const defs = { Chain: { type: "object", properties: { at: bigint, next: { $ref: "#/$defs/Chain" } } } };
+    const chain = codecDecoder({ $ref: "#/$defs/Chain" }, defs)!;
+    expect(chain({ at: "1", next: { at: "2" } })).toEqual({ at: 1n, next: { at: 2n } });
   });
 });
