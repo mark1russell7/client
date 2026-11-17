@@ -4,9 +4,14 @@
  */
 
 import * as z from "zod";
-import { defineModule, defineProcedure, type AnyProcedure, type ProcedureModule } from "@procedures/client/browser";
+import { defineModule, defineProcedure, type AnyProcedure, type Effects, type ProcedureContext, type ProcedureModule } from "@procedures/client/browser";
 import type { ExportProcedure, ExportsJsonSchema, ExportsManifest } from "./types.js";
 import { EXPORTS_MANIFEST_FORMAT } from "./types.js";
+import { withDefinitions } from "./definitions.js";
+import { jsonValue } from "./json.js";
+import { reachesProgram, registerOperator, withSubPrograms } from "./programs.js";
+
+export { jsonValue } from "./json.js";
 
 /** The options of `exportsModule()`. */
 export interface ExportsModuleOptions {
@@ -18,6 +23,7 @@ export interface ExportsModuleOptions {
  * This function gives a procedure module from an exports manifest and the functions of its
  * package, for example `exportsModule(manifest, await import("@mark1russell7/rigor-statistics"))`.
  * Each procedure gives the properties of its input to its function in the order of `params`.
+ * A call at a sub-program position of the input becomes a function (`./programs.ts`).
  *
  * The function throws when the manifest names a function that the package does not export: then
  * the manifest is older or newer than the package.
@@ -60,7 +66,9 @@ function procedureOf(
 ): AnyProcedure {
   const input = z.fromJSONSchema(withDefinitions(procedure.input, defs) as never);
   const output = z.fromJSONSchema(withDefinitions(procedure.output, defs) as never);
-  return defineProcedure({
+  const programs = reachesProgram(procedure.input, defs);
+  const call = (record: Record<string, unknown>): unknown => fn(...argumentsOf(procedure, record));
+  const defined = defineProcedure({
     path: [...procedure.path],
     input,
     output,
@@ -68,75 +76,31 @@ function procedureOf(
       ...(procedure.description !== undefined ? { description: procedure.description } : {}),
       ...(procedure.effects !== undefined ? { effects: procedure.effects } : {}),
     },
-    handler: async (value: unknown) => {
-      const record = (value ?? {}) as Record<string, unknown>;
-      const args = procedure.params.map((name) => record[name]);
-      // Trailing absent arguments stay absent, so a default parameter applies
-      while (args.length > 0 && args[args.length - 1] === undefined) args.pop();
-      if (procedure.rest !== undefined) {
-        const rest = record[procedure.rest];
-        if (Array.isArray(rest)) args.push(...(rest as unknown[]));
-      }
-      return jsonValue(await fn(...args));
+    handler: async (value: unknown, ctx?: ProcedureContext) => {
+      let record = (value ?? {}) as Record<string, unknown>;
+      if (programs) record = (await withSubPrograms(record, procedure.input, defs, procedure.path, ctx)) as Record<string, unknown>;
+      return jsonValue(await call(record));
     },
   }) as AnyProcedure;
+  // A sub-program calls a pure function that gives its value at once, and that takes no sub-program
+  if (!programs && procedure.async !== true && isPure(procedure.effects)) {
+    registerOperator(defined.handler as object, { path: procedure.path, input, call: (record) => jsonValue(call(record)) });
+  }
+  return defined;
 }
 
-/**
- * The value as JSON gives it, so a call in process gives the output of a call over HTTP. An
- * absent value and an undefined item of an array become null. A property with an undefined value
- * is absent. This function copies only the arrays and objects that change.
- */
-export function jsonValue(value: unknown): unknown {
-  if (value === undefined) return null;
-  if (Array.isArray(value)) {
-    let copy: unknown[] | undefined;
-    for (const [index, item] of value.entries()) {
-      const json = jsonValue(item);
-      if (json !== item) (copy ??= [...value])[index] = json;
-    }
-    return copy ?? value;
-  }
-  if (value === null || typeof value !== "object") return value;
-  const prototype = Object.getPrototypeOf(value) as unknown;
-  if (prototype !== Object.prototype && prototype !== null) return value;
-  let copy: Record<string, unknown> | undefined;
-  for (const [key, item] of Object.entries(value)) {
-    if (item === undefined) {
-      copy ??= { ...value };
-      delete copy[key];
-      continue;
-    }
-    const json = jsonValue(item);
-    if (json !== item) (copy ??= { ...value })[key] = json;
-  }
-  return copy ?? value;
+/** The arguments of a function from the properties of its input, in the order of its parameters. */
+function argumentsOf(procedure: ExportProcedure, record: Record<string, unknown>): unknown[] {
+  const args = procedure.params.map((name) => record[name]);
+  const rest = procedure.rest !== undefined ? record[procedure.rest] : undefined;
+  const spread = Array.isArray(rest) ? (rest as unknown[]) : [];
+  // Trailing absent arguments stay absent, so a default parameter applies. Before a rest, they stay
+  if (spread.length === 0) while (args.length > 0 && args[args.length - 1] === undefined) args.pop();
+  args.push(...spread);
+  return args;
 }
 
-/** The schema with a `$defs` of each definition that it reaches, so the schema stands alone. */
-function withDefinitions(schema: ExportsJsonSchema, defs: ExportsManifest["$defs"]): ExportsJsonSchema {
-  const reached = new Map<string, ExportsJsonSchema>();
-  const visit = (node: unknown): void => {
-    if (Array.isArray(node)) {
-      for (const item of node) visit(item);
-      return;
-    }
-    if (node === null || typeof node !== "object") return;
-    for (const [key, value] of Object.entries(node)) {
-      if (key === "$ref" && typeof value === "string" && value.startsWith("#/$defs/")) {
-        const name = value.slice("#/$defs/".length);
-        const definition = defs[name];
-        if (definition === undefined) throw new Error(`The schema refers to the definition ${name}, which the manifest does not have`);
-        if (!reached.has(name)) {
-          reached.set(name, definition);
-          visit(definition);
-        }
-      } else {
-        visit(value);
-      }
-    }
-  };
-  visit(schema);
-  if (reached.size === 0) return schema;
-  return { ...schema, $defs: Object.fromEntries(reached) };
+/** True when the effects read nothing and change nothing. */
+function isPure(effects: Effects | undefined): boolean {
+  return effects?.reads !== undefined && effects.reads.length === 0 && effects.writes !== undefined && effects.writes.length === 0;
 }

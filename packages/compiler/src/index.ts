@@ -37,7 +37,7 @@ export type * from "./ir.js";
 export type { CompiledProgram, ProgramContext, RuntimeFrame } from "./runtime.js";
 export { exportsModule, exportInputSchema, exportOutputSchema } from "./exports/load.js";
 export type { ExportsModuleOptions } from "./exports/load.js";
-export { EXPORTS_MANIFEST_FORMAT } from "./exports/types.js";
+export { EXPORTS_MANIFEST_FORMAT, PROGRAM_KEYWORD } from "./exports/types.js";
 export type {
   ExportsManifest,
   ExportProcedure,
@@ -45,4 +45,5 @@ export type {
   ExportExemptionReason,
   ExportOthers,
   ExportsJsonSchema,
+  ExportsProgram,
 } from "./exports/types.js";

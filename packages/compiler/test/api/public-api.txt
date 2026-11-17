@@ -44,6 +44,7 @@ type ExportProcedure: dist/exports/types.d.ts#ExportProcedure
 type ExportsJsonSchema: dist/exports/types.d.ts#ExportsJsonSchema
 type ExportsManifest: dist/exports/types.d.ts#ExportsManifest
 type ExportsModuleOptions: dist/exports/load.d.ts#ExportsModuleOptions
+type ExportsProgram: dist/exports/types.d.ts#ExportsProgram
 type FactsOptions: dist/facts.d.ts#FactsOptions
 type FailNode: dist/ir.d.ts#FailNode
 type IRNode: dist/ir.d.ts#IRNode
@@ -67,6 +68,7 @@ type OpenRpcContentDescriptor: dist/openrpc.d.ts#OpenRpcContentDescriptor
 type OpenRpcDocument: dist/openrpc.d.ts#OpenRpcDocument
 type OpenRpcMethod: dist/openrpc.d.ts#OpenRpcMethod
 type OpenRpcOptions: dist/openrpc.d.ts#OpenRpcOptions
+PROGRAM_KEYWORD: dist/exports/types.d.ts#PROGRAM_KEYWORD
 type ParallelNode: dist/ir.d.ts#ParallelNode
 type Pointer: dist/ir.d.ts#Pointer
 type ProcedureFacts: dist/facts.d.ts#ProcedureFacts
@@ -443,6 +445,17 @@ export interface ExportsManifest {
     readonly exempt: readonly ExportExemption[];
     readonly others: ExportOthers;
 }
+
+### dist/exports/types.d.ts#ExportsProgram
+export interface ExportsProgram {
+    readonly params: readonly string[];
+    readonly inputs: readonly ExportsJsonSchema[];
+    readonly output: ExportsJsonSchema;
+    readonly undefinedForNull?: true;
+}
+
+### dist/exports/types.d.ts#PROGRAM_KEYWORD
+export declare const PROGRAM_KEYWORD: "x-procedures-program";
 
 ### dist/facts.d.ts#Definition
 export interface Definition {
