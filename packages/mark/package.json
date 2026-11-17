@@ -77,6 +77,7 @@
     "@procedures/predicates": "workspace:*",
     "@procedures/procedure": "workspace:*",
     "@procedures/quantity": "workspace:*",
+    "@procedures/rational": "workspace:*",
     "@procedures/server": "workspace:*",
     "@procedures/shell": "workspace:*",
     "@procedures/vitest": "workspace:*",

@@ -1,0 +1,35 @@
+# The public API of @procedures/rational
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+rationalManifest: dist/manifest.d.ts#manifest
+rationalModule: dist/module.d.ts#rationalModule
+registerRationalProcedures: dist/module.d.ts#registerRationalProcedures
+
+## ./module (dist/module.d.ts): names
+
+default: dist/module.d.ts#rationalModule
+rationalManifest: dist/manifest.d.ts#manifest
+rationalModule: dist/module.d.ts#rationalModule
+registerRationalProcedures: dist/module.d.ts#registerRationalProcedures
+
+## ./register (dist/register.d.ts): names
+
+rationalManifest: dist/manifest.d.ts#manifest
+rationalModule: dist/module.d.ts#rationalModule
+registerRationalProcedures: dist/module.d.ts#registerRationalProcedures
+
+## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#rationalModule
+export declare const rationalModule: ProcedureModule;
+
+### dist/module.d.ts#registerRationalProcedures
+export declare function registerRationalProcedures(registry?: ProcedureRegistry): void;

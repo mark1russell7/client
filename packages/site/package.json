@@ -97,6 +97,7 @@
     "@procedures/optional": "workspace:*",
     "@procedures/predicates": "workspace:*",
     "@procedures/quantity": "workspace:*",
+    "@procedures/rational": "workspace:*",
     "@procedures/store": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

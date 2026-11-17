@@ -47,6 +47,8 @@
     "packages/generators/src/module.ts",
     "packages/predicates/README.md",
     "packages/predicates/src/module.ts",
+    "packages/rational/README.md",
+    "packages/rational/src/module.ts",
     "packages/quantity/README.md",
     "packages/quantity/src/module.ts",
     "packages/algebra/README.md",
