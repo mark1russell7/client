@@ -193,8 +193,11 @@ importers:
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.53
         version: 0.2.54(esbuild@0.28.2)
+      '@mark1russell7/rigor-generators':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@mark1russell7/rigor-statistics':
-        specifier: ^0.1.2
+        specifier: ^0.1.22
         version: 0.1.29
       '@mark1russell7/ste-lint':
         specifier: ^0.3.0
