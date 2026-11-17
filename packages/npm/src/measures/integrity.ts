@@ -81,7 +81,9 @@ export async function checkIntegrity(bytes: Uint8Array | ArrayBuffer, integrity:
  */
 export function tarballIntegrity(dist: Pick<RegistryDist, "integrity" | "shasum">): string | null {
   if (dist.integrity !== null) return dist.integrity;
-  if (dist.shasum === null || !/^[0-9a-f]{40}$/i.test(dist.shasum)) return null;
-  const pairs = dist.shasum.match(/../g) ?? [];
-  return `sha1-${btoa(pairs.map((pair) => String.fromCharCode(Number.parseInt(pair, 16))).join(""))}`;
+  const shasum = dist.shasum;
+  if (shasum === null || !/^[0-9a-f]{40}$/i.test(shasum)) return null;
+  let binary = "";
+  for (let i = 0; i < shasum.length; i += 2) binary += String.fromCharCode(Number.parseInt(shasum.slice(i, i + 2), 16));
+  return `sha1-${btoa(binary)}`;
 }
