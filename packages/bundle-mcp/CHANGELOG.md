@@ -1,5 +1,24 @@
 # @procedures/bundle-mcp
 
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [4ce6ac9]
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/compiler@0.62.1
+  - @procedures/client@0.62.1
+  - @procedures/json@0.62.1
+  - @procedures/cue@0.62.1
+  - @procedures/dag@0.62.1
+  - @procedures/docker@0.62.1
+  - @procedures/lib@0.62.1
+  - @procedures/mongo@0.62.1
+  - @procedures/procedure@0.62.1
+  - @procedures/sqlite@0.62.1
+  - @procedures/vitest@0.62.1
+
 ## 0.62.0
 
 ### Patch Changes
