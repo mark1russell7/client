@@ -152,7 +152,7 @@ describe("HandleScope", () => {
   it("gives the JSON Schema of a handle with the keyword of its kind", () => {
     expect(handleSchema("test.Database")).toMatchObject({
       type: "object",
-      properties: { handle: { type: "string", minLength: 1 } },
+      properties: { handle: { type: "string", minLength: 1, description: "The id of the handle. The procedure that opens the object gives it." } },
       required: ["handle"],
       additionalProperties: false,
       [HANDLE_KEYWORD]: "test.Database",

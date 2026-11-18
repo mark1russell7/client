@@ -151,7 +151,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [
@@ -219,7 +220,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [
@@ -271,7 +273,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [
@@ -331,7 +334,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [
@@ -403,7 +407,8 @@ export const manifest: ExportsManifest = {
         "properties": {
           "handle": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "The id of the handle. The procedure that opens the object gives it."
           }
         },
         "required": [
@@ -452,7 +457,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [
@@ -504,7 +510,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [
@@ -564,7 +571,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [
@@ -619,7 +627,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "handle": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "description": "The id of the handle. The procedure that opens the object gives it."
               }
             },
             "required": [

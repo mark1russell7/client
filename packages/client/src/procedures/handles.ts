@@ -34,7 +34,7 @@ export function handleSchema(kind: string | readonly string[]): JsonSchema {
   return {
     type: "object",
     description: `A handle of a ${kinds.join(" or a ")}. The procedure that opens it gives it, and handle.close closes it.`,
-    properties: { handle: { type: "string", minLength: 1 } },
+    properties: { handle: { type: "string", minLength: 1, description: "The id of the handle. The procedure that opens the object gives it." } },
     required: ["handle"],
     additionalProperties: false,
     [HANDLE_KEYWORD]: kinds.length === 1 ? kinds[0]! : kinds,
