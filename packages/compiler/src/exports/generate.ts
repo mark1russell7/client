@@ -964,8 +964,6 @@ const PRIMITIVES: readonly TS.TypeFlags[] = [
   ts.TypeFlags.NonPrimitive,
 ];
 
-/** A comparison of two keys of the same rank: numbers and bigints by value, strings by code unit. */
-<<<<<<< origin/wrap/sqlite
 /**
  * This function throws when the root rules of a function name an input that the function does not
  * have. Then the overlay is older or newer than the package, and the host cannot confine the path.
@@ -978,8 +976,7 @@ function checkRootInputs(name: string, rules: FsRootRules, procedure: ExportProc
   }
 }
 
-=======
->>>>>>> origin/main
+/** A comparison of two keys of the same rank: numbers and bigints by value, strings by code unit. */
 function compareKeys(a: number | bigint | string, b: number | bigint | string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
