@@ -127,7 +127,7 @@ export interface CallLimit {
    * (`LimitedCall.depth`). False: the limit takes the units of the calls of a caller only.
    *
    * The default is false, and the server writes a warning for a limit without this field.
-   * `@procedures/client` 0.64.0 changes the default to true.
+   * `@procedures/client` 0.65.0 changes the default to true.
    */
   readonly nested?: boolean | undefined;
 }

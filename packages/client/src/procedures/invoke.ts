@@ -126,7 +126,7 @@ function checkDepth(invocation: Invocation, maxDepth: number | undefined): void 
   depthWarned = true;
   console.warn(
     `[procedures] The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls. ` +
-      `@procedures/client 0.64.0 refuses a call over the depth ${String(DEPTH_WARNING)}. Set the option maxDepth to keep a larger limit.`,
+      `@procedures/client 0.65.0 refuses a call over the depth ${String(DEPTH_WARNING)}. Set the option maxDepth to keep a larger limit.`,
   );
 }
 

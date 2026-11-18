@@ -482,7 +482,7 @@ describe("the limits of the nested calls", () => {
       {
         level: "warn",
         message:
-          "The limit notes.write counts the calls of a caller only, not their nested calls. @procedures/client 0.64.0 counts the nested calls too. " +
+          "The limit notes.write counts the calls of a caller only, not their nested calls. @procedures/client 0.65.0 counts the nested calls too. " +
           "Set nested: true to count them, or nested: false to keep this rule.",
         fields: { limit: "notes.write" },
       },
