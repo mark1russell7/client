@@ -14,13 +14,18 @@
  * - A limit with `nested: true` takes the units of each nested call that it covers. A refused nested
  *   call gets the code, the wait and the metadata of a refusal at the door. A limit without the
  *   field counts the calls of a caller only, and the server writes a warning.
+ * - An in-flight bound (CLI-132) holds a unit of a call until its value or its error, and a unit of
+ *   a stream until its end or the stop of its reader. A later refusal gives back the unit. A failed
+ *   release writes a warning, and the unit then counts until its lease ends. A seeded law of
+ *   fast-check examines each order of starts and ends.
  * - Each test reads time only from a fake clock: no real sleeps.
  */
 
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import * as z from "zod";
 import { fakeClock, type FakeClock } from "@mark1russell7/service/testing";
-import type { LimiterStore } from "@mark1russell7/service/limiter";
+import { memoryStore, type LimiterStore } from "@mark1russell7/service/limiter";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import { seconds } from "../duration.js";
@@ -81,8 +86,79 @@ function registryOf() {
         return name;
       })
       .build();
-  return createRegistry({ name: "limits-test", procedures: [procedure("write", WRITES), procedure("read", READS), procedure("other", WRITES), fanout] });
+  return createRegistry({
+    name: "limits-test",
+    procedures: [procedure("write", WRITES), procedure("read", READS), procedure("other", WRITES), fanout, hold, feed, nest],
+  });
 }
+
+/** The end of a held call: its value or its error. */
+type HeldEnd = "value" | "error";
+
+/** A gate of a held call: the call waits until the test opens it. */
+interface Gate {
+  readonly opened: Promise<HeldEnd>;
+  readonly open: (end: HeldEnd) => void;
+}
+
+/** The gates of the held calls, by the id of the call. */
+const gates = new Map<string, Gate>();
+
+/** The ids of the held calls whose handler started. */
+const started = new Set<string>();
+
+/** The gate of a call: the test and the handler get the same gate, in each order. */
+function gateOf(id: string): Gate {
+  let gate = gates.get(id);
+  if (gate === undefined) {
+    let open: (end: HeldEnd) => void = () => {};
+    const opened = new Promise<HeldEnd>((resolve) => {
+      open = resolve;
+    });
+    gate = { opened, open };
+    gates.set(id, gate);
+  }
+  return gate;
+}
+
+/** A call that runs until the test opens its gate, then gives its id or an error. */
+const hold = createProcedure()
+  .path(["notes", "hold"])
+  .input(z.object({ id: z.string() }))
+  .output(z.string())
+  .meta({ effects: WRITES })
+  .handler(async ({ id }) => {
+    started.add(id);
+    if ((await gateOf(id).opened) === "error") throw new Error("the held work failed");
+    return id;
+  })
+  .build();
+
+/** A stream that gives one item, waits until the test opens its gate, then gives the last item. */
+const feed = createProcedure()
+  .path(["notes", "feed"])
+  .input(z.object({ id: z.string() }))
+  .output(z.string())
+  .meta({ effects: READS })
+  .handler(
+    (async ({ id }: { id: string }) =>
+      (async function* () {
+        started.add(id);
+        yield "first";
+        await gateOf(id).opened;
+        yield "last";
+      })()) as never,
+  )
+  .build();
+
+/** A call whose nested call holds: the nested call has the id `<id>/inner`. */
+const nest = createProcedure()
+  .path(["notes", "nest"])
+  .input(z.object({ id: z.string() }))
+  .output(z.string())
+  .meta({ effects: WRITES })
+  .handler(async ({ id }, ctx) => ctx.client.call<{ id: string }, string>(["notes", "hold"], { id: `${id}/inner` }))
+  .build();
 
 /** The request hook of the tests: the bearer token `tok-<tenant>` names the tenant of the principal. */
 const principalOf: PrincipalOf = (credentials) => {
@@ -507,4 +583,239 @@ describe("the check of the field nested", () => {
     const limit = { ...WRITES_PER_TENANT, nested: "true" } as unknown as CallLimit;
     expect(() => serverOf([limit])).toThrow('The field nested of the limit notes.writes is true, false or absent, not "true"');
   });
+});
+
+/** The runs of the law of the in-flight bound: `FC_RUNS` sets their count, and `FC_SEED` sets the seed of fast-check. */
+const RUNS = Number(process.env["FC_RUNS"] ?? 100);
+const SEED = Number(process.env["FC_SEED"] ?? 132);
+
+/** The count of the ids of the held calls. */
+let heldCount = 0;
+
+/** This function gives a new id of a held call. */
+const heldId = (): string => `held-${++heldCount}`;
+
+/** This function gives the event loop turns until `done` is true. It fails after 1000 turns, and it reads no clock. */
+async function until(done: () => boolean): Promise<void> {
+  for (let turn = 0; turn < 1000 && !done(); turn++) await new Promise<void>((resolve) => setImmediate(resolve));
+  expect(done()).toBe(true);
+}
+
+/** An in-flight bound of `limit` calls of each tenant, for each call. The lease is one minute, and a refusal waits 5 seconds. */
+function inFlight(limit: number, rest: Partial<CallLimit> = {}): CallLimit {
+  return {
+    name: "notes.in-flight",
+    key: { claim: "tenant" },
+    policy: { type: "in-flight", limit: count(limit), lease: seconds(60), retryAfter: seconds(5) },
+    store: { kind: "local" },
+    evict: { maxKeys: count(100) },
+    nested: false,
+    ...rest,
+  };
+}
+
+/** The end of a call in flight in the law. A stream reads to its end, stops after its first item, or stops before it. */
+type End = "value" | "error" | "stop";
+
+/** A step of the law: the start of a call or a stream of a tenant, or the end of one call in flight. */
+type Step =
+  | { readonly kind: "start"; readonly tenant: "acme" | "beta"; readonly shape: "call" | "stream" }
+  | { readonly kind: "end"; readonly pick: number; readonly how: End };
+
+const step: fc.Arbitrary<Step> = fc.oneof(
+  fc.record({
+    kind: fc.constant("start" as const),
+    tenant: fc.constantFrom("acme" as const, "beta" as const),
+    shape: fc.constantFrom("call" as const, "stream" as const),
+  }),
+  fc.record({ kind: fc.constant("end" as const), pick: fc.nat(), how: fc.constantFrom<End>("value", "error", "stop") }),
+);
+
+/** A call in flight in the model of the law, with the function that ends it. */
+interface Live {
+  readonly tenant: string;
+  readonly end: (how: End) => Promise<void>;
+}
+
+describe("the in-flight limits of the calls (CLI-132)", () => {
+  it("holds a unit until the value or the error of the call, and refuses a call above the bound", async () => {
+    const server = serverOf([inFlight(2)]);
+    const [a, b, c] = [heldId(), heldId(), heldId()];
+    const first = call(server, "acme", "hold", { id: a });
+    const second = call(server, "acme", "hold", { id: b });
+    await until(() => started.has(a) && started.has(b));
+    const refused = await call(server, "acme", "hold", { id: c });
+    expect(refused.status).toMatchObject({ type: "error", code: "RATE_LIMITED", retryable: true });
+    expect(refused.metadata).toEqual({ "retry-after": 5_000, reason: "limit" });
+    expect(started.has(c)).toBe(false);
+    // The other tenant has its own count
+    const other = heldId();
+    gateOf(other).open("value");
+    expect(outcome(await call(server, "beta", "hold", { id: other }))).toBe("ok");
+
+    // The value and the error of a call each give back its unit
+    gateOf(a).open("value");
+    expect(outcome(await first)).toBe("ok");
+    gateOf(b).open("error");
+    expect((await second).status.type).toBe("error");
+    const [d, e] = [heldId(), heldId()];
+    const third = call(server, "acme", "hold", { id: d });
+    const fourth = call(server, "acme", "hold", { id: e });
+    await until(() => started.has(d) && started.has(e));
+    expect(outcome(await call(server, "acme", "hold", { id: heldId() }))).toBe("RATE_LIMITED");
+    gateOf(d).open("value");
+    gateOf(e).open("value");
+    expect([outcome(await third), outcome(await fourth)]).toEqual(["ok", "ok"]);
+  });
+
+  it("holds a unit of a stream until its end, or until its reader stops it, also before the first item", async () => {
+    const server = serverOf([inFlight(1)]);
+    const id = heldId();
+    const response = await call(server, "acme", "feed", { id });
+    const items = response.stream![Symbol.asyncIterator]();
+    expect(await items.next()).toEqual({ done: false, value: "first" });
+    // The stream holds the unit while its reader reads
+    expect(outcome(await call(server, "acme", "read"))).toBe("RATE_LIMITED");
+    gateOf(id).open("value");
+    expect(await items.next()).toEqual({ done: false, value: "last" });
+    expect(await items.next()).toEqual({ done: true, value: undefined });
+
+    // A reader that stops before the first item gives back the unit
+    const unread = await call(server, "acme", "feed", { id: heldId() });
+    expect(outcome(unread)).toBe("ok");
+    await unread.stream![Symbol.asyncIterator]().return?.(undefined);
+    // A reader that stops after the first item gives it back too
+    const stopped = (await call(server, "acme", "feed", { id: heldId() })).stream![Symbol.asyncIterator]();
+    expect((await stopped.next()).value).toBe("first");
+    await stopped.return?.(undefined);
+    expect(outcome(await call(server, "acme", "read"))).toBe("ok");
+  });
+
+  it("gives back the in-flight unit of a call that a later limit refuses", async () => {
+    const writes: CallLimit = { ...ONE_EACH_MINUTE, name: "writes", covers: { routes: ["notes.write"] }, nested: false };
+    const server = serverOf([inFlight(1), writes]);
+    expect(outcome(await call(server, "acme", "write"))).toBe("ok");
+    const refused = await call(server, "acme", "write");
+    expect(refused.status.type === "error" ? refused.status.message : "").toContain("The limit writes");
+    // The in-flight bound has its unit again: a held call goes in
+    const id = heldId();
+    const running = call(server, "acme", "hold", { id });
+    await until(() => started.has(id));
+    gateOf(id).open("value");
+    expect(outcome(await running)).toBe("ok");
+  });
+
+  it("writes a warning when a shared store cannot release, and the unit counts until its lease ends", async () => {
+    const clock = fakeClock();
+    const memory = memoryStore(clock);
+    const failing: LimiterStore = {
+      kind: "shared",
+      take: (request) => memory.take(request),
+      release: () => {
+        throw new Error("the store is down");
+      },
+    };
+    const logger = memoryLogger();
+    const limit = inFlight(1, { store: { kind: "shared", dependency: "redis", onStoreFailure: "closed" } });
+    const server = serverOf([limit], clock, { redis: failing }, logger);
+    const id = heldId();
+    gateOf(id).open("value");
+    // The call ends with its value: the failure of the release stays on the server
+    expect(outcome(await call(server, "acme", "hold", { id }))).toBe("ok");
+    expect(logger.lines).toEqual([
+      {
+        level: "warn",
+        message: "The limit notes.in-flight cannot release the units of a call: the store is down. The units count until their lease ends.",
+        fields: { limit: "notes.in-flight" },
+      },
+    ]);
+    // The unit counts until the end of its lease, one minute after the take
+    expect(outcome(await call(server, "acme", "read"))).toBe("RATE_LIMITED");
+    await clock.advance(60_000);
+    expect(outcome(await call(server, "acme", "read"))).toBe("ok");
+  });
+
+  it("holds a unit of a nested call until the end of the nested call", async () => {
+    const server = serverOf([inFlight(1, { covers: { routes: ["notes.hold"] }, nested: true })]);
+    const outer = heldId();
+    const running = call(server, "acme", "nest", { id: outer });
+    await until(() => started.has(`${outer}/inner`));
+    // The nested call holds the unit of the tenant: a call of the caller is above the bound
+    expect(outcome(await call(server, "acme", "hold", { id: heldId() }))).toBe("RATE_LIMITED");
+    gateOf(`${outer}/inner`).open("value");
+    expect(await running).toMatchObject({ status: { type: "success" }, payload: `${outer}/inner` });
+    const after = heldId();
+    gateOf(after).open("value");
+    expect(outcome(await call(server, "acme", "hold", { id: after }))).toBe("ok");
+  });
+
+  it("keeps at most the bound of each tenant in flight, and gives back each unit at its end, for each order of starts and ends", async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.integer({ min: 1, max: 3 }), fc.array(step, { maxLength: 40 }), async (bound, steps) => {
+        const server = serverOf([inFlight(bound)]);
+        const live: Live[] = [];
+        const inFlightOf = (tenant: string): number => live.filter((one) => one.tenant === tenant).length;
+
+        // This function starts a call or a stream, and tells if the bound let it in
+        const start = async (tenant: string, shape: "call" | "stream"): Promise<boolean> => {
+          const id = heldId();
+          if (shape === "stream") {
+            const response = await call(server, tenant, "feed", { id });
+            if (!response.stream) {
+              expect(outcome(response)).toBe("RATE_LIMITED");
+              return false;
+            }
+            const items = response.stream[Symbol.asyncIterator]();
+            const end = async (how: End): Promise<void> => {
+              if (how === "stop") {
+                await items.return?.(undefined);
+                return;
+              }
+              const seen: unknown[] = [(await items.next()).value];
+              if (how === "error") {
+                await items.return?.(undefined);
+                return;
+              }
+              gateOf(id).open("value");
+              for (let next = await items.next(); next.done !== true; next = await items.next()) seen.push(next.value);
+              expect(seen).toEqual(["first", "last"]);
+            };
+            live.push({ tenant, end });
+            return true;
+          }
+          const settled: { response?: ServerResponse<unknown> } = {};
+          const response = call(server, tenant, "hold", { id }).then((value) => (settled.response = value));
+          await until(() => started.has(id) || settled.response !== undefined);
+          if (settled.response !== undefined) {
+            expect(outcome(settled.response)).toBe("RATE_LIMITED");
+            return false;
+          }
+          const end = async (how: End): Promise<void> => {
+            gateOf(id).open(how === "error" ? "error" : "value");
+            expect((await response).status.type).toBe(how === "error" ? "error" : "success");
+          };
+          live.push({ tenant, end });
+          return true;
+        };
+
+        for (const one of steps) {
+          if (one.kind === "start") {
+            const room = inFlightOf(one.tenant) < bound;
+            expect(await start(one.tenant, one.shape)).toBe(room);
+          } else if (live.length > 0) {
+            const [ended] = live.splice(one.pick % live.length, 1);
+            await ended!.end(one.how);
+          }
+        }
+        // After the end of each call, each tenant has its whole bound again
+        for (const ended of live.splice(0)) await ended.end("value");
+        for (const tenant of ["acme", "beta"]) {
+          for (let n = 0; n < bound; n++) expect(await start(tenant, "call")).toBe(true);
+          expect(await start(tenant, "call")).toBe(false);
+        }
+        for (const ended of live.splice(0)) await ended.end("value");
+      }),
+      { numRuns: RUNS, seed: SEED },
+    );
+  }, 60_000);
 });

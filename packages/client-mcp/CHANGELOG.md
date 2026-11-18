@@ -733,7 +733,7 @@
   PATCH: a fix with no API change.
   
   - This fix applies to both Streamable HTTP faces: `mcpFace()` on a procedures host, and `faces.http` of `createMcpHost()` under `declare(svc)`.
-  - Before, each session kept its GET stream open until the close of the face. The drain of the listener counted each open stream as work in progress. Thus a host with connected MCP clients waited for the full cap of the drain at each stop, also with no call in progress. On the fleet site, six idle clients made each stop wait for its 4 s cap.
+  - Before, each session kept its GET stream open until the close of the face. The drain of the listener counted each open stream as work in progress. Thus a host with connected MCP clients waited for the full cap of the drain at each stop, also with no call in progress. With six idle clients, each stop waited for its 4 s cap.
   - With this fix, the stop of the intake ends the GET stream of each session without a task in progress. The SDK ends the response in its protocol, so a client of the MCP SDK connects again, to the next server. Thus the drain waits only for the calls and the tasks.
   - A session with a task in progress keeps its GET stream, because the progress and the end of the task go on it. The stream ends with the work of the task.
   - After the stop of the intake, a new session and a new GET stream get 503 with `UNAVAILABLE` and `Retry-After`, as on the other faces. A POST or a DELETE of a session goes on, so a call in progress completes with its answer stream.
@@ -760,7 +760,7 @@
 
 ### Patch Changes
 
-- 8970a1e: The credentials of a network request have the connection of its socket (CLI-71). Thus the request hook (`principalOf`), `authenticate` and `ProcedureServer.admission()` can find the caller from its TCP peer. The fleet site finds the Claude session of a caller with it and `resources.peer` of headroom.
+- 8970a1e: The credentials of a network request have the connection of its socket (CLI-71). Thus the request hook (`principalOf`), `authenticate` and `ProcedureServer.admission()` can find the caller from its TCP peer. A host can find the local process of a caller from this peer.
   
   PATCH: a new optional field and a new optional input. Before 1.0, a feature that is compatible with the old API is a PATCH. A hook that does not read the field sees no change.
   

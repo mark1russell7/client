@@ -61,6 +61,9 @@ export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects, INFERRED_EFFECTS_META
 // One manifest type (roadmap R17)
 export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./manifest.js";
 export type { ProcedureEntry, ProcedureManifest, CliDescription, DescribeOptions, DescribeRegistryOptions } from "./manifest.js";
+// The procedures of a running peer, forwarded (d40-tool-surface)
+export { HOST_NAMESPACES, forwardedModule } from "./forward.js";
+export type { ForwardCall, ForwardOptions } from "./forward.js";
 // Idempotency of calls (roadmap R1)
 export {
   IDEMPOTENCY_KEY_METADATA,

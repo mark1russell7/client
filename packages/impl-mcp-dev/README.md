@@ -39,7 +39,7 @@ When the client closes the input of stdio, the server stops: the calls in flight
 
 | Environment variable | Default | Function |
 |---|---|---|
-| `MCP_BUNDLES` | `@procedures/bundle-mcp` | The bundles to load, separated by commas. The server imports `<bundle>/register.js` for each one. `@procedures/bundle-assistant` adds the tools of the assistant. |
+| `MCP_BUNDLES` | `@procedures/bundle-mcp` | The bundles and the module files to load, separated by commas. The server imports `<bundle>/module` for each bundle. A path is a [module file](#the-module-files-of-other-repositories). `@procedures/bundle-assistant` adds the tools of the assistant. |
 | `MCP_SERVER_NAME` | `impl-mcp-dev` | The server name in the MCP handshake |
 | `MCP_SERVER_VERSION` | `1.0.0` | The server version in the MCP handshake |
 | `MCP_DEBUG` | `false` | With `true`, the server writes debug lines to stderr |
@@ -102,6 +102,28 @@ The rules and the table of all the procedures are in [CAPABILITIES-2026-10.md](.
 
 The server sends `console.log` output to stderr, because stdout carries the MCP protocol.
 
+## The module files of other repositories
+
+A repository outside this monorepo can give its tools to this server, with no second MCP server. Put the path of its module file in `MCP_BUNDLES`:
+
+```json
+"env": { "MCP_BUNDLES": "@procedures/bundle-mcp,/path/to/tools/module.mjs" }
+```
+
+- An entry is a module file when it is a `file:` URL, an absolute path, or a path that starts with `./` or `../`. A relative path starts from the folder of the process.
+- The default export of the file is a procedure module: an object with a list of procedures.
+- The export `mcpNamespaces` of the file gives its tools. Without it, the tools are the namespaces of the procedures of the module. The modules in `requires` add no tool.
+- The file can use its own copy of `@procedures/client`. A procedure is data, so the validators of that copy examine each input.
+- When a file does not load, the server stops with a message that names the file. A bundle without a `module` entry cannot have module files next to it.
+
+This module file of one line gives the five tools of Vex. Put it in a folder with `@mark1russell7/vex-mcp` in its `node_modules`:
+
+```js
+export { vexModule as default } from "@mark1russell7/vex-mcp";
+```
+
+`src/module-file.test.ts` loads a module file with no imports next to `bundle-mcp`, and starts its tool through the server.
+
 ## The tool list
 
 `tools.snapshot.txt` has the names of the 94 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
@@ -128,4 +150,5 @@ The bytes are a measure of the tokens. A task is the search listing, one result 
 
 - **No tools in Claude.** Build the monorepo, and examine the path in the configuration. Start the server with `MCP_DEBUG=true` and read stderr.
 - **Old tools or old behavior.** Restart the MCP server after a rebuild.
-- **A bundle fails to load.** The server stops with the message `Failed to load bundle`. Build the bundle, and examine the name in `MCP_BUNDLES`.
+- **A bundle fails to load.** The server stops with the error of the import. Build the bundle, and examine the name in `MCP_BUNDLES`.
+- **A module file fails to load.** The server stops with `MCP_BUNDLES: the module file <path> did not load` and the reason. Examine the path, and install the packages that the file imports.

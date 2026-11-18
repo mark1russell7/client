@@ -1,6 +1,6 @@
 // Read the release history of the packages for the releases page of the site.
 //
-// `@mark1russell7/site-pages` reads the changelogs and the dates (fleet issue #1). The packages of
+// `@mark1russell7/site-pages` reads the changelogs and the dates. The packages of
 // the repository are one fixed version group on npm (`@procedures/*`), so the versions come from
 // the changelog of `@procedures/client`: each release of the group has it. The date of a version
 // is the date of its git tag `@procedures/client@<version>`, else of its GitHub release, else its

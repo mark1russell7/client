@@ -216,6 +216,15 @@ export const NOT_FOUND_META: PageMeta = {
   section: "",
 };
 
+/** The meta data of a page that did not load its data, for example after a deploy removed a chunk. */
+export const LOAD_FAILURE_META: PageMeta = {
+  path: "",
+  title: `Page error | ${SITE_NAME}`,
+  heading: "This page stopped with an error",
+  description: "This page did not load its data. Load the page again.",
+  section: "",
+};
+
 /**
  * Every page that the build writes as its own HTML file: the fixed pages, each procedure and each
  * package. The build gives the full catalog.
