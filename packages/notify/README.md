@@ -125,7 +125,8 @@ await server.close();
 - `twilioBalanceRequest` reads the balance of the account.
 - `twilioMessageListRequest` reads one page of the texts, with the filters `to`, `from`, `dateSentAfter` and `pageSize`. `twilioNextPageRequest` reads the next page.
 - `twilioOptOutKeyword` gives the keyword of a received text: `stop`, `start` or `help`.
-- `extractTwilioText`, `extractTwilioCall`, `extractTwilioBalance` and `extractTwilioMessages` read a response. `callTwilio` sends one request through the fetch that the caller gives.
+- `twilioUsageRecordsRequest` reads one page of the usage records, with the filters `category`, `startDate`, `endDate` and `pageSize`.
+- `extractTwilioText`, `extractTwilioCall`, `extractTwilioBalance`, `extractTwilioMessages` and `extractTwilioUsageRecords` read a response. `callTwilio` sends one request through the fetch that the caller gives.
 
 ```ts
 import { callTwilio, extractTwilioCall, twilioCallRequest, twilioSayTwiml } from "@procedures/notify/twilio";

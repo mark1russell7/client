@@ -1,8 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { build, failedPackages } from "./data";
+import { build, failedPackages } from "./data/site";
 import { href, interceptLinks, routePath, useRoute } from "./lib/router";
-import { metaOf, NOT_FOUND_META } from "./lib/seo";
+import { metaOf, needsCatalog, NOT_FOUND_META, type CatalogData } from "./lib/seo";
 import { cycleTheme, THEME_LABEL, useTheme } from "./lib/theme";
 import { NotFound } from "./pages/NotFound";
 import { Home } from "./pages/Home";
@@ -123,6 +123,20 @@ function Footer(): ReactElement {
   );
 }
 
+/**
+ * The catalog for the meta data of the page of a procedure or of a package. The main bundle does
+ * not hold the catalog, because it grows with each library that becomes procedures. Its code loads
+ * the first time that a route needs it, in the same chunk as the pages that show procedures.
+ */
+function useCatalog(needed: boolean): CatalogData | null {
+  const [catalog, setCatalog] = useState<CatalogData | null>(null);
+  useEffect(() => {
+    if (!needed || catalog !== null) return;
+    void import("./data").then(({ packages, procedures }) => setCatalog({ packages, procedures }));
+  }, [needed, catalog]);
+  return catalog;
+}
+
 /** This function sets the content of a meta element of the head, when the element exists. */
 function setMeta(selector: string, attribute: string, value: string): void {
   document.head.querySelector(selector)?.setAttribute(attribute, value);
@@ -130,7 +144,9 @@ function setMeta(selector: string, attribute: string, value: string): void {
 
 export function App(): ReactElement {
   const route = useRoute();
-  const meta = useMemo(() => metaOf(route), [route.page, route.rest]);
+  const catalog = useCatalog(needsCatalog(route));
+  // Undefined until the catalog loads: the page shows its loading state, and the title changes after
+  const meta = useMemo(() => metaOf(route, catalog), [route.page, route.rest, catalog]);
   const palette = useCommandPalette();
   const [shortcut, setShortcut] = useState("Ctrl K");
   useEffect(() => setShortcut(shortcutLabel()), []);
@@ -138,6 +154,7 @@ export function App(): ReactElement {
   useEffect(() => interceptLinks(), []);
   // The title and the description of the page, as the build writes them in its HTML file
   useEffect(() => {
+    if (meta === undefined) return;
     const current = meta ?? NOT_FOUND_META;
     document.title = current.title;
     setMeta('meta[name="description"]', "content", current.description);

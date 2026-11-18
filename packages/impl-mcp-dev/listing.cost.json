@@ -1,0 +1,7 @@
+{
+  "about": "The limits of the cost gate of the search listing (direction 40). The test listing-cost.test.ts measures the UTF-8 bytes of the JSON that the model reads. searchListingBytes is the list of the three search tools, exactly. worstTaskShare is a ceiling: the most bytes of one task (the search listing, one search_tools result and one describe_tool result for a query of search.golden.json), as a share of the list of each tool of the dev-tools server.",
+  "limits": {
+    "searchListingBytes": 1420,
+    "worstTaskShare": 0.08
+  }
+}

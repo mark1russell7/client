@@ -1,5 +1,50 @@
 # @procedures/client
 
+## 0.63.0
+
+### Minor Changes
+
+- 3dede6e: Break: `HttpServerTransport` applies its CORS only to the base path and the paths under it. Another route of the app gets no CORS header from the transport, and its `OPTIONS` request goes to the route. Before this release, the transport sent the CORS headers on each route of the app, and it answered each `OPTIONS` request of the app. This ends the deprecation of 0.60.1.
+  
+  - With CORS, the preflight request of a batch at the base path itself goes to the procedure handler. The CORS of the handler answers it.
+  - The routes under the base path keep the same CORS headers.
+  
+  Migration steps for the site and each app:
+  
+  1. Find each route of the app outside `basePath` that gets requests from a page on another origin.
+  2. Before each such route, add a CORS function of the app. For a route with credentials, use `credentialedCors()` of `@procedures/client/node`:
+  
+     ```ts
+     import { credentialedCors } from "@procedures/client/node";
+  
+     const cors = credentialedCors(["https://app.example"]);
+     app.use("/auth", (req, res, next) => {
+       if (!cors(req, res)) next();
+     });
+     ```
+  
+  3. For a route without credentials, the `cors` package of Express also does this work.
+  4. The routes under `basePath` need no change.
+
+## 0.62.1
+
+### Patch Changes
+
+- 02582c5: The tool search finds synonyms. A thesaurus of the general words of tool operations gives each word of the query its synonyms at half weight. So `remove` finds `delete`, `download` finds `pull`, and the phrase `same time` finds `parallel`.
+  
+  - Each synonym has its own IDF, so a common synonym does not lower the weight of a rare word of the query.
+  - A document scores the best word of each term, so two synonyms in one document do not count two times.
+  - The golden set of the dev tools has 20 new held-out queries, written before the first run of the synonyms. On the 48 old queries, hit5 goes from 43 to 48 and hit1 from 39 to 43. On the 20 held-out queries, hit5 goes from 16 to 19 and hit1 from 7 to 15.
+  
+  PATCH: before 1.0.0, a backward-compatible feature raises PATCH. The API does not change: `searchDocuments` keeps its signature and only ranks better.
+- 365aad4: The tool search (direction 40, the tool surface). A server with thousands of tools now gives the model three tools in place of each tool.
+  
+  - `@procedures/client`: the new core procedure `procedure.search` finds the procedures by words. It searches only the procedures that the host exposes. The ranking is BM25 over the key, the tags and the description. The functions `searchDocuments` and `searchWords` give the same ranking to each catalog of tools.
+  - `@procedures/mcp-server`: the new option `listing: "search"` of the transport and of `createMcpHost()` lists three tools: `search_tools`, `describe_tool` and `call_tool`. The expose rule and the call policy do not change. The default `"each"` keeps the list of each tool.
+  - `@procedures/mcp-dev-tools` and `@procedures/mark`: `MCP_LISTING=search` and `mark mcp --listing search` start the dev-tools server with the search listing.
+  
+  A list of the three tools is 1410 bytes of JSON. The list of each tool costs about 386 tokens for each tool.
+
 ## 0.62.0
 
 ### Minor Changes

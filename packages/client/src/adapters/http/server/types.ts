@@ -78,11 +78,10 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
   basePath?: string;
 
   /**
-   * Enable CORS.
-   *
-   * Deprecated: the CORS headers on the routes of the app outside the base path. From 0.63.0, the
-   * transport applies CORS only to the base path and the paths under it. An app that needs CORS on
-   * its own routes adds its own CORS function.
+   * Enable CORS for the requests of the procedures: the base path and the paths under it. Another
+   * route of the app gets no CORS header from the transport, and its `OPTIONS` request goes to the
+   * route. For CORS on a route of the app, the app adds its own CORS function, for example
+   * `credentialedCors()`.
    * @default false
    */
   cors?: boolean;
