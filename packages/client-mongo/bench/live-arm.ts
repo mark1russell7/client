@@ -1,5 +1,5 @@
 /**
- * One arm of the live state bench, in its own process: `--arm store|live --case w<writers> --job <n> --counts <file>`.
+ * One arm of the live state bench, in its own process: `--arm <arm> --case w<writers> --job <n> --counts <file>`.
  * The server, the writers and the reader share this process, over real WebSocket connections. The child prints the JSON
  * line of `freshRun`: its time is the reader p99.
  */
@@ -23,12 +23,13 @@ import {
   liveTopic,
   pathToMethod,
   seconds,
+  type CallLimit,
   type LiveEvent,
 } from "@procedures/client";
 import { WebSocketServerTransport } from "@procedures/client/node";
 import { MongoClient } from "mongodb";
 import { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { GRACE_MS, LOAD_MS, SETS_PER_SECOND, plannedSets, writersOf, type LiveArm, type LiveCount } from "./live-cases.js";
+import { BOUND_LIMIT, GRACE_MS, LIVE_ARMS, LOAD_MS, SETS_PER_SECOND, plannedSets, writersOf, type LiveArm, type LiveCount } from "./live-cases.js";
 
 /** The name of the collection and of the live topic. */
 const NAME = "bench_presence";
@@ -46,8 +47,8 @@ interface BenchValue {
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if ((arm !== "store" && arm !== "live" && arm !== "storequiet" && arm !== "storefilter") || caseName === undefined || job === undefined || counts === undefined) {
-  throw new RangeError("this child needs --arm store|live|storequiet|storefilter, --case, --job and --counts");
+if (!(LIVE_ARMS as readonly (string | undefined)[]).includes(arm) || caseName === undefined || job === undefined || counts === undefined) {
+  throw new RangeError(`this child needs --arm ${LIVE_ARMS.join("|")}, --case, --job and --counts`);
 }
 const url = process.env["MONGO_TEST_URL"];
 if (url === undefined) throw new RangeError("this child needs MONGO_TEST_URL");
@@ -62,9 +63,22 @@ const storage = new MongoDocumentStorage<BenchValue>({ collection: NAME, db: () 
 
 const registry = createRegistry();
 registry.registerAll(createCollectionProcedures(NAME, arm === "storefilter" ? { admission: { admit: () => true } } : {}));
+
+/** The in-flight bound of the arm `storebound`: one key for each procedure, so all the sets share the bound. The reads have no bound. */
+const WRITES_IN_FLIGHT: CallLimit = {
+  name: "writes-in-flight",
+  key: "route",
+  covers: { writes: true },
+  policy: { type: "in-flight", limit: { value: BOUND_LIMIT, unit: "count" }, lease: seconds(30), retryAfter: seconds(1) },
+  store: { kind: "local" },
+  evict: { maxKeys: { value: 100, unit: "count" } },
+  nested: false,
+};
+
 const server = new ProcedureServer({
   registry,
   autoRegister: true,
+  ...(arm === "storebound" ? { limits: [WRITES_IN_FLIGHT] } : {}),
   collections: { [NAME]: storage },
   events: {
     bus: createEventBus(),
@@ -99,6 +113,7 @@ const committed = async (): Promise<number> => Number((await admin.command({ ser
 
 const readerTimes: number[] = [];
 const replyTimes: number[] = [];
+const refusedTimes: number[] = [];
 const errors: Record<string, { count: number; text: string }> = {};
 let readerValues = 0;
 let readerEvents = 0;
@@ -106,6 +121,7 @@ let readerReads = 0;
 let readerBytes = 0;
 let replied = 0;
 let failures = 0;
+let refused = 0;
 
 function failed(error: unknown): void {
   failures += 1;
@@ -161,7 +177,7 @@ if (arm === "live") {
     } while (again);
     reading = false;
   };
-  if (arm === "store" || arm === "storefilter") {
+  if (arm === "store" || arm === "storefilter" || arm === "storebound") {
     let lastVersion: string | undefined;
     const subscription = reader.subscribe<{ readonly since?: string; readonly version?: string }>([collectionChangeTopic(NAME)], (event) => {
       readerEvents += 1;
@@ -187,7 +203,12 @@ function send(client: Client, writer: number, round: number): void {
       replied += 1;
       replyTimes.push(performance.now() - sentAt);
     },
-    failed,
+    (error: unknown) => {
+      // A refusal of the in-flight bound is the answer of the bound, not a failure: its work did not start.
+      if ((error as { code?: string }).code !== "RATE_LIMITED") return failed(error);
+      refused += 1;
+      refusedTimes.push(performance.now() - sentAt);
+    },
   );
 }
 
@@ -224,11 +245,13 @@ const line: LiveCount = {
   case: caseName,
   planned: plannedSets(writers),
   replied,
+  refused,
   failures,
   storeWrites: afterWrites - beforeWrites,
   transactions: afterCommitted - beforeCommitted,
   replyP50Ms: at(replyTimes, 0.5),
   replyP99Ms: at(replyTimes, 0.99),
+  refusedP99Ms: at(refusedTimes, 0.99),
   readerP50Ms: at(readerTimes, 0.5),
   readerP95Ms: at(readerTimes, 0.95),
   readerP99Ms,

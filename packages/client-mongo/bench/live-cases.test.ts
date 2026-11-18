@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { keptUp, plannedSets, writersOf } from "./live-cases.js";
+import { DEFAULT_WRITES_IN_FLIGHT } from "../src/storage/document-storage.js";
+import { BOUND_LIMIT, keptUp, plannedSets, writersOf } from "./live-cases.js";
 
 describe("the cases of the live state bench", () => {
   it("reads the number of writers of a case", () => {
@@ -19,5 +20,10 @@ describe("the cases of the live state bench", () => {
     expect(keptUp({ ...pass, replied: 94 })).toBe(false);
     expect(keptUp({ ...pass, failures: 1 })).toBe(false);
     expect(keptUp({ ...pass, readerP99Ms: 1000.5 })).toBe(false);
+  });
+
+  it("bounds more writes than the write queue runs at one time, so the queue keeps writes that wait", () => {
+    expect(Number.isInteger(BOUND_LIMIT)).toBe(true);
+    expect(BOUND_LIMIT).toBeGreaterThan(DEFAULT_WRITES_IN_FLIGHT);
   });
 });
