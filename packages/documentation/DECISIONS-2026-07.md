@@ -55,7 +55,7 @@ Reverse: none needed — nothing was changed; this is a deferral with a plan.
 
 ### Node engine policy set to `node >=20` (documented only; 48 package.jsons left to cue)
 Phase 4 reconciliation of the engines drift flagged in the audit (README #18, ONBOARDING #21,
-ecosystem/README #30, audit/08 roadmap #6). The fleet is inconsistent: core `client` + `docker/*`
+ecosystem/README #30, audit/08 roadmap #6). The packages are inconsistent: core `client` + `docker/*`
 + the explorer app + `client-mongo` + `client-server` + `server-mongo` declare `node >=20`; `cue`,
 `splay`, and `client-splay` declare `node >=25` / `npm >=11`; the remaining ~38 packages declare
 no `engines` at all. I picked **`node >=20`** as the single policy because it is what the core
@@ -65,7 +65,7 @@ whereas raising 45 packages to `>=25` would be a churny, higher-risk change with
 I documented the policy in README.md and PACKAGES.md and deliberately did **not** edit the 48
 `engines` fields: those values are generated from cue config, so hand edits would be clobbered on
 the next `cue-config generate` and are out of scope for the docs repo. Reverse by choosing `>=25`
-instead and re-running cue generate fleet-wide. Refs BUGS-2026-07 (engines drift) / audit 08 #6.
+instead and re-running cue generate in all packages. Refs BUGS-2026-07 (engines drift) / audit 08 #6.
 
 ### Middleware internal fixes verified by typecheck + regression suite, not new unit tests
 Fixes to middleware internals (H10 timeout signal restore, H11 circuit breaker, M4 timers) are
@@ -75,7 +75,7 @@ inspection + `tsc` + the full 351-test regression suite, and deferred dedicated 
 integration tests to Phase 3 ("test the seam layers"), where that scaffolding is built once and
 reused. Each such commit says so.
 
-### H15 (`sideEffects: false`) — deferred to a careful fleet-wide pass, not fixed piecemeal
+### H15 (`sideEffects: false`) — deferred to a careful pass over all packages, not fixed piecemeal
 Setting `sideEffects` wrong silently breaks tree-shaking in confusing ways, and the correct value
 differs per package (register-by-side-effect wrappers want `["./dist/register.js"]`; `client`
 wants its registration entry points). Rather than guess per-package under time pressure, I left

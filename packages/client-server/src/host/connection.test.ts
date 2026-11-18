@@ -3,8 +3,8 @@
  *
  * The request hook (`principalOf`) of each network face reads `credentials.connection`: the
  * addresses and the ports of the socket of the request, as frozen data. The remote port is the
- * local port of the socket of the client. The fleet site finds the caller from this TCP peer
- * (`resources.peer` of headroom).
+ * local port of the socket of the client. A host can find the local process of a caller from
+ * this TCP peer.
  *
  * - The HTTP face: the hook of each request reads the connection.
  * - The WebSocket face: the hook reads the connection at the upgrade (`admits()`). A hook that
@@ -68,8 +68,8 @@ interface Seen {
 }
 
 /**
- * A request hook that gives the principal of the TCP peer, as the fleet site does with
- * `resources.peer`. `known` limits the peers: without it, each peer with a port passes.
+ * A request hook that gives the principal of the TCP peer. `known` limits the peers: without
+ * it, each peer with a port passes.
  */
 function peerHook(seen: Seen[], known?: ReadonlySet<number>): PrincipalOf {
   return (credentials, req) => {
