@@ -86,6 +86,9 @@ TwilioServerlessVisibility: dist/twilio-serverless.d.ts#TwilioServerlessVisibili
 TwilioText: dist/twilio.d.ts#TwilioText
 TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
 TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioUsagePage: dist/twilio.d.ts#TwilioUsagePage
+TwilioUsageQuery: dist/twilio.d.ts#TwilioUsageQuery
+TwilioUsageRecord: dist/twilio.d.ts#TwilioUsageRecord
 TwilioVoice: dist/twilio.d.ts#TwilioVoice
 WEBHOOK_HEADERS: dist/webhook.d.ts#WEBHOOK_HEADERS
 WEBHOOK_MIN_WAIT_MS: dist/webhook.d.ts#WEBHOOK_MIN_WAIT_MS
@@ -129,6 +132,7 @@ extractTwilioServerlessVariable: dist/twilio-serverless.d.ts#extractTwilioServer
 extractTwilioServerlessVariables: dist/twilio-serverless.d.ts#extractTwilioServerlessVariables
 extractTwilioServerlessVersion: dist/twilio-serverless.d.ts#extractTwilioServerlessVersion
 extractTwilioText: dist/twilio.d.ts#extractTwilioText
+extractTwilioUsageRecords: dist/twilio.d.ts#extractTwilioUsageRecords
 extractWebhookSent: dist/webhook.d.ts#extractWebhookSent
 headerSafe: dist/notify.d.ts#headerSafe
 notifyModule: dist/module.d.ts#notifyModule
@@ -183,6 +187,7 @@ twilioServerlessVariableUpdateRequest: dist/twilio-serverless.d.ts#twilioServerl
 twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
 twilioTextState: dist/twilio.d.ts#twilioTextState
 twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
+twilioUsageRecordsRequest: dist/twilio.d.ts#twilioUsageRecordsRequest
 verifyWebhook: dist/webhook.d.ts#verifyWebhook
 webhookBody: dist/webhook.d.ts#webhookBody
 webhookRequest: dist/webhook.d.ts#webhookRequest
@@ -254,12 +259,16 @@ type TwilioResponse: dist/twilio-common.d.ts#TwilioResponse
 TwilioText: dist/twilio.d.ts#TwilioText
 TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
 TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioUsagePage: dist/twilio.d.ts#TwilioUsagePage
+TwilioUsageQuery: dist/twilio.d.ts#TwilioUsageQuery
+TwilioUsageRecord: dist/twilio.d.ts#TwilioUsageRecord
 TwilioVoice: dist/twilio.d.ts#TwilioVoice
 callTwilio: dist/twilio.d.ts#callTwilio
 extractTwilioBalance: dist/twilio.d.ts#extractTwilioBalance
 extractTwilioCall: dist/twilio.d.ts#extractTwilioCall
 extractTwilioMessages: dist/twilio.d.ts#extractTwilioMessages
 extractTwilioText: dist/twilio.d.ts#extractTwilioText
+extractTwilioUsageRecords: dist/twilio.d.ts#extractTwilioUsageRecords
 twilioBalanceRequest: dist/twilio.d.ts#twilioBalanceRequest
 twilioCallRequest: dist/twilio.d.ts#twilioCallRequest
 twilioCallState: dist/twilio.d.ts#twilioCallState
@@ -273,6 +282,7 @@ twilioSayTwiml: dist/twilio.d.ts#twilioSayTwiml
 twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
 twilioTextState: dist/twilio.d.ts#twilioTextState
 twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
+twilioUsageRecordsRequest: dist/twilio.d.ts#twilioUsageRecordsRequest
 
 ## ./twilio-serverless (dist/twilio-serverless.d.ts): names
 
@@ -1198,6 +1208,36 @@ export interface TwilioTextRead {
 ### dist/twilio.d.ts#TwilioTextState
 export type TwilioTextState = "pending" | "delivered" | "failed";
 
+### dist/twilio.d.ts#TwilioUsagePage
+export interface TwilioUsagePage {
+    readonly ok: true;
+    readonly records: readonly TwilioUsageRecord[];
+    readonly nextPageUri?: string;
+}
+
+### dist/twilio.d.ts#TwilioUsageQuery
+export interface TwilioUsageQuery {
+    readonly category?: string | undefined;
+    readonly startDate?: string | undefined;
+    readonly endDate?: string | undefined;
+    readonly pageSize?: number | undefined;
+}
+
+### dist/twilio.d.ts#TwilioUsageRecord
+export interface TwilioUsageRecord {
+    readonly category: string;
+    readonly startDate: string;
+    readonly endDate: string;
+    readonly price: number;
+    readonly priceText: string;
+    readonly priceUnit: string;
+    readonly usage?: number;
+    readonly usageUnit?: string;
+    readonly count?: number;
+    readonly countUnit?: string;
+    readonly asOf?: number;
+}
+
 ### dist/twilio.d.ts#TwilioVoice
 export interface TwilioVoice {
     readonly voice?: string | undefined;
@@ -1221,6 +1261,9 @@ export declare function extractTwilioMessages(response: TwilioResponse): TwilioM
 
 ### dist/twilio.d.ts#extractTwilioText
 export declare function extractTwilioText(response: TwilioResponse): TwilioTextRead | TwilioFailure;
+
+### dist/twilio.d.ts#extractTwilioUsageRecords
+export declare function extractTwilioUsageRecords(response: TwilioResponse): TwilioUsagePage | TwilioFailure;
 
 ### dist/twilio.d.ts#twilioBalanceRequest
 export declare function twilioBalanceRequest(credentials: TwilioCredentials): TwilioRequest;
@@ -1260,6 +1303,9 @@ export declare function twilioTextState(status: string): TwilioTextState;
 
 ### dist/twilio.d.ts#twilioTextStatusRequest
 export declare function twilioTextStatusRequest(credentials: TwilioCredentials, sid: string): TwilioRequest;
+
+### dist/twilio.d.ts#twilioUsageRecordsRequest
+export declare function twilioUsageRecordsRequest(credentials: TwilioCredentials, query?: TwilioUsageQuery): TwilioRequest;
 
 ### dist/webhook.d.ts#WEBHOOK_HEADERS
 export declare const WEBHOOK_HEADERS: {
