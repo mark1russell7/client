@@ -1,41 +1,5 @@
 # @procedures/client
 
-## 0.65.0
-
-### Minor Changes
-
-- ffb85af: Three limits are on by default: the depth of the nested calls, the nested calls in a call limit, and the size of a read.
-  
-  - Without `maxDepth`, a host refuses a nested call over the depth 64 with `FORBIDDEN` and the reason `depth`. Its handler does not start. Before, the handler started and the process wrote one warning. An explicit `maxDepth` of `invokeProcedure()`, `ProcedureServer` or `hostPolicy()` keeps its value.
-  - The new option `maxDepth` of `ClientOptions` and `LocalTransportOptions` sets the depth limit of the local calls of a `Client` and of a `LocalTransport`.
-  - A `CallLimit` without the field `nested` also takes the units of each nested call that it covers, as with `nested: true`. Before, it counted only the calls of a caller. The server writes no warning at the start.
-  - Without `maxBytes`, `fs.read` and `fs.read.json` refuse a part over 16 MiB (16777216 bytes) with a `RangeError` and the code `ERR_FS_FILE_TOO_LARGE`. Before, the read loaded the whole file and wrote one warning. For a regular file, the error comes before the read.
-  - This version removes the three warnings of the old defaults.
-  
-  ## Break
-  
-  A call that worked before can fail with a new default. Migration steps for the site and each app:
-  
-  1. Find each host with call trees deeper than 64. Give `maxDepth` to `hostPolicy()`, `ProcedureServer`, `invokeProcedure()`, `Client` or `LocalTransport`.
-  2. Find each `CallLimit` without the field `nested`. To count only the calls of a caller, give it `nested: false`.
-  3. Find each call of `fs.read` and `fs.read.json` for a part over 16 MiB. Give it a larger `maxBytes`.
-  
-  The warnings of the earlier patch versions show each place to change.
-  
-  ```ts
-  const policy = hostPolicy({
-    maxDepth: 256, // A deeper limit than the default 64
-    limits: [{ ...writesPerTenant, nested: false }], // Only the calls of a caller take units
-  });
-  const log = await client.call(["fs", "read"], { path: "big.log", maxBytes: 64 * 1024 * 1024 });
-  ```
-
-### Patch Changes
-
-- 4e20391: Handles in the exports generator (d40-handles). A parameter or an output of a class type gets a handle. Its schema has the keyword `x-procedures-handle` with the kind of the class, for example `node:sqlite#DatabaseSync`. The loader keeps the object of an output in the handle scope of the caller. It gets the object of a handle input from the same scope. A procedure that takes a handle reads `handles`, and a procedure that gives a handle writes `handles`. Thus a function that was exempt because of a class instance gets a procedure. `closeValue` of `@procedures/client` closes an object as a scope closes it.
-- abf52af: Handles for the inputs of an interface (d40-handles). In the exports generator, a parameter of an interface takes a handle of each class of the package that is assignable to it. For example, a `SqlConnection` takes a `node:sqlite#DatabaseSync`. A parameter of a type parameter uses its constraint. An input with more than one kind has the list of the kinds in `x-procedures-handle`. `handleSchema` and `HandleScope.get` of `@procedures/client` also take a list of kinds. The manifest of `@procedures/optional` has the members of two `Result` unions in a different sequence. The schemas accept the same values.
-- a2a09b7: Each WebSocket connection keeps its own handle scope (d40-handles). A procedure that opens an object with a state over WebSocket gives a handle, and the next calls of the same connection use it. Another connection cannot use the handle. The close of the connection and the stop of the transport close each object of its scope. The new option `handles` of `WebSocketServerTransport` sets `maxHandles` and `idleMs`. `wsFace` of the host passes it through.
-
 ## 0.64.0
 
 ### Minor Changes

@@ -200,6 +200,34 @@ scope: dist/runtime.d.ts#scope
 truthy: dist/runtime.d.ts#truthy
 unknownName: dist/runtime.d.ts#unknownName
 
+## ./api (dist/api.d.ts): names
+
+API_OPERATION_FORMAT: dist/api.d.ts#API_OPERATION_FORMAT
+ApiAuth: dist/api.d.ts#ApiAuth
+ApiBuild: dist/api.d.ts#ApiBuild
+ApiBuildFailure: dist/api.d.ts#ApiBuildFailure
+ApiDecode: dist/api.d.ts#ApiDecode
+ApiErrors: dist/api.d.ts#ApiErrors
+ApiFailure: dist/api.d.ts#ApiFailure
+ApiFailureKind: dist/api.d.ts#ApiFailureKind
+ApiField: dist/api.d.ts#ApiField
+ApiJsonSchema: dist/api.d.ts#ApiJsonSchema
+ApiMethod: dist/api.d.ts#ApiMethod
+ApiOperation: dist/api.d.ts#ApiOperation
+ApiPair: dist/api.d.ts#ApiPair
+ApiRead: dist/api.d.ts#ApiRead
+ApiRequest: dist/api.d.ts#ApiRequest
+ApiRequestSpec: dist/api.d.ts#ApiRequestSpec
+ApiResponse: dist/api.d.ts#ApiResponse
+ApiResponseSpec: dist/api.d.ts#ApiResponseSpec
+ApiService: dist/api.d.ts#ApiService
+ApiStatusRule: dist/api.d.ts#ApiStatusRule
+ApiSuccess: dist/api.d.ts#ApiSuccess
+ApiTerm: dist/api.d.ts#ApiTerm
+apiOperationIssues: dist/api.d.ts#apiOperationIssues
+buildApiRequest: dist/api.d.ts#buildApiRequest
+extractApiResponse: dist/api.d.ts#extractApiResponse
+
 ## ./generate (dist/generate.d.ts): names
 
 type ExportsFunctionOverlay: dist/exports/generate.d.ts#ExportsFunctionOverlay
@@ -208,6 +236,171 @@ type GenerateExportsOptions: dist/exports/generate.d.ts#GenerateExportsOptions
 generateExportsManifest: dist/exports/generate.d.ts#generateExportsManifest
 
 ## Declarations
+
+### dist/api.d.ts#API_OPERATION_FORMAT
+export declare const API_OPERATION_FORMAT = "api-operation/1";
+
+### dist/api.d.ts#ApiAuth
+export type ApiAuth = {
+    readonly scheme: "basic";
+    readonly secret: string;
+    readonly user: ApiTerm;
+    readonly password: ApiTerm;
+    readonly schema?: ApiJsonSchema;
+} | {
+    readonly scheme: "bearer";
+    readonly secret: string;
+    readonly token: ApiTerm;
+    readonly schema?: ApiJsonSchema;
+} | {
+    readonly scheme: "header";
+    readonly secret: string;
+    readonly header: string;
+    readonly value: ApiTerm;
+    readonly schema?: ApiJsonSchema;
+};
+
+### dist/api.d.ts#ApiBuild
+export type ApiBuild = {
+    readonly ok: true;
+    readonly request: ApiRequest;
+} | ApiBuildFailure;
+
+### dist/api.d.ts#ApiBuildFailure
+export interface ApiBuildFailure {
+    readonly ok: false;
+    readonly kind: "input" | "credential" | "operation";
+    readonly errors: readonly string[];
+}
+
+### dist/api.d.ts#ApiDecode
+export type ApiDecode = "any" | "text" | "integer" | "count" | "number" | "bool" | "date";
+
+### dist/api.d.ts#ApiErrors
+export interface ApiErrors {
+    readonly statuses?: readonly ApiStatusRule[];
+    readonly otherwise?: {
+        readonly kind: ApiFailureKind;
+        readonly reason: ApiTerm;
+    };
+    readonly message?: ApiTerm;
+    readonly code?: ApiTerm;
+    readonly retry?: {
+        readonly header: string;
+        readonly minMs: number;
+        readonly kinds: readonly ApiFailureKind[];
+    };
+}
+
+### dist/api.d.ts#ApiFailure
+export interface ApiFailure {
+    readonly ok: false;
+    readonly kind: ApiFailureKind;
+    readonly status: number;
+    readonly errors: readonly string[];
+    readonly code?: number;
+    readonly retryAfterMs?: number;
+}
+
+### dist/api.d.ts#ApiFailureKind
+export type ApiFailureKind = "network" | "timeout" | "server" | "rate-limited" | "auth" | "refused";
+
+### dist/api.d.ts#ApiField
+export type ApiField = readonly [name: string, value: ApiTerm, decode?: ApiDecode];
+
+### dist/api.d.ts#ApiJsonSchema
+export type ApiJsonSchema = Readonly<Record<string, unknown>> | boolean;
+
+### dist/api.d.ts#ApiMethod
+export type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+### dist/api.d.ts#ApiOperation
+export interface ApiOperation {
+    readonly format: typeof API_OPERATION_FORMAT;
+    readonly name?: string;
+    readonly summary?: string;
+    readonly service: ApiService;
+    readonly input: ApiJsonSchema;
+    readonly request: ApiRequestSpec;
+    readonly response: ApiResponseSpec;
+}
+
+### dist/api.d.ts#ApiPair
+export type ApiPair = readonly [name: string, value: ApiTerm];
+
+### dist/api.d.ts#ApiRead
+export type ApiRead = ApiSuccess | ApiFailure;
+
+### dist/api.d.ts#ApiRequest
+export interface ApiRequest {
+    readonly url: string;
+    readonly method: ApiMethod;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body?: string;
+}
+
+### dist/api.d.ts#ApiRequestSpec
+export interface ApiRequestSpec {
+    readonly method: ApiMethod;
+    readonly path: ApiTerm;
+    readonly query?: readonly ApiPair[];
+    readonly headers?: readonly ApiPair[];
+    readonly body?: {
+        readonly type: "form" | "json";
+        readonly fields: readonly ApiPair[];
+    };
+}
+
+### dist/api.d.ts#ApiResponse
+export interface ApiResponse {
+    readonly status: number;
+    readonly text: string;
+    readonly headers?: {
+        get(name: string): string | null;
+    } | undefined;
+}
+
+### dist/api.d.ts#ApiResponseSpec
+export interface ApiResponseSpec {
+    readonly ok?: readonly [from: number, to: number];
+    readonly body?: "object" | "json" | "none";
+    readonly schema?: ApiJsonSchema;
+    readonly invalid?: ApiTerm;
+    readonly fields: readonly ApiField[];
+}
+
+### dist/api.d.ts#ApiService
+export interface ApiService {
+    readonly origin: string;
+    readonly auth?: ApiAuth;
+    readonly errors?: ApiErrors;
+}
+
+### dist/api.d.ts#ApiStatusRule
+export interface ApiStatusRule {
+    readonly from: number;
+    readonly to: number;
+    readonly kind: ApiFailureKind;
+    readonly reason: ApiTerm;
+}
+
+### dist/api.d.ts#ApiSuccess
+export interface ApiSuccess {
+    readonly ok: true;
+    readonly [field: string]: unknown;
+}
+
+### dist/api.d.ts#ApiTerm
+export type ApiTerm = Json;
+
+### dist/api.d.ts#apiOperationIssues
+export declare function apiOperationIssues(operation: unknown): string[];
+
+### dist/api.d.ts#buildApiRequest
+export declare function buildApiRequest(operation: ApiOperation, input: unknown, credentials?: Readonly<Record<string, unknown>>): ApiBuild;
+
+### dist/api.d.ts#extractApiResponse
+export declare function extractApiResponse(operation: ApiOperation, response: ApiResponse): ApiRead;
 
 ### dist/checks.d.ts#checkCalls
 export declare function checkCalls(root: IRNode, facts: ProcedureFacts, effects: EffectsAnalysis, options?: CheckPassOptions): Diagnostic[];

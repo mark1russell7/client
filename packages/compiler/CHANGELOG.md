@@ -1,29 +1,5 @@
 # @procedures/compiler
 
-## 0.65.0
-
-### Patch Changes
-
-- 4e20391: Handles in the exports generator (d40-handles). A parameter or an output of a class type gets a handle. Its schema has the keyword `x-procedures-handle` with the kind of the class, for example `node:sqlite#DatabaseSync`. The loader keeps the object of an output in the handle scope of the caller. It gets the object of a handle input from the same scope. A procedure that takes a handle reads `handles`, and a procedure that gives a handle writes `handles`. Thus a function that was exempt because of a class instance gets a procedure. `closeValue` of `@procedures/client` closes an object as a scope closes it.
-- abf52af: Handles for the inputs of an interface (d40-handles). In the exports generator, a parameter of an interface takes a handle of each class of the package that is assignable to it. For example, a `SqlConnection` takes a `node:sqlite#DatabaseSync`. A parameter of a type parameter uses its constraint. An input with more than one kind has the list of the kinds in `x-procedures-handle`. `handleSchema` and `HandleScope.get` of `@procedures/client` also take a list of kinds. The manifest of `@procedures/optional` has the members of two `Result` unions in a different sequence. The schemas accept the same values.
-- 420ebdc: `@procedures/sqlite` has generated procedures for 9 functions of `@mark1russell7/sqlite` (d40-handles). `sqlite.openDatabase` gives a database handle in the scope of the caller. The other 8 procedures take the handle, for example `sqlite.tableColumns` and `sqlite.checkIntegrity`. The register entry also registers `handle.list` and `handle.close`.
-  
-  `exportsModule()` of `@procedures/compiler` also takes a loader in place of the functions. The first call loads the package one time. A failed load does not stay. The overlay of a wrap can give the rules under a root of a host (`fsRoot`). The loader gives them to each procedure as `metadata.fsRoot`.
-  
-  The MCP tools do not change: `@procedures/bundle-mcp` keeps the new procedures out of the tools.
-- f1c599f: The generator of `@procedures/compiler` gives the members of a union a canonical sequence. Before, the sequence came from the type ids of TypeScript, and a new call of the checker changed it.
-  
-  - The `anyOf` and `enum` lists start with the primitive types. The number literals and the bigint literals follow by value. Then come the string literals by code unit. The other types come last, by the code units of their text.
-  - The names of the definitions come from the same sequence. Thus a change in a different part of the generator does not rename a definition.
-  - A manifest keeps only the definitions that its procedures reach through `$ref`. A function that the generator refused kept dead definitions before.
-  
-  The manifests of the wrap packages change only in the sequence of their lists, and lose definitions with no reference. Their schemas accept the same values.
-- Updated dependencies [4e20391]
-- Updated dependencies [abf52af]
-- Updated dependencies [a2a09b7]
-- Updated dependencies [ffb85af]
-  - @procedures/client@0.65.0
-
 ## 0.64.0
 
 ### Patch Changes
