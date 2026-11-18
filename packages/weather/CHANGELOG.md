@@ -1,5 +1,12 @@
 # @procedures/weather
 
+## 0.66.0
+
+### Patch Changes
+
+- @procedures/client@0.66.0
+  - @procedures/http@0.66.0
+
 ## 0.65.0
 
 ### Patch Changes
