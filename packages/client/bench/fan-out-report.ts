@@ -61,8 +61,8 @@ const round = (value: number, digits: number): number => Number(value.toFixed(di
 
 const timesOf = (id: string, arm: "a" | "b"): number[] => pool.candidate.filter((record) => record.case === id).map((record) => record[arm]);
 
-/** The median of one read of each child of a case. A case with no read gives null. */
-const medianOf = (id: string, read: (record: JobRecord) => number | undefined): number | null => {
+/** The value of one read in a case: the `median` of `rigor-statistics` over the children of the case. A case with no read gives null. */
+const caseRead = (id: string, read: (record: JobRecord) => number | undefined): number | null => {
   const values = jobs
     .flatMap((job) => job.candidate)
     .filter((record) => record.case === id)
@@ -78,11 +78,11 @@ const cases = caseIntervals(pool.candidate).map((entry) => ({
   plainMs: round(median(timesOf(entry.case, "a")), 3),
   slicedMs: round(median(timesOf(entry.case, "b")), 3),
   worstMs: round(Math.max(...timesOf(entry.case, "b")), 3),
-  plainGcMs: medianOf(entry.case, (record) => childGc(record.fields?.a)?.sumMs),
-  slicedGcMs: medianOf(entry.case, (record) => childGc(record.fields?.b)?.sumMs),
-  plainGcMaxMs: medianOf(entry.case, (record) => childGc(record.fields?.a)?.maxMs),
-  slicedGcMaxMs: medianOf(entry.case, (record) => childGc(record.fields?.b)?.maxMs),
-  ...(parseCase(entry.case).measure === "block" ? { blockLessGcMs: medianOf(entry.case, (record) => blockLessGc(record.b, record.fields?.b)) } : {}),
+  plainGcMs: caseRead(entry.case, (record) => childGc(record.fields?.a)?.sumMs),
+  slicedGcMs: caseRead(entry.case, (record) => childGc(record.fields?.b)?.sumMs),
+  plainGcMaxMs: caseRead(entry.case, (record) => childGc(record.fields?.a)?.maxMs),
+  slicedGcMaxMs: caseRead(entry.case, (record) => childGc(record.fields?.b)?.maxMs),
+  ...(parseCase(entry.case).measure === "block" ? { blockLessGcMs: caseRead(entry.case, (record) => blockLessGc(record.b, record.fields?.b)) } : {}),
   ratio: round(entry.ratio, 4),
   low: round(entry.low, 4),
   high: round(entry.high, 4),
