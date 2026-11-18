@@ -55,6 +55,8 @@ node scripts/wraps.ts generate --package quantity
 
 The command writes `src/manifest.ts`. It also raises the ratchet of the library in `wraps.coverage.json`. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current, or when the share of the functions with a procedure falls.
 
+The release train starts the root script `release-train:update` after it updates a general package. When the check fails, the script starts `node scripts/wraps.ts generate` for all wraps.
+
 ## The gate of a pure wrap
 
 The wrap is pure: its `wrap.json` has `"pure": true`. So `node scripts/wraps.ts check` also examines these conditions:
