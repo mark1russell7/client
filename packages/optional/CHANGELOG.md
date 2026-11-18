@@ -1,5 +1,26 @@
 # @procedures/optional
 
+## 0.65.0
+
+### Patch Changes
+
+- abf52af: Handles for the inputs of an interface (d40-handles). In the exports generator, a parameter of an interface takes a handle of each class of the package that is assignable to it. For example, a `SqlConnection` takes a `node:sqlite#DatabaseSync`. A parameter of a type parameter uses its constraint. An input with more than one kind has the list of the kinds in `x-procedures-handle`. `handleSchema` and `HandleScope.get` of `@procedures/client` also take a list of kinds. The manifest of `@procedures/optional` has the members of two `Result` unions in a different sequence. The schemas accept the same values.
+- f1c599f: The generator of `@procedures/compiler` gives the members of a union a canonical sequence. Before, the sequence came from the type ids of TypeScript, and a new call of the checker changed it.
+  
+  - The `anyOf` and `enum` lists start with the primitive types. The number literals and the bigint literals follow by value. Then come the string literals by code unit. The other types come last, by the code units of their text.
+  - The names of the definitions come from the same sequence. Thus a change in a different part of the generator does not rename a definition.
+  - A manifest keeps only the definitions that its procedures reach through `$ref`. A function that the generator refused kept dead definitions before.
+  
+  The manifests of the wrap packages change only in the sequence of their lists, and lose definitions with no reference. Their schemas accept the same values.
+- Updated dependencies [4e20391]
+- Updated dependencies [abf52af]
+- Updated dependencies [a2a09b7]
+- Updated dependencies [ffb85af]
+- Updated dependencies [420ebdc]
+- Updated dependencies [f1c599f]
+  - @procedures/client@0.65.0
+  - @procedures/compiler@0.65.0
+
 ## 0.64.0
 
 ### Patch Changes

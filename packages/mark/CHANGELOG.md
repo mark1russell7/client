@@ -1,5 +1,32 @@
 # @procedures/mark
 
+## 0.65.0
+
+### Patch Changes
+
+- Updated dependencies [4e20391]
+- Updated dependencies [abf52af]
+- Updated dependencies [a2a09b7]
+- Updated dependencies [ffb85af]
+- Updated dependencies [f1c599f]
+  - @procedures/client@0.65.0
+  - @procedures/optional@0.65.0
+  - @procedures/fs@0.65.0
+  - @procedures/algebra@0.65.0
+  - @procedures/predicates@0.65.0
+  - @procedures/quantity@0.65.0
+  - @procedures/rational@0.65.0
+  - @procedures/cli-kit@0.65.0
+  - @procedures/cli-run@0.65.0
+  - @procedures/lib@0.65.0
+  - @procedures/pnpm@0.65.0
+  - @procedures/procedure@0.65.0
+  - @procedures/peer@0.65.0
+  - @procedures/shell@0.65.0
+  - @procedures/vitest@0.65.0
+  - @procedures/mcp-dev-tools@0.65.0
+  - @procedures/server@0.65.0
+
 ## 0.64.0
 
 ### Minor Changes
