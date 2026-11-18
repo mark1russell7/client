@@ -2759,6 +2759,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
     reverseRequestTimeout?: Duration;
     secretHeaders?: readonly string[] | undefined;
     logger?: Logger | undefined;
+    handles?: HandleScopeOptions | undefined;
 }
 
 ### dist/adapters/websocket/server/upgrade.d.ts#NodeUpgradeHandler
