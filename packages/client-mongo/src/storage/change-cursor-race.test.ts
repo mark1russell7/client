@@ -191,7 +191,7 @@ async function follower(host: Host, seen: Seen, family: IdFamily, row: RowCount,
     applyRead(seen, family, changes);
     cursor = changes.version;
   };
-  host.bus.on<CollectionChangeEvent>(TOPIC, (event) => {
+  const unsubscribe = host.bus.on<CollectionChangeEvent>(TOPIC, (event) => {
     line = line.then(async () => {
       if (event.since === cursor && event.version !== undefined) {
         seen.trace.push(`event ${event.since}>${event.version}:${event.changed.join(",")}`);
@@ -203,8 +203,10 @@ async function follower(host: Host, seen: Seen, family: IdFamily, row: RowCount,
       await read();
     });
   });
-  // The last read goes in the line too: an event that lands while the read runs waits for it, and then makes a read of its own
+  // The drain stops the events first. A read after the drain can run after the test drops the database.
+  // The events of the line run before the last read. The last read comes after each write, so it sees each write.
   return async () => {
+    unsubscribe();
     line = line.then(read);
     await line;
   };
@@ -645,10 +647,11 @@ class ValueFollower {
   private cursor: string | undefined;
   private line: Promise<void> = Promise.resolve();
   private readonly host: Host;
+  private readonly unsubscribe: () => void;
 
   constructor(host: Host) {
     this.host = host;
-    host.bus.on<CollectionChangeEvent>(TOPIC, (event) => {
+    this.unsubscribe = host.bus.on<CollectionChangeEvent>(TOPIC, (event) => {
       this.line = this.line.then(() => this.apply(event));
     });
   }
@@ -659,8 +662,9 @@ class ValueFollower {
     return this.line;
   }
 
-  /** This method waits for each event so far and reads one more time. */
+  /** This method stops the events, waits for each event so far and reads one more time. No read starts after the drain. */
   drain(): Promise<void> {
+    this.unsubscribe();
     this.line = this.line.then(() => this.read());
     return this.line;
   }
