@@ -6,15 +6,16 @@
  */
 
 import { getEventListeners } from "node:events";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import * as z from "zod";
 import { Client } from "../client/client.js";
+import type { ClientOptions } from "../client/types.js";
 import { LocalTransport } from "../adapters/local/client/index.js";
 import { ProcedureRegistry } from "./registry.js";
 import { defineProcedure } from "./define.js";
 import { outputSchema } from "./core/schemas.js";
 import { coreProcedures } from "./core/index.js";
-import { InvocationError, invokeProcedure, invokePath, outputItems, outputValue, resetDepthWarning } from "./invoke.js";
+import { InvocationError, invokeProcedure, invokePath, outputItems, outputValue } from "./invoke.js";
 import type { ProcedureContext } from "./types.js";
 import { createRefScope, scopeOf, withScope } from "./ref.js";
 
@@ -497,23 +498,34 @@ describe("the depth limit of the nested calls", () => {
     expect(runs).toEqual([]);
   });
 
-  it("writes one warning in the process for the first call over the depth 64 without maxDepth, and runs the call", async () => {
-    resetDepthWarning();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    try {
-      const { registry } = recursive();
-      expect(await down(registry, 64)).toBe(64);
-      expect(warn).not.toHaveBeenCalled();
-      expect(await down(registry, 70)).toBe(70);
-      expect(await down(registry, 70)).toBe(70);
-      expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn.mock.calls[0]?.[0]).toBe(
-        "[procedures] The call of test.down is at the depth 65 of nested calls. " +
-          "@procedures/client 0.65.0 refuses a call over the depth 64. Set the option maxDepth to keep a larger limit.",
-      );
-    } finally {
-      warn.mockRestore();
-      resetDepthWarning();
-    }
+  it("refuses a nested call over the depth 64 without maxDepth, and its handler does not start", async () => {
+    const { registry, runs } = recursive();
+    expect(await down(registry, 64)).toBe(64);
+    expect(runs).toHaveLength(65);
+    runs.length = 0;
+    const error = await down(registry, 70);
+    expect(error).toBeInstanceOf(InvocationError);
+    expect(error).toMatchObject({ code: "FORBIDDEN", reason: "depth", path: ["test", "down"] });
+    expect((error as Error).message).toBe("The call of test.down is at the depth 65 of nested calls, over the limit 64");
+    // The depths 0 to 64 ran, and the depth 65 did not start
+    expect(runs).toHaveLength(65);
+    expect(runs.at(-1)).toBe(6);
+  });
+
+  it("runs a call tree deeper than 64 with a larger maxDepth", async () => {
+    const { registry, runs } = recursive();
+    expect(await down(registry, 70, 100)).toBe(70);
+    expect(runs).toHaveLength(71);
+  });
+
+  it("gives the maxDepth of a Client and of a LocalTransport to their local calls", async () => {
+    const { registry } = recursive();
+    const transport = stubTransport as unknown as ClientOptions["transport"];
+    expect(await new Client({ transport, maxDepth: 100 }).useRegistry(registry).exec(["test", "down"], { n: 70 })).toBe(70);
+    await expect(new Client({ transport, maxDepth: 2 }).useRegistry(registry).exec(["test", "down"], { n: 5 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(new Client({ transport }).useRegistry(registry).exec(["test", "down"], { n: 70 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const local = (maxDepth: number) => new Client(new LocalTransport({ registry, maxDepth }));
+    expect(await local(100).call({ service: "test", operation: "down" }, { n: 70 })).toBe(70);
+    await expect(local(2).call({ service: "test", operation: "down" }, { n: 5 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

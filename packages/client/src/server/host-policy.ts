@@ -93,7 +93,7 @@ export interface HostPolicyOptions {
   exclude?: readonly string[] | undefined;
   /** A procedure of code with no `metadata.calls` calls only exposed procedures. */
   strictCalls?: boolean | undefined;
-  /** The highest depth of a nested call. A call at a larger depth gets `FORBIDDEN` with the reason `depth`. */
+  /** The highest depth of a nested call. The default is 64. A call at a larger depth gets `FORBIDDEN` with the reason `depth`. */
   maxDepth?: number | undefined;
   /** The time limit of each call from a caller, for example `minutes(10)`. 0 or no value: no limit. */
   timeout?: Duration | undefined;
@@ -149,7 +149,7 @@ export interface HostPolicyOptions {
 export interface HostPolicy {
   readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   readonly strictCalls: boolean;
-  /** The highest depth of a nested call, or undefined for no limit. */
+  /** The highest depth of a nested call, or undefined for the default limit of 64. */
   readonly maxDepth?: number | undefined;
   readonly interceptors: readonly Interceptor[];
   readonly token: string | undefined;

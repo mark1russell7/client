@@ -96,6 +96,9 @@ export const mcpNamespaces: readonly string[] = [
  * - `mongo.watch` is a stream without an end, `mongo.documents.bulk` and `sqlite.transaction`
  *   change data in bulk, and `sqlite.migrate` and `sqlite.backup` change or copy the database
  *   file (roadmap R44);
+ * - the generated procedures of `@mark1russell7/sqlite` (d40-handles) take or give a database
+ *   handle. They stay out until the tool samples and the snapshots have them. The next change of
+ *   the wrap adds seven of them as tools. `sqlite.clearDatabase` and `sqlite.snapshot` stay out;
  * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@procedures/store`
  *   (roadmap 3.2). The bundle does not import that package, so the MCP server does not have them.
  *   The names stay here: if a host adds the package, they stay out of the tools. They work only on
@@ -109,6 +112,15 @@ export const mcpExclude: readonly string[] = [
   "sqlite.backup",
   "sqlite.migrate",
   "sqlite.transaction",
+  "sqlite.addMissingColumns",
+  "sqlite.checkIntegrity",
+  "sqlite.checkpoint",
+  "sqlite.clearDatabase",
+  "sqlite.openDatabase",
+  "sqlite.schemaVersion",
+  "sqlite.snapshot",
+  "sqlite.tableColumns",
+  "sqlite.userVersion",
   "mongo.documents.bulk",
   "mongo.watch",
   "vitest.watch",

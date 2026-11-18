@@ -118,8 +118,8 @@ export interface ProcedureServerOptions extends ServerOptions {
   strictCalls?: boolean | undefined;
 
   /**
-   * The highest depth of a nested call, a whole number of 0 or more. A call at a larger depth gets
-   * `FORBIDDEN` with the reason `depth`. Without a value, the depth has no limit (`InvokeOptions.maxDepth`).
+   * The highest depth of a nested call, a whole number of 0 or more. The default is 64. A call at
+   * a larger depth gets `FORBIDDEN` with the reason `depth` (`InvokeOptions.maxDepth`).
    */
   maxDepth?: number | undefined;
 
@@ -570,14 +570,6 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     };
     this.callLimits =
       options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores, onReleaseFailure }) : undefined;
-    // A limit without the field nested keeps the old rule for one more version: the server tells it
-    for (const limit of options.limits ?? []) {
-      if (limit.nested !== undefined) continue;
-      const message =
-        `The limit ${limit.name} counts the calls of a caller only, not their nested calls. @procedures/client 0.65.0 counts the nested calls too. ` +
-        `Set nested: true to count them, or nested: false to keep this rule.`;
-      writeLog(options.logger, "warn", message, { limit: limit.name }, `[ProcedureServer] ${message}`);
-    }
     // The remote events: the server pins events.subscribe, as a host pins host.health (EVENTS.md).
     // The topic rule is its expose rule, so the pin is always on (CLI-47). The publisher that the
     // server makes gets the clock of the server for its re-checks (CLI-44).
@@ -1114,7 +1106,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   }
 
   /**
-   * The limits of a nested call: the units of each limit with `nested: true` that covers it. The
+   * The limits of a nested call: the units of each limit without `nested: false` that covers it. The
    * method throws a refusal as a `CallLimitError`, so the error has the code, the wait and the
    * metadata of a refusal at the door. A key or a cover function that throws gives `INTERNAL_ERROR`.
    * The method gives the release of the units of the in-flight bounds, and the invocation calls it
@@ -1333,7 +1325,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         clearanceOrder,
         resources,
         admitItem,
-        // The limits with nested: true take the units of each nested call too
+        // The limits without nested: false take the units of each nested call too
         ...(this.callLimits?.coversNested ? { admitNested: (invocation: Invocation) => this.limitNested(invocation, request) } : {}),
         // The parts of the narrowing key without effect go to the debug reports (CLI-30)
         onNarrowingNotes: this.narrowingReports(request),
