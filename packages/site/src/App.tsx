@@ -1,7 +1,8 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactElement } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { build, failedPackages } from "./data/site";
 import { href, interceptLinks, routePath, useRoute } from "./lib/router";
+import { catalogFailureFor, INITIAL_CATALOG_LOAD, nextCatalogLoad, type CatalogFailure } from "./lib/catalog-load";
 import { LOAD_FAILURE_META, metaOf, needsCatalog, NOT_FOUND_META, type CatalogData } from "./lib/seo";
 import { cycleTheme, THEME_LABEL, useTheme } from "./lib/theme";
 import { NotFound } from "./pages/NotFound";
@@ -127,21 +128,19 @@ function Footer(): ReactElement {
  * The catalog for the meta data of the page of a procedure or of a package. The main bundle does
  * not hold the catalog, because it grows with each library that becomes procedures. Its code loads
  * the first time that a route needs it, in the same chunk as the pages that show procedures.
- * The failure is the error of the import, for example a chunk that a new deploy removed. The next
- * route that needs the catalog tries the import again.
+ * A failed import (for example a chunk that a new deploy removed) keeps the key of its route.
+ * Only the page of that route shows the error. Each other route tries the import again.
  */
-function useCatalog(needed: boolean, routeKey: string): { catalog: CatalogData | null; failure: unknown } {
-  const [catalog, setCatalog] = useState<CatalogData | null>(null);
-  const [failure, setFailure] = useState<unknown>(null);
+function useCatalog(needed: boolean, routeKey: string): { catalog: CatalogData | null; failure: CatalogFailure | null } {
+  const [load, dispatch] = useReducer(nextCatalogLoad, INITIAL_CATALOG_LOAD);
   useEffect(() => {
-    if (!needed || catalog !== null) return;
-    setFailure(null);
+    if (!needed || load.catalog !== null) return;
     import("./data").then(
-      ({ packages, procedures }) => setCatalog({ packages, procedures }),
-      (error: unknown) => setFailure(error ?? new Error("The catalog did not load")),
+      ({ packages, procedures }) => dispatch({ type: "loaded", catalog: { packages, procedures } }),
+      (error: unknown) => dispatch({ type: "failed", key: routeKey, error }),
     );
-  }, [needed, catalog, routeKey]);
-  return { catalog, failure };
+  }, [needed, load.catalog, routeKey]);
+  return { catalog: load.catalog, failure: catalogFailureFor(load, routeKey) };
 }
 
 /** This component throws the error that it gets, so that the error boundary of the page shows it. */
@@ -156,7 +155,9 @@ function setMeta(selector: string, attribute: string, value: string): void {
 
 export function App(): ReactElement {
   const route = useRoute();
-  const { catalog, failure } = useCatalog(needsCatalog(route), `${route.page}/${route.rest}`);
+  // The key of the route also starts the error boundary of the page again
+  const routeKey = `${route.page}/${route.rest}?${route.query.toString()}`;
+  const { catalog, failure } = useCatalog(needsCatalog(route), routeKey);
   // Undefined until the catalog loads: the page shows its loading state, and the title changes after the catalog loads
   const meta = useMemo(() => metaOf(route, catalog), [route.page, route.rest, catalog]);
   const failed = meta === undefined && failure !== null;
@@ -206,7 +207,7 @@ export function App(): ReactElement {
       page = <Home />;
   }
   // The catalog did not load: the error boundary of the page shows the error
-  if (failed) page = <Rethrow error={failure} />;
+  if (failed && failure !== null) page = <Rethrow error={failure.error} />;
 
   return (
     <div className="app">
@@ -250,7 +251,7 @@ export function App(): ReactElement {
         </div>
       </header>
       <main id="main" tabIndex={-1} className={["composer", "architecture", "status", "lab", "docs"].includes(route.page) ? "main wide" : "main"}>
-        <ErrorBoundary resetKey={`${route.page}/${route.rest}?${route.query.toString()}`}>
+        <ErrorBoundary resetKey={routeKey}>
           <Suspense fallback={<PageLoading />}>{page}</Suspense>
         </ErrorBoundary>
       </main>
