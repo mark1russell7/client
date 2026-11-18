@@ -17,7 +17,7 @@ import type * as TS from "typescript-api";
 import type { Effects } from "@procedures/client/browser";
 import { HANDLE_KEYWORD, handleSchema } from "@procedures/client/browser";
 import { BIGINT_PATTERN } from "./codecs.js";
-import { handleKindOf, withHandleEffects } from "./handles.js";
+import { handleKindsOf, withHandleEffects } from "./handles.js";
 import {
   CODEC_KEYWORD,
   CONSTRUCT_KEYWORD,
@@ -177,6 +177,8 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   const exports = [...checker.getExportsOfModule(moduleSymbol)].sort((a, b) => compare(a.name, b.name));
   const factories = factoriesOf(exports);
+  // The classes that a function of the package takes or gives at the top: the kinds of its handles
+  const handleClasses = handleClassesOf(exports);
   // A factory whose input reaches its own type has no input: null
   const factoryInputs = new Map<Factory, FactoryInput | null>();
   for (const exported of exports) {
@@ -220,8 +222,8 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     }
     // A procedure with a handle reads or writes the handle scope of its caller (d40-handles)
     const properties = (result.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
-    const takes = Object.values(properties).some((schema) => handleKindOf(schema) !== undefined);
-    const effects = withHandleEffects(functionOverlay?.effects ?? overlay.effects, takes, handleKindOf(result.output) !== undefined);
+    const takes = Object.values(properties).some((schema) => handleKindsOf(schema) !== undefined);
+    const effects = withHandleEffects(functionOverlay?.effects ?? overlay.effects, takes, handleKindsOf(result.output) !== undefined);
     procedures.push(effects ? { ...result, effects } : result);
   }
 
@@ -260,8 +262,11 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         // Another value that is not JSON can come from a pure function of the package: a constructed input.
         // A class gets one only when overlay.constructors names its factory
         const constructed = error.isFunction || (handle !== undefined && !constructorNamed(parameterType)) ? undefined : constructedSchema(parameterType);
+        // Else an interface takes a handle of each class of the package that it accepts
+        const accepted = error.isFunction || handle !== undefined || constructed !== undefined ? undefined : interfaceHandleSchema(parameterType);
+        const handleOrAccepted = handle ?? accepted;
         if (constructed !== undefined && !("problem" in constructed)) schema = constructed;
-        else if (constructed === undefined && handle !== undefined) schema = handle;
+        else if (constructed === undefined && handleOrAccepted !== undefined) schema = handleOrAccepted;
         else {
           const problem = constructed !== undefined ? `. ${constructed.problem}` : "";
           return {
@@ -386,19 +391,79 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
    * A member `null`, or `undefined` in an output, gives `anyOf` with `{ "type": "null" }`.
    */
   function handleSchemaOf(type: TS.Type, output: boolean): ExportsJsonSchema | undefined {
-    const members = type.isUnion() ? type.types : [type];
-    const empty = (member: TS.Type): boolean => (member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void | ts.TypeFlags.Null)) !== 0;
-    const defined = members.filter((member) => !empty(member));
-    if (defined.length !== 1) return undefined;
-    const made = defined[0]!;
-    const symbol = made.getSymbol();
-    if (!symbol || !(symbol.flags & ts.SymbolFlags.Class) || isGlobal(symbol)) return undefined;
-    // The type of the class itself (typeof C) has a construct signature: it is a function, not an instance
+    const made = classInstance(type);
+    return made === undefined ? undefined : nullable(type, handleSchema(made.kind), output);
+  }
+
+  /**
+   * The schema of the handle of an input of an interface (d40-handles). The interface accepts each
+   * class of `handleClasses` that is assignable to it, for example `DatabaseSync` for a
+   * `SqlConnection`. The result is undefined when it accepts no class.
+   */
+  function interfaceHandleSchema(type: TS.Type): ExportsJsonSchema | undefined {
+    const made = definedMember(type);
+    if (made === undefined || !(made.flags & ts.TypeFlags.Object) || checker.getPropertiesOfType(made).length === 0) return undefined;
     if (made.getConstructSignatures().length > 0 || made.getCallSignatures().length > 0) return undefined;
-    const schema = handleSchema(handleKind(symbol));
+    const accepted = [...handleClasses].filter(([instance]) => checker.isTypeAssignableTo(instance, made)).map(([, kind]) => kind);
+    const kinds = [...new Set(accepted)].sort(compare);
+    return kinds.length === 0 ? undefined : nullable(type, handleSchema(kinds), false);
+  }
+
+  /** The schema, or `anyOf` with `{ "type": "null" }` for a member `null`, or `undefined` in an output. */
+  function nullable(type: TS.Type, schema: ExportsJsonSchema, output: boolean): ExportsJsonSchema {
+    const members = type.isUnion() ? type.types : [type];
     const hasNull = members.some((member) => member.flags & ts.TypeFlags.Null);
     const hasUndefined = members.some((member) => member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void));
     return hasNull || (output && hasUndefined) ? { anyOf: [schema, { type: "null" }] } : schema;
+  }
+
+  /**
+   * The one member of a type without `undefined`, `void` and `null`, or undefined for more than one.
+   * A type parameter gives its constraint.
+   */
+  function definedMember(type: TS.Type): TS.Type | undefined {
+    const members = type.isUnion() ? type.types : [type];
+    const defined = members.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void | ts.TypeFlags.Null)));
+    if (defined.length !== 1) return undefined;
+    const made = defined[0]!;
+    if (!made.isTypeParameter()) return made;
+    const constraint = checker.getBaseConstraintOfType(made);
+    return constraint === undefined || constraint === made ? undefined : definedMember(constraint);
+  }
+
+  /** The instance type and the kind of a class that is not a global type, or undefined for another type. */
+  function classInstance(type: TS.Type): { readonly instance: TS.Type; readonly kind: string } | undefined {
+    const made = definedMember(type);
+    const symbol = made?.getSymbol();
+    if (made === undefined || !symbol || !(symbol.flags & ts.SymbolFlags.Class) || isGlobal(symbol)) return undefined;
+    // The type of the class itself (typeof C) has a construct signature: it is a function, not an instance
+    if (made.getConstructSignatures().length > 0 || made.getCallSignatures().length > 0) return undefined;
+    return { instance: made, kind: handleKind(symbol) };
+  }
+
+  /**
+   * The classes that the functions of the package take or give at the top of a parameter or of the
+   * output, with their kinds. Only a function with one signature and no exemption of the overlay counts.
+   */
+  function handleClassesOf(symbols: readonly TS.Symbol[]): Map<TS.Type, string> {
+    const found = new Map<TS.Type, string>();
+    for (const exported of symbols) {
+      const symbol = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
+      if (!symbol.declarations?.length || !(symbol.flags & (ts.SymbolFlags.Function | ts.SymbolFlags.Variable))) continue;
+      if (overlay.functions?.[exported.name]?.exempt !== undefined) continue;
+      const signatures = checker.getTypeOfSymbolAtLocation(symbol, source!).getCallSignatures();
+      if (signatures.length !== 1) continue;
+      const signature = signatures[0]!;
+      const returned = signature.getReturnType();
+      const parameters = signature.getParameters().flatMap((parameter) =>
+        parameter.valueDeclaration ? [checker.getTypeOfSymbolAtLocation(parameter, parameter.valueDeclaration)] : [],
+      );
+      for (const type of [promisedType(returned) ?? returned, ...parameters]) {
+        const made = classInstance(type);
+        if (made !== undefined) found.set(made.instance, made.kind);
+      }
+    }
+    return found;
   }
 
   /**

@@ -251,7 +251,7 @@ Each other function gets an exemption with its reason and the part of the signat
 | Reason | The cause | The plan |
 |---|---|---|
 | `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
-| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes, or a type that does not resolve. | An interface with methods becomes a handle. |
+| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes and no class of the package satisfies, or a type that does not resolve. | No change. |
 | `output-not-json` | The output is not JSON, for example an `Iterable` or a class instance inside an object. | The handle of an instance inside an object. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
 | `overlay` | The overlay exempts the function. | No change. |
@@ -342,7 +342,10 @@ An instance of a class is not JSON, and it can have a state, for example an open
 - When the scope refuses an object, for example over its limit, the loader closes the object.
 - A procedure that takes a handle reads `handles`. A procedure that gives a handle writes `handles`. Unknown effects stay unknown.
 - The module brings `handleModule` of `@procedures/client`, for `handle.list` and `handle.close`.
-- Only a parameter or the output gets a handle, not a class instance inside an object.
+- A parameter of an interface takes a handle of each class of the package that is assignable to it. For example, a `SqlConnection` takes a `node:sqlite#DatabaseSync`.
+- The classes of the package are the classes at the top of a parameter or of the output of its functions.
+- A parameter of a type parameter uses its constraint. An input that takes more than one kind has the list of the kinds.
+- Only a parameter or the output gets a handle, not a class instance inside an object. An output of an interface has no kind, so it stays exempt.
 - A class instance is a handle, also when a pure function gives the class. Only when the field `constructors` of the overlay names a factory of the class does the parameter get a constructed input.
 
 ## The procedures

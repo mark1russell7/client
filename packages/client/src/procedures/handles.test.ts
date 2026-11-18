@@ -64,6 +64,9 @@ describe("HandleScope", () => {
     const ref = first.open("test.Database", new Resource("a"));
     expect(await rejection(() => first.get(ref, "test.Page"))).toMatchObject({ code: "VALIDATION_ERROR", message: expect.stringContaining("is a test.Database, not a test.Page") });
     expect(await rejection(() => second.get(ref))).toMatchObject({ code: "VALIDATION_ERROR", message: expect.stringContaining("is not open for this caller") });
+    // A list of kinds takes a handle of each kind of the list
+    expect(first.get(ref, ["test.Page", "test.Database"])).toBeInstanceOf(Resource);
+    expect(await rejection(() => first.get(ref, ["test.Page", "test.Frame"]))).toMatchObject({ message: expect.stringContaining("not a test.Page or a test.Frame") });
     expect(await first.close(ref)).toBe(true);
     expect(await first.close(ref)).toBe(false);
     expect(await rejection(() => first.get(ref))).toBeInstanceOf(HandleError);
@@ -154,6 +157,8 @@ describe("HandleScope", () => {
       additionalProperties: false,
       [HANDLE_KEYWORD]: "test.Database",
     });
+    expect(handleSchema(["test.Database"])[HANDLE_KEYWORD]).toBe("test.Database");
+    expect(handleSchema(["a.A", "b.B"])).toMatchObject({ description: expect.stringContaining("A handle of a a.A or a b.B."), [HANDLE_KEYWORD]: ["a.A", "b.B"] });
     expect(isHandleRef({ handle: 7 })).toBe(false);
     expect(isHandleRef(null)).toBe(false);
   });

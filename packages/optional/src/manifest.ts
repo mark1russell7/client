@@ -513,10 +513,10 @@ export const manifest: ExportsManifest = {
     "Result_T_E_7": {
       "anyOf": [
         {
-          "$ref": "#/$defs/Ok_T_7"
+          "$ref": "#/$defs/Err_E_8"
         },
         {
-          "$ref": "#/$defs/Err_E_8"
+          "$ref": "#/$defs/Ok_T_7"
         }
       ]
     },
@@ -543,10 +543,10 @@ export const manifest: ExportsManifest = {
     "Result_U_E": {
       "anyOf": [
         {
-          "$ref": "#/$defs/Err_E_8"
+          "$ref": "#/$defs/Ok_U_2"
         },
         {
-          "$ref": "#/$defs/Ok_U_2"
+          "$ref": "#/$defs/Err_E_8"
         }
       ]
     },

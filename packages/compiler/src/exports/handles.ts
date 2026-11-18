@@ -10,19 +10,26 @@ import { HANDLE_KEYWORD } from "@procedures/client/browser";
 import type { ExportsJsonSchema } from "./types.js";
 
 /**
- * This function gives the kind of a handle schema, or undefined for another schema. A schema of
- * `T | null` has the handle schema in `anyOf`.
+ * This function gives the kinds of a handle schema, or undefined for another schema. An input of an
+ * interface can take more than one kind. A schema of `T | null` has the handle schema in `anyOf`.
  */
-export function handleKindOf(schema: ExportsJsonSchema | undefined): string | undefined {
+export function handleKindsOf(schema: ExportsJsonSchema | undefined): readonly string[] | undefined {
   if (schema === undefined) return undefined;
-  const kind = schema[HANDLE_KEYWORD];
-  if (typeof kind === "string") return kind;
+  const own = kindsOf(schema[HANDLE_KEYWORD]);
+  if (own !== undefined) return own;
   const members = schema["anyOf"];
   if (!Array.isArray(members)) return undefined;
   for (const member of members as ExportsJsonSchema[]) {
-    const memberKind = member[HANDLE_KEYWORD];
-    if (typeof memberKind === "string") return memberKind;
+    const kinds = kindsOf(member[HANDLE_KEYWORD]);
+    if (kinds !== undefined) return kinds;
   }
+  return undefined;
+}
+
+/** The kinds of the value of the keyword: a kind, or a list of kinds. */
+function kindsOf(value: unknown): readonly string[] | undefined {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value) && value.length > 0 && value.every((kind) => typeof kind === "string")) return value as string[];
   return undefined;
 }
 

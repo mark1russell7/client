@@ -5314,7 +5314,7 @@ export declare class HandleScope {
     get size(): number;
     get ended(): boolean;
     open<T>(kind: string, value: T, options?: HandleOpenOptions<T>): HandleRef;
-    get<T = unknown>(ref: HandleRef | string, kind?: string): T;
+    get<T = unknown>(ref: HandleRef | string, kind?: string | readonly string[]): T;
     has(ref: HandleRef | string): boolean;
     list(): HandleInfo[];
     close(ref: HandleRef | string): Promise<boolean>;
@@ -5332,7 +5332,7 @@ export interface HandleScopeOptions {
 export declare function closeValue(value: unknown): Promise<void>;
 
 ### dist/procedures/handles.d.ts#handleSchema
-export declare function handleSchema(kind: string): JsonSchema;
+export declare function handleSchema(kind: string | readonly string[]): JsonSchema;
 
 ### dist/procedures/handles.d.ts#handleScopeOf
 export declare function handleScopeOf(ctx: {

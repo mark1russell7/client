@@ -1571,6 +1571,53 @@
       }
     },
     {
+      "name": "peek",
+      "path": [
+        "fixture",
+        "peek"
+      ],
+      "description": "The count of a countable of a type parameter: its constraint decides.",
+      "params": [
+        "countable"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "countable": {
+            "type": "object",
+            "description": "A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "handle"
+            ],
+            "additionalProperties": false,
+            "x-procedures-handle": "fixture#Counter"
+          }
+        },
+        "required": [
+          "countable"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "generics": [
+        "C"
+      ],
+      "effects": {
+        "reads": [
+          "handles"
+        ],
+        "writes": []
+      }
+    },
+    {
       "name": "pick",
       "path": [
         "fixture",
@@ -1703,6 +1750,50 @@
       },
       "effects": {
         "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "reset",
+      "path": [
+        "fixture",
+        "reset"
+      ],
+      "description": "Set a countable back to 0: an input of an interface takes the handles of the classes that it accepts.",
+      "params": [
+        "countable"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "countable": {
+            "type": "object",
+            "description": "A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "handle"
+            ],
+            "additionalProperties": false,
+            "x-procedures-handle": "fixture#Counter"
+          }
+        },
+        "required": [
+          "countable"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "null"
+      },
+      "effects": {
+        "reads": [
+          "handles"
+        ],
         "writes": []
       }
     },
@@ -2610,6 +2701,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 17
+    "types": 18
   }
 }

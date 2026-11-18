@@ -19,7 +19,7 @@ import type { ExportProcedure, ExportsConstruct, ExportsJsonSchema, ExportsManif
 import { CONSTRUCT_KEYWORD, EXPORTS_MANIFEST_FORMAT } from "./types.js";
 import { codecDecoder } from "./codecs.js";
 import { withDefinitions } from "./definitions.js";
-import { handleKindOf } from "./handles.js";
+import { handleKindsOf } from "./handles.js";
 import { jsonValue } from "./json.js";
 import { reachesProgram, registerOperator, withSubPrograms } from "./programs.js";
 
@@ -96,10 +96,15 @@ function procedureOf(
   // The kind of each handle input, and the kind of a handle output (d40-handles)
   const properties = (procedure.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
   const handleInputs = Object.entries(properties).flatMap(([name, schema]) => {
-    const kind = handleKindOf(schema);
-    return kind === undefined ? [] : [[name, kind] as const];
+    const kinds = handleKindsOf(schema);
+    return kinds === undefined ? [] : [[name, kinds] as const];
   });
-  const handleOutput = handleKindOf(procedure.output);
+  // The kind of the object of an output is the kind of its class: one kind
+  const outputKinds = handleKindsOf(procedure.output);
+  if (outputKinds !== undefined && outputKinds.length !== 1) {
+    throw new Error(`The output of ${procedure.name} has the handle kinds ${outputKinds.join(", ")}: an output has one kind`);
+  }
+  const handleOutput = outputKinds?.[0];
   const defined = defineProcedure({
     path: [...procedure.path],
     input,
@@ -114,9 +119,9 @@ function procedureOf(
       if (handleInputs.length > 0) {
         const scope = handleScopeOf(ctx);
         record = { ...record };
-        for (const [name, kind] of handleInputs) {
+        for (const [name, kinds] of handleInputs) {
           const ref = record[name];
-          if (ref !== undefined && ref !== null) record[name] = scope.get(ref as { handle: string }, kind);
+          if (ref !== undefined && ref !== null) record[name] = scope.get(ref as { handle: string }, kinds);
         }
       }
       if (handleOutput === undefined) return jsonValue(await call(record));
@@ -143,7 +148,7 @@ function procedureOf(
 /** True when a procedure takes or gives a handle. */
 function usesHandles(procedure: ExportProcedure): boolean {
   const properties = (procedure.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
-  return handleKindOf(procedure.output) !== undefined || Object.values(properties).some((schema) => handleKindOf(schema) !== undefined);
+  return handleKindsOf(procedure.output) !== undefined || Object.values(properties).some((schema) => handleKindsOf(schema) !== undefined);
 }
 
 /** The construct of each parameter, in the order of the parameters: undefined for a JSON input. */

@@ -17,22 +17,27 @@ export interface HandleRef {
 
 /**
  * The keyword of the JSON Schema of a handle. Its value is the kind of the object, for example
- * `"sqlite.Database"`. A generator reads it to find the inputs and the outputs that are handles.
+ * `"sqlite.Database"`. An input that takes more than one kind has the list of the kinds. A generator
+ * reads it to find the inputs and the outputs that are handles.
  */
 export const HANDLE_KEYWORD = "x-procedures-handle" as const;
 
 /** The default count limit of the open objects of one scope. */
 export const DEFAULT_MAX_HANDLES = 64;
 
-/** This function gives the JSON Schema of a handle of a kind. */
-export function handleSchema(kind: string): JsonSchema {
+/**
+ * This function gives the JSON Schema of a handle of a kind. For a list of kinds, the input takes a
+ * handle of each kind of the list. A list of one kind gives the schema of that kind.
+ */
+export function handleSchema(kind: string | readonly string[]): JsonSchema {
+  const kinds = typeof kind === "string" ? [kind] : [...kind];
   return {
     type: "object",
-    description: `A handle of a ${kind}. The procedure that opens it gives it, and handle.close closes it.`,
+    description: `A handle of a ${kinds.join(" or a ")}. The procedure that opens it gives it, and handle.close closes it.`,
     properties: { handle: { type: "string", minLength: 1 } },
     required: ["handle"],
     additionalProperties: false,
-    [HANDLE_KEYWORD]: kind,
+    [HANDLE_KEYWORD]: kinds.length === 1 ? kinds[0]! : kinds,
   };
 }
 
@@ -210,18 +215,20 @@ export class HandleScope {
   }
 
   /**
-   * This method gives the object of a handle. With a kind, it refuses an object of a different
-   * kind. It refuses a handle that is not open in this scope: a closed handle, or a handle of another scope.
+   * This method gives the object of a handle. With a kind or a list of kinds, it refuses an object
+   * of a different kind. It refuses a handle that is not open in this scope: a closed handle, or a
+   * handle of another scope.
    */
-  get<T = unknown>(ref: HandleRef | string, kind?: string): T {
+  get<T = unknown>(ref: HandleRef | string, kind?: string | readonly string[]): T {
     this.closeIdle();
     const id = idOf(ref);
     const entry = this.entries.get(id);
     if (entry === undefined) {
       throw new HandleError("VALIDATION_ERROR", `The handle ${id} is not open for this caller. handle.list gives the open handles.`);
     }
-    if (kind !== undefined && entry.kind !== kind) {
-      throw new HandleError("VALIDATION_ERROR", `The handle ${id} is a ${entry.kind}, not a ${kind}.`);
+    const kinds = kind === undefined ? undefined : typeof kind === "string" ? [kind] : kind;
+    if (kinds !== undefined && !kinds.includes(entry.kind)) {
+      throw new HandleError("VALIDATION_ERROR", `The handle ${id} is a ${entry.kind}, not a ${kinds.join(" or a ")}.`);
     }
     entry.usedAt = this.now();
     return entry.value as T;
