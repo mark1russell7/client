@@ -1,5 +1,11 @@
 # @procedures/notify
 
+## 0.66.0
+
+### Patch Changes
+
+- @procedures/client@0.66.0
+
 ## 0.65.0
 
 ### Patch Changes
