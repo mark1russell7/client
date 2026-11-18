@@ -122,6 +122,8 @@ The fault cells of the harness of `systems` run in the workflow `harness.yml` on
 
 Some packages use general packages from other repositories: `cue`, `splay` and `docker-sqlite`. A general package does not use a package of this repository.
 
+The release train updates the general packages. After each update, it starts `pnpm run release-train:update`. When the check of the wraps fails, this script writes the manifests of the wraps and the catalogs again. [scripts/release-train-update.ts](scripts/release-train-update.ts) tells the steps.
+
 ## License
 
 MIT. Refer to [LICENSE](LICENSE).
