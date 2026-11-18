@@ -51,7 +51,7 @@ function server(options: Omit<ProcedureServerOptions, "registry" | "autoRegister
 
 const call = (credentials: Credentials): ServerRequest => ({ id: "c1", method: pathToMethod(["who", "am"]), payload: {}, metadata: {}, credentials });
 
-/** A request hook that gives the principal of the TCP peer, as the fleet site does with `resources.peer`. It keeps each connection that it sees. */
+/** A request hook that gives the principal of the TCP peer. It keeps each connection that it sees. */
 function peerHook(): { readonly hook: PrincipalOf; readonly seen: Array<{ id: string; connection: RequestConnection | undefined }> } {
   const seen: Array<{ id: string; connection: RequestConnection | undefined }> = [];
   return {

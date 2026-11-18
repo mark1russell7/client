@@ -348,7 +348,7 @@ describe("McpHost.declare", () => {
     await clock.advance(0);
     const endpoint = `http://127.0.0.1:${(listener.server.address() as AddressInfo).port}/mcp`;
 
-    // Six idle clients, as on the fleet site: each one keeps its GET stream open
+    // Six idle clients: each one keeps its GET stream open
     const streams: Array<Promise<string>> = [];
     for (let client = 0; client < 6; client++) {
       const headers = { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL };
