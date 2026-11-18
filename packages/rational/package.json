@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/rational",
-  "version": "0.63.0",
+  "version": "0.64.0",
   "description": "The functions of @mark1russell7/rational as procedures, made from its types: exact fractions over bigint, their sums, products and roundings as typed calls, MCP tools and CLI commands.",
   "keywords": [
     "rational",
