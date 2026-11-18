@@ -4,11 +4,12 @@
  * `live` calls `live.set`, and its reader takes the values from the events. Both arms serve the same collection, so a
  * store write of the arm `live` shows in the same counters. The arm `storequiet` is the arm `store` with no subscriber,
  * so a publish of a change makes no read. The arm `storefilter` is the arm `store` with a rule of the rows, so each
- * write reads its rows before it.
+ * write reads its rows before it. The arm `storebound` is the arm `store` with an in-flight bound on the writes of the
+ * host (roadmap CLI-132): a write past the bound gets `RATE_LIMITED` before its work starts.
  */
 
 /** The arms. The first arm is the base of the pairs. */
-export const LIVE_ARMS = ["store", "live", "storequiet", "storefilter"] as const;
+export const LIVE_ARMS = ["store", "live", "storequiet", "storefilter", "storebound"] as const;
 /** An arm of the bench. */
 export type LiveArm = (typeof LIVE_ARMS)[number];
 
@@ -17,6 +18,13 @@ export const LIVE_CASES = ["w1", "w10", "w100"] as const;
 
 /** The cases of the suite `live-stall`: a rate that the queue of the collection serves, and a rate over its service rate. */
 export const STALL_CASES = ["w10", "w100"] as const;
+
+/**
+ * The bound of the arm `storebound`: the writes of the host in flight at one time. The write queue of the collection runs
+ * 8 transactions at one time (`DEFAULT_WRITES_IN_FLIGHT`), so 24 writes wait. At the service rate of the runs of the
+ * suite `live-stall` at w100 (approximately 260 writes a second), a write waits approximately 120 ms.
+ */
+export const BOUND_LIMIT = 32;
 
 /** The sets of one writer in a second. */
 export const SETS_PER_SECOND = 8;
@@ -46,6 +54,8 @@ export interface LiveCount {
   readonly case: string;
   readonly planned: number;
   readonly replied: number;
+  /** The sets that the in-flight bound refused with `RATE_LIMITED`. Only the arm `storebound` has a bound. A refusal is not a failure. */
+  readonly refused: number;
   readonly failures: number;
   /** The inserts, updates and removes of the namespaces of the bench database, from the command `top`. */
   readonly storeWrites: number;
@@ -54,6 +64,8 @@ export interface LiveCount {
   /** The time from a send to its reply, in milliseconds. */
   readonly replyP50Ms: number;
   readonly replyP99Ms: number;
+  /** The time from a send to its refusal, in milliseconds. A child with no refusal has no time. */
+  readonly refusedP99Ms: number;
   /** The time from a send to the reader that holds the value, in milliseconds. A value that a later value replaced has no time. */
   readonly readerP50Ms: number;
   readonly readerP95Ms: number;

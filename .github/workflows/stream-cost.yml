@@ -16,6 +16,8 @@ name: Stream cost
 # MongoDB and the writers on all processors and apart. The suite `tenant-separate` tells the queue of a
 # process from the counter document and from the disk. The suite `tenant-first` adds first loads of new tenants.
 # The suite `tenant-partition` is the gate of a counter and a write queue for each partition (roadmap CLI-96).
+# The suite `live-stall` gives the replies of the store with a subscriber, under and over the service rate (roadmap
+# CLI-102). The suite `live-bound` gives the same store with an in-flight bound on the writes of the host (roadmap CLI-132).
 #
 # Only a dispatch starts the workflow, and no ruleset needs its checks. It only reports, except for the
 # objective of the suite `read-bound` and the suite `gate` with `enforce`.
@@ -38,6 +40,8 @@ on:
           - tenant-separate
           - tenant-first
           - tenant-partition
+          - live-stall
+          - live-bound
         default: stream
       enforce:
         description: The suite gate fails the run when a case is not within its limit.
