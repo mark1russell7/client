@@ -10,6 +10,8 @@ type ArrayNode: dist/ir.d.ts#ArrayNode
 type Binding: dist/ir.d.ts#Binding
 type BindingKind: dist/ir.d.ts#BindingKind
 type BodyEffects: dist/effects.d.ts#BodyEffects
+CODEC_KEYWORD: dist/exports/types.d.ts#CODEC_KEYWORD
+CONSTRUCT_KEYWORD: dist/exports/types.d.ts#CONSTRUCT_KEYWORD
 type CallExplanation: dist/explain.d.ts#CallExplanation
 CallExplanationOutput: dist/types.d.ts#CallExplanationOutput
 type CallKind: dist/explain.d.ts#CallKind
@@ -33,9 +35,20 @@ type DiagnosticCode: dist/diagnostics.d.ts#DiagnosticCode
 type DiagramResult: dist/mermaid.d.ts#DiagramResult
 type DynamicNode: dist/ir.d.ts#DynamicNode
 type DynamicReason: dist/ir.d.ts#DynamicReason
+EXPORTS_MANIFEST_FORMAT: dist/exports/types.d.ts#EXPORTS_MANIFEST_FORMAT
 type EffectSummary: dist/effects.d.ts#EffectSummary
 type EffectsAnalysis: dist/effects.d.ts#EffectsAnalysis
 EffectsOutput: dist/types.d.ts#EffectsOutput
+type ExportExemption: dist/exports/types.d.ts#ExportExemption
+type ExportExemptionReason: dist/exports/types.d.ts#ExportExemptionReason
+type ExportOthers: dist/exports/types.d.ts#ExportOthers
+type ExportProcedure: dist/exports/types.d.ts#ExportProcedure
+type ExportsCodec: dist/exports/types.d.ts#ExportsCodec
+type ExportsConstruct: dist/exports/types.d.ts#ExportsConstruct
+type ExportsJsonSchema: dist/exports/types.d.ts#ExportsJsonSchema
+type ExportsManifest: dist/exports/types.d.ts#ExportsManifest
+type ExportsModuleOptions: dist/exports/load.d.ts#ExportsModuleOptions
+type ExportsProgram: dist/exports/types.d.ts#ExportsProgram
 type FactsOptions: dist/facts.d.ts#FactsOptions
 type FailNode: dist/ir.d.ts#FailNode
 type IRNode: dist/ir.d.ts#IRNode
@@ -59,6 +72,7 @@ type OpenRpcContentDescriptor: dist/openrpc.d.ts#OpenRpcContentDescriptor
 type OpenRpcDocument: dist/openrpc.d.ts#OpenRpcDocument
 type OpenRpcMethod: dist/openrpc.d.ts#OpenRpcMethod
 type OpenRpcOptions: dist/openrpc.d.ts#OpenRpcOptions
+PROGRAM_KEYWORD: dist/exports/types.d.ts#PROGRAM_KEYWORD
 type ParallelNode: dist/ir.d.ts#ParallelNode
 type Pointer: dist/ir.d.ts#Pointer
 type ProcedureFacts: dist/facts.d.ts#ProcedureFacts
@@ -120,6 +134,9 @@ diagramProgram: dist/mermaid.d.ts#diagramProgram
 emitText: dist/codegen-text.d.ts#emitText
 entryTakesRawInput: dist/facts.d.ts#entryTakesRawInput
 explainProgram: dist/explain.d.ts#explainProgram
+exportInputSchema: dist/exports/load.d.ts#exportInputSchema
+exportOutputSchema: dist/exports/load.d.ts#exportOutputSchema
+exportsModule: dist/exports/load.d.ts#exportsModule
 findDefinitions: dist/normalize.d.ts#findDefinitions
 foldProgram: dist/fold.d.ts#foldProgram
 hasErrors: dist/diagnostics.d.ts#hasErrors
@@ -180,6 +197,13 @@ parallel: dist/runtime.d.ts#parallel
 scope: dist/runtime.d.ts#scope
 truthy: dist/runtime.d.ts#truthy
 unknownName: dist/runtime.d.ts#unknownName
+
+## ./generate (dist/generate.d.ts): names
+
+type ExportsFunctionOverlay: dist/exports/generate.d.ts#ExportsFunctionOverlay
+type ExportsOverlay: dist/exports/generate.d.ts#ExportsOverlay
+type GenerateExportsOptions: dist/exports/generate.d.ts#GenerateExportsOptions
+generateExportsManifest: dist/exports/generate.d.ts#generateExportsManifest
 
 ## Declarations
 
@@ -330,6 +354,128 @@ export interface ProgramExplanation {
 
 ### dist/explain.d.ts#explainProgram
 export declare function explainProgram(program: unknown, options: CheckOptions): ProgramExplanation;
+
+### dist/exports/generate.d.ts#ExportsFunctionOverlay
+export interface ExportsFunctionOverlay {
+    readonly effects?: Effects;
+    readonly exempt?: string;
+}
+
+### dist/exports/generate.d.ts#ExportsOverlay
+export interface ExportsOverlay {
+    readonly effects?: Effects;
+    readonly functions?: Readonly<Record<string, ExportsFunctionOverlay>>;
+    readonly constructors?: Readonly<Record<string, string>>;
+}
+
+### dist/exports/generate.d.ts#GenerateExportsOptions
+export interface GenerateExportsOptions {
+    readonly declarations: string;
+    readonly package: string;
+    readonly version?: string;
+    readonly entry?: string;
+    readonly namespace: readonly string[];
+    readonly overlay?: ExportsOverlay;
+}
+
+### dist/exports/generate.d.ts#generateExportsManifest
+export declare function generateExportsManifest(options: GenerateExportsOptions): ExportsManifest;
+
+### dist/exports/load.d.ts#ExportsModuleOptions
+export interface ExportsModuleOptions {
+    readonly name?: string;
+}
+
+### dist/exports/load.d.ts#exportInputSchema
+export declare function exportInputSchema(manifest: ExportsManifest, procedure: ExportProcedure): ExportsJsonSchema;
+
+### dist/exports/load.d.ts#exportOutputSchema
+export declare function exportOutputSchema(manifest: ExportsManifest, procedure: ExportProcedure): ExportsJsonSchema;
+
+### dist/exports/load.d.ts#exportsModule
+export declare function exportsModule(manifest: ExportsManifest, functions: Readonly<Record<string, unknown>>, options?: ExportsModuleOptions): ProcedureModule;
+
+### dist/exports/types.d.ts#CODEC_KEYWORD
+export declare const CODEC_KEYWORD: "x-procedures-codec";
+
+### dist/exports/types.d.ts#CONSTRUCT_KEYWORD
+export declare const CONSTRUCT_KEYWORD: "x-procedures-construct";
+
+### dist/exports/types.d.ts#EXPORTS_MANIFEST_FORMAT
+export declare const EXPORTS_MANIFEST_FORMAT: "procedures-exports/1";
+
+### dist/exports/types.d.ts#ExportExemption
+export interface ExportExemption {
+    readonly name: string;
+    readonly reason: ExportExemptionReason;
+    readonly detail: string;
+}
+
+### dist/exports/types.d.ts#ExportExemptionReason
+export type ExportExemptionReason =
+"function-parameter"
+ | "input-not-json"
+ | "output-not-json"
+ | "overload"
+ | "overlay"
+ | "unresolved";
+
+### dist/exports/types.d.ts#ExportOthers
+export interface ExportOthers {
+    readonly classes: readonly string[];
+    readonly values: number;
+    readonly types: number;
+}
+
+### dist/exports/types.d.ts#ExportProcedure
+export interface ExportProcedure {
+    readonly name: string;
+    readonly path: readonly string[];
+    readonly description?: string;
+    readonly params: readonly string[];
+    readonly rest?: string;
+    readonly input: ExportsJsonSchema;
+    readonly output: ExportsJsonSchema;
+    readonly async?: true;
+    readonly effects?: Effects;
+    readonly generics?: readonly string[];
+}
+
+### dist/exports/types.d.ts#ExportsCodec
+export type ExportsCodec = "bigint" | "map" | "set" | "iterable";
+
+### dist/exports/types.d.ts#ExportsConstruct
+export interface ExportsConstruct {
+    readonly function: string;
+    readonly params: readonly string[];
+}
+
+### dist/exports/types.d.ts#ExportsJsonSchema
+export type ExportsJsonSchema = Record<string, unknown>;
+
+### dist/exports/types.d.ts#ExportsManifest
+export interface ExportsManifest {
+    readonly format: typeof EXPORTS_MANIFEST_FORMAT;
+    readonly package: string;
+    readonly version?: string;
+    readonly entry: string;
+    readonly namespace: readonly string[];
+    readonly $defs: Readonly<Record<string, ExportsJsonSchema>>;
+    readonly procedures: readonly ExportProcedure[];
+    readonly exempt: readonly ExportExemption[];
+    readonly others: ExportOthers;
+}
+
+### dist/exports/types.d.ts#ExportsProgram
+export interface ExportsProgram {
+    readonly params: readonly string[];
+    readonly inputs: readonly ExportsJsonSchema[];
+    readonly output: ExportsJsonSchema;
+    readonly undefinedForNull?: true;
+}
+
+### dist/exports/types.d.ts#PROGRAM_KEYWORD
+export declare const PROGRAM_KEYWORD: "x-procedures-program";
 
 ### dist/facts.d.ts#Definition
 export interface Definition {

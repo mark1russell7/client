@@ -8,6 +8,10 @@
 // Core Client
 export { Client } from "./client.js";
 
+// The module of a running peer over HTTP (d40-tool-surface)
+export { peerModule } from "./peer-module.js";
+export type { PeerAddress, PeerModuleOptions } from "./peer-module.js";
+
 // Universal Error System
 export type { ErrorMetadata, ErrorRegistry, ErrorContext, RichError } from "./errors/index.js";
 export { ErrorSeverity, ErrorCategory } from "./errors/index.js";

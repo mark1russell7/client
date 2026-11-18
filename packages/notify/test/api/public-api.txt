@@ -34,8 +34,11 @@ PushoverSent: dist/pushover.d.ts#PushoverSent
 PushoverValidated: dist/pushover.d.ts#PushoverValidated
 TWILIO_ACCOUNT_SID: dist/twilio-common.d.ts#TWILIO_ACCOUNT_SID
 TWILIO_API: dist/twilio.d.ts#TWILIO_API
+TWILIO_HELP_KEYWORDS: dist/twilio.d.ts#TWILIO_HELP_KEYWORDS
 TWILIO_LIMITS: dist/twilio.d.ts#TWILIO_LIMITS
 TWILIO_MIN_WAIT_MS: dist/twilio-common.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_OPT_IN_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_IN_KEYWORDS
+TWILIO_OPT_OUT_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_OUT_KEYWORDS
 TWILIO_RING_MAX_MS: dist/twilio.d.ts#TWILIO_RING_MAX_MS
 TWILIO_SERVERLESS_API: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_API
 TWILIO_SERVERLESS_BUILD_POLL: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_BUILD_POLL
@@ -52,6 +55,10 @@ type TwilioFailure: dist/twilio-common.d.ts#TwilioFailure
 type TwilioFailureKind: dist/twilio-common.d.ts#TwilioFailureKind
 TwilioFetch: dist/twilio.d.ts#TwilioFetch
 TwilioGather: dist/twilio.d.ts#TwilioGather
+TwilioKeyword: dist/twilio.d.ts#TwilioKeyword
+TwilioMessage: dist/twilio.d.ts#TwilioMessage
+TwilioMessagePage: dist/twilio.d.ts#TwilioMessagePage
+TwilioMessageQuery: dist/twilio.d.ts#TwilioMessageQuery
 type TwilioRequest: dist/twilio-common.d.ts#TwilioRequest
 type TwilioResponse: dist/twilio-common.d.ts#TwilioResponse
 TwilioServerlessBuild: dist/twilio-serverless.d.ts#TwilioServerlessBuild
@@ -79,7 +86,29 @@ TwilioServerlessVisibility: dist/twilio-serverless.d.ts#TwilioServerlessVisibili
 TwilioText: dist/twilio.d.ts#TwilioText
 TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
 TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioUsagePage: dist/twilio.d.ts#TwilioUsagePage
+TwilioUsageQuery: dist/twilio.d.ts#TwilioUsageQuery
+TwilioUsageRecord: dist/twilio.d.ts#TwilioUsageRecord
 TwilioVoice: dist/twilio.d.ts#TwilioVoice
+WEBHOOK_HEADERS: dist/webhook.d.ts#WEBHOOK_HEADERS
+WEBHOOK_MIN_WAIT_MS: dist/webhook.d.ts#WEBHOOK_MIN_WAIT_MS
+WEBHOOK_SECRET_BYTES: dist/webhook.d.ts#WEBHOOK_SECRET_BYTES
+WEBHOOK_SECRET_PREFIX: dist/webhook.d.ts#WEBHOOK_SECRET_PREFIX
+WEBHOOK_TIMEOUT_MS: dist/webhook.d.ts#WEBHOOK_TIMEOUT_MS
+WEBHOOK_TOLERANCE_MS: dist/webhook.d.ts#WEBHOOK_TOLERANCE_MS
+WebhookCheck: dist/webhook.d.ts#WebhookCheck
+WebhookCheckReason: dist/webhook.d.ts#WebhookCheckReason
+WebhookEvent: dist/webhook.d.ts#WebhookEvent
+WebhookFailure: dist/webhook.d.ts#WebhookFailure
+WebhookFailureKind: dist/webhook.d.ts#WebhookFailureKind
+WebhookFetch: dist/webhook.d.ts#WebhookFetch
+WebhookIncoming: dist/webhook.d.ts#WebhookIncoming
+WebhookMessage: dist/webhook.d.ts#WebhookMessage
+WebhookRequest: dist/webhook.d.ts#WebhookRequest
+WebhookResponse: dist/webhook.d.ts#WebhookResponse
+WebhookSecret: dist/webhook.d.ts#WebhookSecret
+WebhookSecretResult: dist/webhook.d.ts#WebhookSecretResult
+WebhookSent: dist/webhook.d.ts#WebhookSent
 callPushover: dist/pushover.d.ts#callPushover
 callTwilio: dist/twilio.d.ts#callTwilio
 extractPushoverCallback: dist/pushover.d.ts#extractPushoverCallback
@@ -90,6 +119,7 @@ extractPushoverSent: dist/pushover.d.ts#extractPushoverSent
 extractPushoverValidated: dist/pushover.d.ts#extractPushoverValidated
 extractTwilioBalance: dist/twilio.d.ts#extractTwilioBalance
 extractTwilioCall: dist/twilio.d.ts#extractTwilioCall
+extractTwilioMessages: dist/twilio.d.ts#extractTwilioMessages
 extractTwilioServerlessAssets: dist/twilio-serverless.d.ts#extractTwilioServerlessAssets
 extractTwilioServerlessBuild: dist/twilio-serverless.d.ts#extractTwilioServerlessBuild
 extractTwilioServerlessDeployment: dist/twilio-serverless.d.ts#extractTwilioServerlessDeployment
@@ -102,10 +132,13 @@ extractTwilioServerlessVariable: dist/twilio-serverless.d.ts#extractTwilioServer
 extractTwilioServerlessVariables: dist/twilio-serverless.d.ts#extractTwilioServerlessVariables
 extractTwilioServerlessVersion: dist/twilio-serverless.d.ts#extractTwilioServerlessVersion
 extractTwilioText: dist/twilio.d.ts#extractTwilioText
+extractTwilioUsageRecords: dist/twilio.d.ts#extractTwilioUsageRecords
+extractWebhookSent: dist/webhook.d.ts#extractWebhookSent
 headerSafe: dist/notify.d.ts#headerSafe
 notifyModule: dist/module.d.ts#notifyModule
 notifyProcedures: dist/procedures.d.ts#notifyProcedures
 notifySendProcedure: dist/procedures.d.ts#notifySendProcedure
+parseWebhookSecret: dist/webhook.d.ts#parseWebhookSecret
 pushoverCancelByTagRequest: dist/pushover.d.ts#pushoverCancelByTagRequest
 pushoverCancelProcedure: dist/pushover-procedures.d.ts#pushoverCancelProcedure
 pushoverCancelRequest: dist/pushover.d.ts#pushoverCancelRequest
@@ -120,12 +153,17 @@ pushoverValidateProcedure: dist/pushover-procedures.d.ts#pushoverValidateProcedu
 pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
 sendNotification: dist/notify.d.ts#sendNotification
+sendWebhook: dist/webhook.d.ts#sendWebhook
+signWebhook: dist/webhook.d.ts#signWebhook
 twilioBalanceRequest: dist/twilio.d.ts#twilioBalanceRequest
 twilioCallRequest: dist/twilio.d.ts#twilioCallRequest
 twilioCallState: dist/twilio.d.ts#twilioCallState
 twilioCallStatusRequest: dist/twilio.d.ts#twilioCallStatusRequest
 twilioEndCallRequest: dist/twilio.d.ts#twilioEndCallRequest
 twilioGatherTwiml: dist/twilio.d.ts#twilioGatherTwiml
+twilioMessageListRequest: dist/twilio.d.ts#twilioMessageListRequest
+twilioNextPageRequest: dist/twilio.d.ts#twilioNextPageRequest
+twilioOptOutKeyword: dist/twilio.d.ts#twilioOptOutKeyword
 twilioSayTwiml: dist/twilio.d.ts#twilioSayTwiml
 twilioServerlessAssetListRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetListRequest
 twilioServerlessAssetRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetRequest
@@ -149,6 +187,11 @@ twilioServerlessVariableUpdateRequest: dist/twilio-serverless.d.ts#twilioServerl
 twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
 twilioTextState: dist/twilio.d.ts#twilioTextState
 twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
+twilioUsageRecordsRequest: dist/twilio.d.ts#twilioUsageRecordsRequest
+verifyWebhook: dist/webhook.d.ts#verifyWebhook
+webhookBody: dist/webhook.d.ts#webhookBody
+webhookRequest: dist/webhook.d.ts#webhookRequest
+webhookSecretText: dist/webhook.d.ts#webhookSecretText
 
 ## ./pushover (dist/pushover.d.ts): names
 
@@ -191,8 +234,11 @@ pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 
 TWILIO_ACCOUNT_SID: dist/twilio-common.d.ts#TWILIO_ACCOUNT_SID
 TWILIO_API: dist/twilio.d.ts#TWILIO_API
+TWILIO_HELP_KEYWORDS: dist/twilio.d.ts#TWILIO_HELP_KEYWORDS
 TWILIO_LIMITS: dist/twilio.d.ts#TWILIO_LIMITS
 TWILIO_MIN_WAIT_MS: dist/twilio-common.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_OPT_IN_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_IN_KEYWORDS
+TWILIO_OPT_OUT_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_OUT_KEYWORDS
 TWILIO_RING_MAX_MS: dist/twilio.d.ts#TWILIO_RING_MAX_MS
 TWILIO_VALIDITY_MAX_MS: dist/twilio.d.ts#TWILIO_VALIDITY_MAX_MS
 TwilioBalanceRead: dist/twilio.d.ts#TwilioBalanceRead
@@ -204,26 +250,39 @@ type TwilioFailure: dist/twilio-common.d.ts#TwilioFailure
 type TwilioFailureKind: dist/twilio-common.d.ts#TwilioFailureKind
 TwilioFetch: dist/twilio.d.ts#TwilioFetch
 TwilioGather: dist/twilio.d.ts#TwilioGather
+TwilioKeyword: dist/twilio.d.ts#TwilioKeyword
+TwilioMessage: dist/twilio.d.ts#TwilioMessage
+TwilioMessagePage: dist/twilio.d.ts#TwilioMessagePage
+TwilioMessageQuery: dist/twilio.d.ts#TwilioMessageQuery
 type TwilioRequest: dist/twilio-common.d.ts#TwilioRequest
 type TwilioResponse: dist/twilio-common.d.ts#TwilioResponse
 TwilioText: dist/twilio.d.ts#TwilioText
 TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
 TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioUsagePage: dist/twilio.d.ts#TwilioUsagePage
+TwilioUsageQuery: dist/twilio.d.ts#TwilioUsageQuery
+TwilioUsageRecord: dist/twilio.d.ts#TwilioUsageRecord
 TwilioVoice: dist/twilio.d.ts#TwilioVoice
 callTwilio: dist/twilio.d.ts#callTwilio
 extractTwilioBalance: dist/twilio.d.ts#extractTwilioBalance
 extractTwilioCall: dist/twilio.d.ts#extractTwilioCall
+extractTwilioMessages: dist/twilio.d.ts#extractTwilioMessages
 extractTwilioText: dist/twilio.d.ts#extractTwilioText
+extractTwilioUsageRecords: dist/twilio.d.ts#extractTwilioUsageRecords
 twilioBalanceRequest: dist/twilio.d.ts#twilioBalanceRequest
 twilioCallRequest: dist/twilio.d.ts#twilioCallRequest
 twilioCallState: dist/twilio.d.ts#twilioCallState
 twilioCallStatusRequest: dist/twilio.d.ts#twilioCallStatusRequest
 twilioEndCallRequest: dist/twilio.d.ts#twilioEndCallRequest
 twilioGatherTwiml: dist/twilio.d.ts#twilioGatherTwiml
+twilioMessageListRequest: dist/twilio.d.ts#twilioMessageListRequest
+twilioNextPageRequest: dist/twilio.d.ts#twilioNextPageRequest
+twilioOptOutKeyword: dist/twilio.d.ts#twilioOptOutKeyword
 twilioSayTwiml: dist/twilio.d.ts#twilioSayTwiml
 twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
 twilioTextState: dist/twilio.d.ts#twilioTextState
 twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
+twilioUsageRecordsRequest: dist/twilio.d.ts#twilioUsageRecordsRequest
 
 ## ./twilio-serverless (dist/twilio-serverless.d.ts): names
 
@@ -285,11 +344,42 @@ twilioServerlessVariableListRequest: dist/twilio-serverless.d.ts#twilioServerles
 twilioServerlessVariableRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableRequest
 twilioServerlessVariableUpdateRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableUpdateRequest
 
+## ./webhook (dist/webhook.d.ts): names
+
+WEBHOOK_HEADERS: dist/webhook.d.ts#WEBHOOK_HEADERS
+WEBHOOK_MIN_WAIT_MS: dist/webhook.d.ts#WEBHOOK_MIN_WAIT_MS
+WEBHOOK_SECRET_BYTES: dist/webhook.d.ts#WEBHOOK_SECRET_BYTES
+WEBHOOK_SECRET_PREFIX: dist/webhook.d.ts#WEBHOOK_SECRET_PREFIX
+WEBHOOK_TIMEOUT_MS: dist/webhook.d.ts#WEBHOOK_TIMEOUT_MS
+WEBHOOK_TOLERANCE_MS: dist/webhook.d.ts#WEBHOOK_TOLERANCE_MS
+WebhookCheck: dist/webhook.d.ts#WebhookCheck
+WebhookCheckReason: dist/webhook.d.ts#WebhookCheckReason
+WebhookEvent: dist/webhook.d.ts#WebhookEvent
+WebhookFailure: dist/webhook.d.ts#WebhookFailure
+WebhookFailureKind: dist/webhook.d.ts#WebhookFailureKind
+WebhookFetch: dist/webhook.d.ts#WebhookFetch
+WebhookIncoming: dist/webhook.d.ts#WebhookIncoming
+WebhookMessage: dist/webhook.d.ts#WebhookMessage
+WebhookRequest: dist/webhook.d.ts#WebhookRequest
+WebhookResponse: dist/webhook.d.ts#WebhookResponse
+WebhookSecret: dist/webhook.d.ts#WebhookSecret
+WebhookSecretResult: dist/webhook.d.ts#WebhookSecretResult
+WebhookSent: dist/webhook.d.ts#WebhookSent
+extractWebhookSent: dist/webhook.d.ts#extractWebhookSent
+parseWebhookSecret: dist/webhook.d.ts#parseWebhookSecret
+sendWebhook: dist/webhook.d.ts#sendWebhook
+signWebhook: dist/webhook.d.ts#signWebhook
+verifyWebhook: dist/webhook.d.ts#verifyWebhook
+webhookBody: dist/webhook.d.ts#webhookBody
+webhookRequest: dist/webhook.d.ts#webhookRequest
+webhookSecretText: dist/webhook.d.ts#webhookSecretText
+
 ## ./testing (dist/testing/index.d.ts): names
 
 PushoverApiOptions: dist/testing/index.d.ts#PushoverApiOptions
 PushoverLedger: dist/testing/index.d.ts#PushoverLedger
 PushoverLedgerMessage: dist/testing/index.d.ts#PushoverLedgerMessage
+PushoverReceiptReply: dist/testing/index.d.ts#PushoverReceiptReply
 PushoverReceiptState: dist/testing/index.d.ts#PushoverReceiptState
 pushoverApi: dist/testing/index.d.ts#pushoverApi
 pushoverFetchTo: dist/testing/index.d.ts#pushoverFetchTo
@@ -583,6 +673,7 @@ export interface PushoverApiOptions {
     readonly receipts?: number;
     readonly state?: PushoverReceiptState;
     readonly acknowledgedAt?: number;
+    readonly receiptStates?: (index: number) => readonly PushoverReceiptReply[];
     readonly expiresAt?: number;
     readonly tags?: readonly string[] | "any";
     readonly limit?: {
@@ -614,6 +705,12 @@ export interface PushoverLedgerMessage {
     readonly connection: number;
     readonly readAt?: number;
     readonly cancelledAt?: number;
+}
+
+### dist/testing/index.d.ts#PushoverReceiptReply
+export interface PushoverReceiptReply {
+    readonly state: PushoverReceiptState;
+    readonly acknowledgedAt?: number;
 }
 
 ### dist/testing/index.d.ts#PushoverReceiptState
@@ -990,11 +1087,21 @@ export declare function twilioServerlessVariableUpdateRequest(credentials: Twili
 ### dist/twilio.d.ts#TWILIO_API
 export declare const TWILIO_API = "https://api.twilio.com/2010-04-01";
 
+### dist/twilio.d.ts#TWILIO_HELP_KEYWORDS
+export declare const TWILIO_HELP_KEYWORDS: readonly ["HELP", "INFO"];
+
 ### dist/twilio.d.ts#TWILIO_LIMITS
 export declare const TWILIO_LIMITS: {
     readonly body: 1600;
     readonly twiml: 4000;
+    readonly pageSize: 1000;
 };
+
+### dist/twilio.d.ts#TWILIO_OPT_IN_KEYWORDS
+export declare const TWILIO_OPT_IN_KEYWORDS: readonly ["START", "YES", "UNSTOP"];
+
+### dist/twilio.d.ts#TWILIO_OPT_OUT_KEYWORDS
+export declare const TWILIO_OPT_OUT_KEYWORDS: readonly ["STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT", "REVOKE", "OPTOUT"];
 
 ### dist/twilio.d.ts#TWILIO_RING_MAX_MS
 export declare const TWILIO_RING_MAX_MS = 600000;
@@ -1052,6 +1159,36 @@ export interface TwilioGather extends TwilioVoice {
     readonly actionOnEmptyResult?: boolean | undefined;
 }
 
+### dist/twilio.d.ts#TwilioKeyword
+export type TwilioKeyword = "stop" | "start" | "help";
+
+### dist/twilio.d.ts#TwilioMessage
+export interface TwilioMessage {
+    readonly sid: string;
+    readonly from?: string;
+    readonly to: string;
+    readonly body: string;
+    readonly direction: string;
+    readonly status: string;
+    readonly dateSent?: number;
+    readonly errorCode?: number;
+}
+
+### dist/twilio.d.ts#TwilioMessagePage
+export interface TwilioMessagePage {
+    readonly ok: true;
+    readonly messages: readonly TwilioMessage[];
+    readonly nextPageUri?: string;
+}
+
+### dist/twilio.d.ts#TwilioMessageQuery
+export interface TwilioMessageQuery {
+    readonly to?: string | undefined;
+    readonly from?: string | undefined;
+    readonly dateSentAfter?: number | string | undefined;
+    readonly pageSize?: number | undefined;
+}
+
 ### dist/twilio.d.ts#TwilioText
 export interface TwilioText {
     readonly to: string;
@@ -1079,6 +1216,36 @@ export interface TwilioTextRead {
 ### dist/twilio.d.ts#TwilioTextState
 export type TwilioTextState = "pending" | "delivered" | "failed";
 
+### dist/twilio.d.ts#TwilioUsagePage
+export interface TwilioUsagePage {
+    readonly ok: true;
+    readonly records: readonly TwilioUsageRecord[];
+    readonly nextPageUri?: string;
+}
+
+### dist/twilio.d.ts#TwilioUsageQuery
+export interface TwilioUsageQuery {
+    readonly category?: string | undefined;
+    readonly startDate?: string | undefined;
+    readonly endDate?: string | undefined;
+    readonly pageSize?: number | undefined;
+}
+
+### dist/twilio.d.ts#TwilioUsageRecord
+export interface TwilioUsageRecord {
+    readonly category: string;
+    readonly startDate: string;
+    readonly endDate: string;
+    readonly price: number;
+    readonly priceText: string;
+    readonly priceUnit: string;
+    readonly usage?: number;
+    readonly usageUnit?: string;
+    readonly count?: number;
+    readonly countUnit?: string;
+    readonly asOf?: number;
+}
+
 ### dist/twilio.d.ts#TwilioVoice
 export interface TwilioVoice {
     readonly voice?: string | undefined;
@@ -1097,8 +1264,14 @@ export declare function extractTwilioBalance(response: TwilioResponse): TwilioBa
 ### dist/twilio.d.ts#extractTwilioCall
 export declare function extractTwilioCall(response: TwilioResponse): TwilioCallRead | TwilioFailure;
 
+### dist/twilio.d.ts#extractTwilioMessages
+export declare function extractTwilioMessages(response: TwilioResponse): TwilioMessagePage | TwilioFailure;
+
 ### dist/twilio.d.ts#extractTwilioText
 export declare function extractTwilioText(response: TwilioResponse): TwilioTextRead | TwilioFailure;
+
+### dist/twilio.d.ts#extractTwilioUsageRecords
+export declare function extractTwilioUsageRecords(response: TwilioResponse): TwilioUsagePage | TwilioFailure;
 
 ### dist/twilio.d.ts#twilioBalanceRequest
 export declare function twilioBalanceRequest(credentials: TwilioCredentials): TwilioRequest;
@@ -1118,6 +1291,15 @@ export declare function twilioEndCallRequest(credentials: TwilioCredentials, sid
 ### dist/twilio.d.ts#twilioGatherTwiml
 export declare function twilioGatherTwiml(text: string, gather: TwilioGather): string;
 
+### dist/twilio.d.ts#twilioMessageListRequest
+export declare function twilioMessageListRequest(credentials: TwilioCredentials, query?: TwilioMessageQuery): TwilioRequest;
+
+### dist/twilio.d.ts#twilioNextPageRequest
+export declare function twilioNextPageRequest(credentials: TwilioCredentials, nextPageUri: string): TwilioRequest;
+
+### dist/twilio.d.ts#twilioOptOutKeyword
+export declare function twilioOptOutKeyword(body: string): TwilioKeyword | undefined;
+
 ### dist/twilio.d.ts#twilioSayTwiml
 export declare function twilioSayTwiml(text: string, repeats?: number, voice?: TwilioVoice): string;
 
@@ -1129,3 +1311,140 @@ export declare function twilioTextState(status: string): TwilioTextState;
 
 ### dist/twilio.d.ts#twilioTextStatusRequest
 export declare function twilioTextStatusRequest(credentials: TwilioCredentials, sid: string): TwilioRequest;
+
+### dist/twilio.d.ts#twilioUsageRecordsRequest
+export declare function twilioUsageRecordsRequest(credentials: TwilioCredentials, query?: TwilioUsageQuery): TwilioRequest;
+
+### dist/webhook.d.ts#WEBHOOK_HEADERS
+export declare const WEBHOOK_HEADERS: {
+    readonly id: "webhook-id";
+    readonly timestamp: "webhook-timestamp";
+    readonly signature: "webhook-signature";
+};
+
+### dist/webhook.d.ts#WEBHOOK_MIN_WAIT_MS
+export declare const WEBHOOK_MIN_WAIT_MS = 5000;
+
+### dist/webhook.d.ts#WEBHOOK_SECRET_BYTES
+export declare const WEBHOOK_SECRET_BYTES: {
+    readonly min: 24;
+    readonly max: 64;
+};
+
+### dist/webhook.d.ts#WEBHOOK_SECRET_PREFIX
+export declare const WEBHOOK_SECRET_PREFIX = "whsec_";
+
+### dist/webhook.d.ts#WEBHOOK_TIMEOUT_MS
+export declare const WEBHOOK_TIMEOUT_MS = 15000;
+
+### dist/webhook.d.ts#WEBHOOK_TOLERANCE_MS
+export declare const WEBHOOK_TOLERANCE_MS = 300000;
+
+### dist/webhook.d.ts#WebhookCheck
+export type WebhookCheck = {
+    readonly ok: true;
+    readonly id: string;
+    readonly timestampMs: number;
+} | {
+    readonly ok: false;
+    readonly reason: WebhookCheckReason;
+};
+
+### dist/webhook.d.ts#WebhookCheckReason
+export type WebhookCheckReason = "missing" | "timestamp" | "old" | "future" | "signature";
+
+### dist/webhook.d.ts#WebhookEvent
+export interface WebhookEvent<Data> {
+    readonly type: string;
+    readonly timestamp: string;
+    readonly data: Data;
+}
+
+### dist/webhook.d.ts#WebhookFailure
+export interface WebhookFailure {
+    readonly ok: false;
+    readonly kind: WebhookFailureKind;
+    readonly status?: number;
+    readonly retryAfterMs?: number;
+}
+
+### dist/webhook.d.ts#WebhookFailureKind
+export type WebhookFailureKind = "network" | "timeout" | "throttled" | "server" | "gone" | "redirect" | "refused";
+
+### dist/webhook.d.ts#WebhookFetch
+export type WebhookFetch = ApiFetch;
+
+### dist/webhook.d.ts#WebhookIncoming
+export interface WebhookIncoming {
+    readonly headers: {
+        get(name: string): string | null;
+    };
+    readonly body: string;
+}
+
+### dist/webhook.d.ts#WebhookMessage
+export interface WebhookMessage {
+    readonly url: string;
+    readonly id: string;
+    readonly timestampMs: number;
+    readonly body: string;
+    readonly headers?: Readonly<Record<string, string>> | undefined;
+}
+
+### dist/webhook.d.ts#WebhookRequest
+export type WebhookRequest = ApiRequest & {
+    readonly method: "POST";
+    readonly body: string;
+    readonly redirect: "manual";
+};
+
+### dist/webhook.d.ts#WebhookResponse
+export type WebhookResponse = ApiResponse;
+
+### dist/webhook.d.ts#WebhookSecret
+export interface WebhookSecret {
+    readonly bytes: Uint8Array<ArrayBuffer>;
+}
+
+### dist/webhook.d.ts#WebhookSecretResult
+export type WebhookSecretResult = {
+    readonly ok: true;
+    readonly secret: WebhookSecret;
+} | {
+    readonly ok: false;
+    readonly problem: string;
+};
+
+### dist/webhook.d.ts#WebhookSent
+export interface WebhookSent {
+    readonly ok: true;
+    readonly status: number;
+}
+
+### dist/webhook.d.ts#extractWebhookSent
+export declare function extractWebhookSent(response: WebhookResponse, nowMs?: number): WebhookSent | WebhookFailure;
+
+### dist/webhook.d.ts#parseWebhookSecret
+export declare function parseWebhookSecret(text: string): WebhookSecretResult;
+
+### dist/webhook.d.ts#sendWebhook
+export declare function sendWebhook(fetch: WebhookFetch, message: WebhookMessage, secrets: readonly WebhookSecret[], options?: {
+    readonly timeoutMs?: number;
+    readonly signal?: AbortSignal | undefined;
+    readonly now?: () => number;
+}): Promise<WebhookSent | WebhookFailure>;
+
+### dist/webhook.d.ts#signWebhook
+export declare function signWebhook(secret: WebhookSecret, id: string, timestampSeconds: number, body: string): Promise<string>;
+
+### dist/webhook.d.ts#verifyWebhook
+export declare function verifyWebhook(incoming: WebhookIncoming, secrets: readonly WebhookSecret[], nowMs: number, toleranceMs?: number): Promise<WebhookCheck>;
+
+### dist/webhook.d.ts#webhookBody
+export declare function webhookBody<Data>(type: string, atMs: number, data: Data): string;
+
+### dist/webhook.d.ts#webhookRequest
+export declare function webhookRequest(message: WebhookMessage, secrets: readonly WebhookSecret[]): Promise<WebhookRequest>;
+
+### dist/webhook.d.ts#webhookSecretText
+export declare function webhookSecretText(bytes: Uint8Array): string;

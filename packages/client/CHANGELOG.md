@@ -1,5 +1,159 @@
 # @procedures/client
 
+## 0.63.0
+
+### Minor Changes
+
+- 3dede6e: Break: `HttpServerTransport` applies its CORS only to the base path and the paths under it. Another route of the app gets no CORS header from the transport, and its `OPTIONS` request goes to the route. Before this release, the transport sent the CORS headers on each route of the app, and it answered each `OPTIONS` request of the app. This ends the deprecation of 0.60.1.
+  
+  - With CORS, the preflight request of a batch at the base path itself goes to the procedure handler. The CORS of the handler answers it.
+  - The routes under the base path keep the same CORS headers.
+  
+  Migration steps for the site and each app:
+  
+  1. Find each route of the app outside `basePath` that gets requests from a page on another origin.
+  2. Before each such route, add a CORS function of the app. For a route with credentials, use `credentialedCors()` of `@procedures/client/node`:
+  
+     ```ts
+     import { credentialedCors } from "@procedures/client/node";
+  
+     const cors = credentialedCors(["https://app.example"]);
+     app.use("/auth", (req, res, next) => {
+       if (!cors(req, res)) next();
+     });
+     ```
+  
+  3. For a route without credentials, the `cors` package of Express also does this work.
+  4. The routes under `basePath` need no change.
+
+## 0.62.1
+
+### Patch Changes
+
+- 02582c5: The tool search finds synonyms. A thesaurus of the general words of tool operations gives each word of the query its synonyms at half weight. So `remove` finds `delete`, `download` finds `pull`, and the phrase `same time` finds `parallel`.
+  
+  - Each synonym has its own IDF, so a common synonym does not lower the weight of a rare word of the query.
+  - A document scores the best word of each term, so two synonyms in one document do not count two times.
+  - The golden set of the dev tools has 20 new held-out queries, written before the first run of the synonyms. On the 48 old queries, hit5 goes from 43 to 48 and hit1 from 39 to 43. On the 20 held-out queries, hit5 goes from 16 to 19 and hit1 from 7 to 15.
+  
+  PATCH: before 1.0.0, a backward-compatible feature raises PATCH. The API does not change: `searchDocuments` keeps its signature and only ranks better.
+- 365aad4: The tool search (direction 40, the tool surface). A server with thousands of tools now gives the model three tools in place of each tool.
+  
+  - `@procedures/client`: the new core procedure `procedure.search` finds the procedures by words. It searches only the procedures that the host exposes. The ranking is BM25 over the key, the tags and the description. The functions `searchDocuments` and `searchWords` give the same ranking to each catalog of tools.
+  - `@procedures/mcp-server`: the new option `listing: "search"` of the transport and of `createMcpHost()` lists three tools: `search_tools`, `describe_tool` and `call_tool`. The expose rule and the call policy do not change. The default `"each"` keeps the list of each tool.
+  - `@procedures/mcp-dev-tools` and `@procedures/mark`: `MCP_LISTING=search` and `mark mcp --listing search` start the dev-tools server with the search listing.
+  
+  A list of the three tools is 1410 bytes of JSON. The list of each tool costs about 386 tokens for each tool.
+
+## 0.62.0
+
+### Minor Changes
+
+- 14f61a7: Break: under the expose rule of a host, `procedure.define` makes a procedure only at an exposed path. A hidden path gets `NOT_EXPOSED`, also a free path. Before this release, a new procedure at a free hidden path was possible. This ends the deprecation of 0.60.1.
+  
+  - `procedure.define`, `procedure.get` and `procedure.delete` examine the path before the lookup. A free hidden path and a used hidden path get the same answer.
+  - A lazy registry loads no package for a hidden path of these procedures.
+  - A nested `procedure.define` gets the same rule. Under an expose rule, `procedure.load` gives each stored program at a hidden path as a conflict. The scheduler then records `NOT_FOUND` for the run of that program.
+  
+  Migration steps for the site and each app:
+  
+  1. Find each call of `procedure.define` and each stored program under a host with an expose rule.
+  2. For each one at a hidden path, move the program to an exposed path. Or add its path to the expose rule of the host.
+  3. Store the moved programs again with `procedure.store`. Then remove the old entries from the program store.
+
+## 0.61.0
+
+### Minor Changes
+
+- f9a78f9: The MCP face puts the untrusted text of an output in envelopes at each depth of the output, also when the text comes from a nested call.
+  
+  - The invocation marks each output object of a procedure with `metadata.untrusted`. The mark goes with the object and does not change its value. The HTTP and WebSocket faces give the same output as before.
+  - The output check of a caller keeps the marks: each object of the checked output gets the mark of the object at the same path.
+  - The new exports `markUntrusted()` and `untrustedMarkOf()` of `@procedures/client` set and read the mark.
+  - The MCP face finds the marked fields in the output of `client.chain`, of a procedure of `procedure.define` and of a procedure of code that gives the output of another procedure.
+  - The first block of the answer has the data without these fields. The second block has their texts in envelopes. The attribute `field` of each envelope gives the path of its field, for example `pages.0.web_content`.
+  - In the structured content, each text of a nested field is in its envelope, and the shape of the field does not change. Thus the structured content agrees with the output schema of the tool.
+  - A field that the tool declares keeps its old form.
+  
+  ## Break
+  
+  A code caller of an MCP tool gets each nested untrusted string of the structured content in its envelope, not as the raw text.
+  
+  Migration for the site and each app:
+  
+  1. Find each MCP client that reads a nested field of the structured content, where a nested procedure declares that field untrusted.
+  2. Read the text inside the envelope, or read the output of the procedure over HTTP or WebSocket, which has the raw text.
+  
+  ```typescript
+  // Before: the raw text
+  const text = result.structuredContent.pages[0].web_content[0].text;
+  // After: the text is in its envelope
+  const sealed = result.structuredContent.pages[0].web_content[0].text; // "<untrusted-content ...>...</untrusted-content>"
+  ```
+- 3eb4b59: Each network face of `@procedures/client` keeps the metadata key `auth` out of the metadata of a handler. The key holds credentials, and the credentials of a network request go to the request hook and to the token check (roadmap R18).
+  
+  - The HTTP face drops the key `auth` from the query, from the custom headers and from `X-Metadata`, in each case of its letters. A call of a batch gets the same rule.
+  - The WebSocket server drops the key `auth` from the metadata of a request frame. The credentials of a call are those of its connection.
+  - The WebSocket client drops the key `auth` from the metadata of a call that the server sends to it.
+  - A local face keeps the key: a call in the process and `PortTransport`.
+  
+  This is a MINOR: an earlier `docs/SERVER.md` showed a handler that reads `context.request.metadata.auth?.token`, and that worked over WebSocket.
+  
+  Migration for a server and each app:
+  
+  1. A handler or a middleware reads the token from `context.request.credentials?.bearer`, not from `context.request.metadata.auth`. `docs/SERVER.md` shows this.
+  2. A WebSocket client gives its token in the upgrade: `?token=<token>` in the `url` of `WebSocketTransport`, or a cookie. A token in the metadata of a call does not reach the handler.
+  3. An HTTP client does not change: `createAuthMiddleware` sends the token as the `Authorization` header, and the server reads it into `request.credentials`.
+  
+  The WebSocket client still sends the key `auth` in its frames. This is deprecated: a later MINOR stops sending it.
+
+### Patch Changes
+
+- 8506442: The cache middleware and `hashOf` use `canonicalJson` of `@mark1russell7/rigor-generators` for their text (CLI-128). The two local copies of this function are removed.
+  
+  - **Cache keys:** two calls that differ only in a `Date`, a `RegExp`, a `Map` or a `Set` get two keys. Before this fix, the key of each of these values was `{}`. The second call got the cached response of the first call.
+  - **A call with no key:** when the key generator throws, the call goes past the cache, with no read and no store. The default generator throws for a function, a symbol or a cycle in the payload or the metadata.
+  - **`hashOf`:** a JSON value keeps its hash, so the hash of a manifest does not change. A value with a function, a symbol or a cycle causes a `TypeError`.
+
+## 0.60.1
+
+### Patch Changes
+
+- beca782: `procedureHandler` answers the preflight request of a batch at the base path itself: `OPTIONS {base}` with `Procedures-Batch` in `Access-Control-Request-Headers`. Its CORS rule gives the answer. Before this release, the handler gave this request to the app, so a batch from a page on another origin failed.
+  
+  - The default of `corsOptions.credentials` of `HttpServerTransport` is the rule of `procedureHandler`: false for the origin `"*"`, and true for each other origin. Before this release, the transport also sent `Access-Control-Allow-Credentials: true` with the origin `"*"`. A browser refuses that pair for a call with credentials.
+  - Deprecated: the CORS headers of `HttpServerTransport` on the routes of the app outside its base path. From 0.63.0, the transport applies CORS only to the base path and the paths under it. An app that needs CORS on its own routes adds its own CORS function.
+- 6dbc47e: Deprecated: under the expose rule of a host, `procedure.define` at a free hidden path, and `procedure.load` of a stored program at a free hidden path. From 0.62.0, the define gets `NOT_EXPOSED`, and the load gives the program as a conflict.
+  
+  To prepare, move each such program to an exposed path, or add its path to the expose rule of the host. This note changes no code.
+- 663465c: An `exclude` entry of a host policy or of a tool surface takes the patterns of `expose`: an exact key, a prefix (`shell.*`) or `*`. A prefix entry hides each procedure under the prefix. An exact key of the form before the escape of dotted names also stays valid.
+- 66585f5: A host can limit the depth of the nested calls.
+  
+  - The new option `maxDepth` of `invokeProcedure()`, `ProcedureServer` and `hostPolicy()` is the highest depth of a nested call. The call of a caller has the depth 0.
+  - A call at a larger depth gets `FORBIDDEN` with the new reason `depth`. Its handler does not start. Thus a loop of calls to one procedure stops at the limit.
+  - A value that is not a whole number of 0 or more stops the call or the start of the server with a `TypeError`.
+  - Without `maxDepth`, the depth has no limit, as before. The first call over the depth 64 in the process writes one warning.
+  
+  Migration before 0.64.0: version 0.64.0 sets the default limit to 64. A host with deeper call trees sets `maxDepth` to its own limit.
+- 511d820: A time limit above 2147483647 ms (24.8 days) holds for its full time. The rule covers the timeout interceptor and the deadline of a capability. It also covers the timeout middleware of the client and the timeouts of the HTTP and WebSocket transports. Each timer uses the platform clock, and the clock arms a long time in steps. `setTimeout` alone starts such a timer after 1 ms. A limit of `Infinity` sets no timer.
+- 02a7074: Each nested call of a procedure validates its own input. The option `inputValidated` applies only to the call that gets it.
+- 265f41c: The warning of a limit without the field `nested` names 0.64.0, the version that changes the default to `true`.
+- a87cdda: The storages of a partitioned collection close at the stop of the server.
+  
+  - `CollectionPartitions` gets an optional `close()`. `closeStorages()` and `stop()` of `ProcedureServer` close each partitions object one time with it.
+  - `ProcedureServer.partitionHandles()` gives one dependency handle for each partitions object, with the name `partitions.<collections>`. The handle closes the partitions after the transports close.
+  - The procedures host and the MCP host declare these handles next to the storage handles. The new type `McpRunnerPartitions` of `@procedures/mcp-server` is the partitions handle, and `McpServiceBuilder.dependency` takes it next to `McpRunnerDependency`. `host.dependencies` of the procedures host also gives the storages and partitions that the app adds after the construction.
+  - Partitions without `close()` stay on the server, and the host closes their storages.
+- 94b5f88: The HTTP face stops the read of a stream for a client without NDJSON (the "sponge" mode) when the call stops. A closed connection and `close()` stop the read, also while the stream waits for its next item. The stream gets `return()`. A cut of `close()` on an open response gives `UNAVAILABLE` (HTTP 503), not the last item. Its flag `retryable` is true only for a repeatable call before its first item, as in an NDJSON stream.
+- ca23351: After `stop()` of a `ProcedureServer`, the intake stays stopped until the next `start()`, as after `close()`. A call after the stop gets the retryable `UNAVAILABLE`. `start()` opens the intake again, with a new signal.
+- 84e1b25: The WebSocket face gives `return()` to the stream of a handler when the send of an item frame throws, so the `finally` block of the handler runs. The `error` frame of the call comes first. The count of the items that went out, which sets the retry flag of that error, has only the frames that the socket took.
+- fe6cd23: The WebSocket server and client examine the shape of each frame before they read its fields. The server answers a frame of another shape with `INVALID_REQUEST` and the id of the frame. The client drops such a frame. `WIRE-PROTOCOL.md` gives the rules.
+- e9b7551: `WebSocketServerTransport` sends each frame through one function with a flow rule.
+  
+  - While the send buffer of a connection holds more than `highWaterMark`, the server does not read the frames of the connection. It reads them again when the socket wrote the buffer down to the mark.
+  - While the reads of a connection are paused, a frame that the socket wrote since the last ping counts as the pong of the heartbeat. Thus a peer that reads slowly stays open, and a peer that does not read closes.
+  - The new option `maxBufferedBytes` is the largest send buffer of a connection. A send that finds a larger buffer ends the connection. It bounds the frames that the server sends with no request, for example `broadcast()`. It has no default.
+
 ## 0.60.0
 
 ### Minor Changes
@@ -847,7 +1001,7 @@ No changes in this release.
 
 ### Patch Changes
 
-- 8970a1e: The credentials of a network request have the connection of its socket (CLI-71). Thus the request hook (`principalOf`), `authenticate` and `ProcedureServer.admission()` can find the caller from its TCP peer. The fleet site finds the Claude session of a caller with it and `resources.peer` of headroom.
+- 8970a1e: The credentials of a network request have the connection of its socket (CLI-71). Thus the request hook (`principalOf`), `authenticate` and `ProcedureServer.admission()` can find the caller from its TCP peer. A host can find the local process of a caller from this peer.
   
   PATCH: a new optional field and a new optional input. Before 1.0, a feature that is compatible with the old API is a PATCH. A hook that does not read the field sees no change.
   

@@ -1375,7 +1375,7 @@
         ]
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     }
@@ -1423,7 +1423,7 @@
         "type": "string"
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     },
@@ -2357,6 +2357,29 @@
       "name"
     ]
   },
+  "procedure.search": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The words to find, for example \"median interval\""
+      },
+      "limit": {
+        "description": "The most hits, from 1 to 100. The default is 10.",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "namespace": {
+        "description": "Only the procedures under this first path segment",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ]
+  },
   "program.check": {
     "type": "object",
     "properties": {
@@ -2625,7 +2648,7 @@
         "items": {}
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     },
@@ -2646,7 +2669,7 @@
         "items": {}
       },
       "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file, and a write makes it.",
         "type": "string"
       }
     },

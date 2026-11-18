@@ -43,8 +43,8 @@ export {
 /** The base of the Twilio REST API. */
 export const TWILIO_API = "https://api.twilio.com/2010-04-01";
 
-/** The limits of the Twilio API, in characters. */
-export const TWILIO_LIMITS: { readonly body: 1600; readonly twiml: 4000 } = { body: 1600, twiml: 4000 };
+/** The limits of the Twilio API: the characters of a text and of a TwiML, and the entries in one page of a list. */
+export const TWILIO_LIMITS: { readonly body: 1600; readonly twiml: 4000; readonly pageSize: 1000 } = { body: 1600, twiml: 4000, pageSize: 1000 };
 
 /** The longest time that a queued text waits for its send: 10 hours. After it, Twilio does not send the text. */
 export const TWILIO_VALIDITY_MAX_MS = 36_000_000;
@@ -183,6 +183,98 @@ export interface TwilioBalanceRead {
   readonly currency: string;
 }
 
+/** The filters of a read of the list of texts. Twilio gives only the texts that agree with each filter. */
+export interface TwilioMessageQuery {
+  /** Only the texts to this number, in E.164 form. For the replies of the recipients, this is the Twilio number. */
+  readonly to?: string | undefined;
+  /** Only the texts from this number, in E.164 form. */
+  readonly from?: string | undefined;
+  /**
+   * Only the texts that Twilio sent or received on or after this time: the filter `DateSent>`. A
+   * number is a time in milliseconds. The request gives it in whole seconds of UTC, as
+   * `YYYY-MM-DDThh:mm:ssZ`, the same as the helper libraries of Twilio. A text is a day of GMT, as `YYYY-MM-DD`.
+   */
+  readonly dateSentAfter?: number | string | undefined;
+  /** The count of texts in one page: 1 to 1000. The default of Twilio is 50. */
+  readonly pageSize?: number | undefined;
+}
+
+/** One text of a list. */
+export interface TwilioMessage {
+  /** The SID of the text: `SM` or `MM` and 32 hexadecimal digits. */
+  readonly sid: string;
+  /** The sender. A text of a messaging service has no sender until Twilio picks one. */
+  readonly from?: string;
+  /** The recipient. */
+  readonly to: string;
+  /** The text. It is empty for a text that has only media. */
+  readonly body: string;
+  /** The direction: `inbound` for a text that Twilio received, or `outbound-api`, `outbound-call` and `outbound-reply` for a text that Twilio sent. */
+  readonly direction: string;
+  /** The status of Twilio, for example `received` or `delivered`. */
+  readonly status: string;
+  /** The time that Twilio sent or received the text. A text in the queue does not have it. */
+  readonly dateSent?: number;
+  /** The error code of a failed or undelivered text. */
+  readonly errorCode?: number;
+}
+
+/** One page of the list of texts: the answer of `twilioMessageListRequest`, or of `twilioNextPageRequest` for the list of texts. */
+export interface TwilioMessagePage {
+  readonly ok: true;
+  /** The texts of the page. Twilio sorts them by `dateSent`, the newest first. */
+  readonly messages: readonly TwilioMessage[];
+  /** The path of the next page. `twilioNextPageRequest` reads it. The last page does not have it. */
+  readonly nextPageUri?: string;
+}
+
+/** The filters of a read of the usage records. Twilio adds the usage of each category in the days of the filter. */
+export interface TwilioUsageQuery {
+  /**
+   * Only the records of this category, for example `totalprice`, `calls`, `sms` or `phonenumbers`. Without
+   * it, Twilio gives one record for each category. The documents of Twilio list the categories.
+   */
+  readonly category?: string | undefined;
+  /** The first day of the usage, as a day of GMT in the form `YYYY-MM-DD`. The sum includes this day. */
+  readonly startDate?: string | undefined;
+  /** The last day of the usage, as a day of GMT in the form `YYYY-MM-DD`. The sum includes this day. */
+  readonly endDate?: string | undefined;
+  /** The count of records in one page: 1 to 1000. The default of Twilio is 50. */
+  readonly pageSize?: number | undefined;
+}
+
+/** One usage record: the usage of one category in the days of the query. */
+export interface TwilioUsageRecord {
+  /** The category, for example `totalprice` or `calls`. */
+  readonly category: string;
+  /** The first day of the record, as a day of GMT: `YYYY-MM-DD`. */
+  readonly startDate: string;
+  /** The last day of the record, as a day of GMT: `YYYY-MM-DD`. */
+  readonly endDate: string;
+  /** The price of the usage, in the currency of `priceUnit`. */
+  readonly price: number;
+  /** The price as the decimal text of Twilio. It keeps each digit. */
+  readonly priceText: string;
+  /** The currency of the price, as Twilio gives it: for example `usd`. */
+  readonly priceUnit: string;
+  /** The amount that Twilio bills, in `usageUnit`: for example `minutes`. */
+  readonly usage?: number;
+  readonly usageUnit?: string;
+  /** The count of the events, in `countUnit`: for example `calls`. Some categories do not have it. */
+  readonly count?: number;
+  readonly countUnit?: string;
+  /** The record has the usage up to this time. Twilio adds the usage to the records after a delay. */
+  readonly asOf?: number;
+}
+
+/** One page of the usage records: the answer of `twilioUsageRecordsRequest`, or of `twilioNextPageRequest` for the usage records. */
+export interface TwilioUsagePage {
+  readonly ok: true;
+  readonly records: readonly TwilioUsageRecord[];
+  /** The path of the next page. `twilioNextPageRequest` reads it. The last page does not have it. */
+  readonly nextPageUri?: string;
+}
+
 // =============================================================================
 // Request builders
 // =============================================================================
@@ -299,6 +391,96 @@ export function twilioEndCallRequest(credentials: TwilioCredentials, sid: string
  */
 export function twilioBalanceRequest(credentials: TwilioCredentials): TwilioRequest {
   return get(credentials, "/Balance.json");
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** The first millisecond of the year 10000. A date of ISO 8601 has 4 digits of the year. */
+const YEAR_10000_MS = 253_402_300_800_000;
+
+/** This function gives a day in the form `YYYY-MM-DD` that is a real day of the calendar, or it throws. */
+function dayOf(value: string, what: string): string {
+  const at = typeof value === "string" && DAY.test(value) ? Date.parse(`${value}T00:00:00Z`) : Number.NaN;
+  if (!Number.isFinite(at) || new Date(at).toISOString().slice(0, 10) !== value) throw new Error(`The ${what} is not a day in the form YYYY-MM-DD.`);
+  return value;
+}
+
+/** This function gives the value of the filter `DateSent>`, or it throws. */
+function dateSentOf(value: number | string): string {
+  if (typeof value === "number") {
+    if (!(Number.isFinite(value) && value >= 0 && value < YEAR_10000_MS)) throw new Error("The time of dateSentAfter is not a time from 1970 to 9999.");
+    return `${new Date(Math.floor(value / 1000) * 1000).toISOString().slice(0, 19)}Z`;
+  }
+  return dayOf(value, "date of dateSentAfter");
+}
+
+/** This function sets the field `PageSize` of a list, or it throws when the size is not 1 to 1000. */
+function setPageSize(fields: URLSearchParams, size: number | undefined): void {
+  if (size === undefined) return;
+  if (!(Number.isInteger(size) && size >= 1 && size <= TWILIO_LIMITS.pageSize)) throw new Error(`The page size is not 1 to ${TWILIO_LIMITS.pageSize}.`);
+  fields.set("PageSize", String(size));
+}
+
+/**
+ * This function gives the request that reads one page of the texts of the account, the newest first.
+ * The filters are optional. It throws an error when a filter breaks a rule of the API.
+ */
+export function twilioMessageListRequest(credentials: TwilioCredentials, query: TwilioMessageQuery = {}): TwilioRequest {
+  const fields = new URLSearchParams();
+  if (query.to !== undefined) {
+    assertPhone(query.to, "recipient");
+    fields.set("To", query.to);
+  }
+  if (query.from !== undefined) {
+    assertPhone(query.from, "sender");
+    fields.set("From", query.from);
+  }
+  if (query.dateSentAfter !== undefined) fields.set("DateSent>", dateSentOf(query.dateSentAfter));
+  setPageSize(fields, query.pageSize);
+  const search = fields.toString();
+  return get(credentials, search === "" ? "/Messages.json" : `/Messages.json?${search}`);
+}
+
+/** A usage category of Twilio: lower case letters, digits, dots, underscores and dashes. */
+const CATEGORY = /^[a-z0-9][a-z0-9._-]{0,99}$/;
+
+/**
+ * This function gives the request that reads one page of the usage records of the account. Each record
+ * is the sum of one category in the days of the filter. Twilio counts the days in GMT. It throws an
+ * error when a filter breaks a rule of the API, or when the start date is after the end date.
+ */
+export function twilioUsageRecordsRequest(credentials: TwilioCredentials, query: TwilioUsageQuery = {}): TwilioRequest {
+  const fields = new URLSearchParams();
+  if (query.category !== undefined) {
+    if (!CATEGORY.test(query.category)) throw new Error("The category is not 1 to 100 lower case letters, digits, dots, underscores and dashes.");
+    fields.set("Category", query.category);
+  }
+  const start = query.startDate === undefined ? undefined : dayOf(query.startDate, "start date");
+  const end = query.endDate === undefined ? undefined : dayOf(query.endDate, "end date");
+  if (start !== undefined && end !== undefined && start > end) throw new Error("The start date is after the end date.");
+  if (start !== undefined) fields.set("StartDate", start);
+  if (end !== undefined) fields.set("EndDate", end);
+  setPageSize(fields, query.pageSize);
+  const search = fields.toString();
+  return get(credentials, search === "" ? "/Usage/Records.json" : `/Usage/Records.json?${search}`);
+}
+
+/**
+ * This function gives the request that reads the next page of a list of the API, from the
+ * `nextPageUri` of a page. It throws an error when the path is not in the API of `TWILIO_API`, so the
+ * credentials go to no other host.
+ */
+export function twilioNextPageRequest(credentials: TwilioCredentials, nextPageUri: string): TwilioRequest {
+  const base = new URL(TWILIO_API);
+  let url: URL;
+  try {
+    url = new URL(nextPageUri, base.origin);
+  } catch {
+    throw new Error("The next page is not a path or an address.");
+  }
+  if (url.origin !== base.origin || !url.pathname.startsWith(`${base.pathname}/`) || url.username !== "" || url.password !== "") {
+    throw new Error("The next page is not a path of the Twilio API.");
+  }
+  return twilioRequestOf(credentials, "GET", url.href);
 }
 
 /** The characters that XML 1.0 does not permit, other than the tab, the line feed and the carriage return. */
@@ -444,6 +626,137 @@ export function extractTwilioBalance(response: TwilioResponse): TwilioBalanceRea
   const currency = text(sorted.body["currency"]);
   if (balanceText === undefined || currency === undefined || !CURRENCY.test(currency)) return failure("server", response, undefined, "The answer of Twilio has no balance or no currency.");
   return { ok: true, balance: Number(balanceText), balanceText, currency };
+}
+
+/** This function reads one text of a list, or it gives `undefined` when the text has no SID, no recipient, no direction or no status. */
+function messageOf(entry: unknown): TwilioMessage | undefined {
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return undefined;
+  const fields = entry as Readonly<Record<string, unknown>>;
+  const sid = text(fields["sid"]);
+  const to = text(fields["to"]);
+  const direction = text(fields["direction"]);
+  const status = text(fields["status"]);
+  if (sid === undefined || !TEXT_SID.test(sid) || to === undefined || direction === undefined || status === undefined) return undefined;
+  const body = fields["body"];
+  return {
+    sid,
+    ...some("from", text(fields["from"])),
+    to,
+    body: typeof body === "string" ? body : "",
+    direction,
+    status,
+    ...some("dateSent", date(fields["date_sent"])),
+    ...some("errorCode", integer(fields["error_code"])),
+  };
+}
+
+/** This function reads the response of `twilioMessageListRequest`, or of `twilioNextPageRequest` for the list of texts. It does not throw. */
+export function extractTwilioMessages(response: TwilioResponse): TwilioMessagePage | TwilioFailure {
+  const sorted = sort(response);
+  if (!sorted.ok) return sorted;
+  const entries = sorted.body["messages"];
+  if (!Array.isArray(entries)) return failure("server", response, undefined, "The answer of Twilio has no list messages.");
+  const messages: TwilioMessage[] = [];
+  for (const entry of entries as readonly unknown[]) {
+    const message = messageOf(entry);
+    if (message === undefined) return failure("server", response, undefined, "A text of the list has no SID, no recipient, no direction or no status.");
+    messages.push(message);
+  }
+  return { ok: true, messages, ...some("nextPageUri", text(sorted.body["next_page_uri"])) };
+}
+
+/** This function gives a number from a decimal of Twilio, or `undefined`. */
+const decimalNumber = (value: unknown): number | undefined => {
+  const digits = decimal(value);
+  return digits === undefined ? undefined : Number(digits);
+};
+
+/** This function reads one usage record of a list. It gives `undefined` when the record has no category, no days, no price or no currency. */
+function usageRecordOf(entry: unknown): TwilioUsageRecord | undefined {
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return undefined;
+  const fields = entry as Readonly<Record<string, unknown>>;
+  const category = text(fields["category"]);
+  const startDate = text(fields["start_date"]);
+  const endDate = text(fields["end_date"]);
+  const priceText = decimal(fields["price"]);
+  const priceUnit = text(fields["price_unit"]);
+  if (category === undefined || startDate === undefined || !DAY.test(startDate) || endDate === undefined || !DAY.test(endDate)) return undefined;
+  if (priceText === undefined || priceUnit === undefined) return undefined;
+  return {
+    category,
+    startDate,
+    endDate,
+    price: Number(priceText),
+    priceText,
+    priceUnit,
+    ...some("usage", decimalNumber(fields["usage"])),
+    ...some("usageUnit", text(fields["usage_unit"])),
+    ...some("count", decimalNumber(fields["count"])),
+    ...some("countUnit", text(fields["count_unit"])),
+    ...some("asOf", date(fields["as_of"])),
+  };
+}
+
+/**
+ * This function reads the response of `twilioUsageRecordsRequest`, or of `twilioNextPageRequest` for the
+ * usage records. It does not throw. A record with no category, no days, no price or no currency gives a
+ * failure, because a sum without it is not complete.
+ */
+export function extractTwilioUsageRecords(response: TwilioResponse): TwilioUsagePage | TwilioFailure {
+  const sorted = sort(response);
+  if (!sorted.ok) return sorted;
+  const entries = sorted.body["usage_records"];
+  if (!Array.isArray(entries)) return failure("server", response, undefined, "The answer of Twilio has no list usage_records.");
+  const records: TwilioUsageRecord[] = [];
+  for (const entry of entries as readonly unknown[]) {
+    const record = usageRecordOf(entry);
+    if (record === undefined) return failure("server", response, undefined, "A usage record of the list has no category, no days, no price or no currency.");
+    records.push(record);
+  }
+  return { ok: true, records, ...some("nextPageUri", text(sorted.body["next_page_uri"])) };
+}
+
+// =============================================================================
+// The keywords of the replies
+// =============================================================================
+
+/**
+ * The opt-out keywords of the default handling of Twilio. A reply with one of them stops the texts
+ * of the Twilio number to the person. Twilio added `REVOKE` and `OPTOUT` on 13 May 2025.
+ */
+export const TWILIO_OPT_OUT_KEYWORDS = ["STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT", "REVOKE", "OPTOUT"] as const;
+
+/**
+ * The opt-in keywords of the default handling of Twilio. A reply with one of them starts the texts
+ * again. A toll-free number of the US accepts only `START` and `UNSTOP`.
+ */
+export const TWILIO_OPT_IN_KEYWORDS = ["START", "YES", "UNSTOP"] as const;
+
+/** The help keywords of the default handling of Twilio. Twilio replies with a help text. */
+export const TWILIO_HELP_KEYWORDS = ["HELP", "INFO"] as const;
+
+/** The kind of a keyword reply: `stop` (opt-out), `start` (opt-in) or `help`. */
+export type TwilioKeyword = "stop" | "start" | "help";
+
+const KEYWORDS: ReadonlyMap<string, TwilioKeyword> = new Map<string, TwilioKeyword>([
+  ...TWILIO_OPT_OUT_KEYWORDS.map((word) => [word, "stop"] as const),
+  ...TWILIO_OPT_IN_KEYWORDS.map((word) => [word, "start"] as const),
+  ...TWILIO_HELP_KEYWORDS.map((word) => [word, "help"] as const),
+]);
+
+/**
+ * This function gives the kind of the keyword of a received text, or `undefined` when the text is not
+ * a keyword. It uses the default keywords of Twilio, not the keywords of an Advanced Opt-Out.
+ *
+ * - Twilio accepts a keyword only when it is the full body of the text: `Stop, that is funny` is not a keyword.
+ * - Twilio ignores the case of the letters: `Stop` and `sTOP` are the same as `STOP`.
+ * - The documents of Twilio do not give a rule for white space. This function ignores the white space before and after the keyword.
+ * - Each other character makes a text that is not a keyword, for example `STOP!` or `STOP ALL`.
+ */
+export function twilioOptOutKeyword(body: string): TwilioKeyword | undefined {
+  if (typeof body !== "string") return undefined;
+  const word = body.trim();
+  return /^[A-Za-z]+$/.test(word) ? KEYWORDS.get(word.toUpperCase()) : undefined;
 }
 
 // =============================================================================

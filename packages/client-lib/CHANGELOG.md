@@ -1,5 +1,98 @@
 # @procedures/lib
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/dag@0.63.0
+  - @procedures/fs@0.63.0
+  - @procedures/git@0.63.0
+  - @procedures/pnpm@0.63.0
+  - @procedures/shell@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/dag@0.62.1
+  - @procedures/fs@0.62.1
+  - @procedures/git@0.62.1
+  - @procedures/pnpm@0.62.1
+  - @procedures/shell@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- fdb89bc: The path, glob and walk functions of three packages move to their home, `@mark1russell7/files` (roadmap CLI-125).
+  
+  - `@procedures/fs`: `isInside` is a re-export of `@mark1russell7/files`. With `dot: true`, `fs.glob` uses `findEntriesAsync` of `@mark1russell7/files`, and its walk does not block the event loop.
+  - `@procedures/fs`: with `dot: true`, an absolute pattern under `cwd` matches. Before, it matched nothing. The other matches do not change.
+  - `@procedures/lib`: `expandHome` is a re-export of `@mark1russell7/files`. `findWorkspaceRoot` uses `findUp`.
+  - `@procedures/archive`: the walk of `archive.create` uses `walk` of `@mark1russell7/files`. `portableLinkTarget` uses `toPosix`. The limits and the error codes do not change.
+  - `@procedures/peer`: the range of `@mark1russell7/files` is `^0.0.4`, as in the other packages. The code does not change.
+- 2b6a9bd: `lib.new` adds the new package to the fixed group of `@procedures/client` in `.changeset/config.json`. It also gives the package the version of that group. Before, the package kept the version of cue (0.1.0), and the package check failed on two versions until a person set the version.
+  
+  PATCH: before 1.0.0, a backward-compatible fix raises PATCH. A workspace with no fixed group of `@procedures/client` keeps the old behavior.
+- Updated dependencies [14f61a7]
+- Updated dependencies [fdb89bc]
+  - @procedures/client@0.62.0
+  - @procedures/fs@0.62.0
+  - @procedures/dag@0.62.0
+  - @procedures/git@0.62.0
+  - @procedures/pnpm@0.62.0
+  - @procedures/shell@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [84d9551]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/fs@0.61.0
+  - @procedures/dag@0.61.0
+  - @procedures/git@0.61.0
+  - @procedures/pnpm@0.61.0
+  - @procedures/shell@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [d472a8b]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [6e6805f]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/shell@0.60.1
+  - @procedures/fs@0.60.1
+  - @procedures/git@0.60.1
+  - @procedures/pnpm@0.60.1
+  - @procedures/dag@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes

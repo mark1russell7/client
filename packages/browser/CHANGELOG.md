@@ -1,5 +1,41 @@
 # @procedures/browser
 
+## 0.63.0
+
+### Patch Changes
+
+- @procedures/shell@0.63.0
+  - @procedures/http@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- @procedures/shell@0.62.1
+  - @procedures/http@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- @procedures/shell@0.62.0
+  - @procedures/http@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- @procedures/shell@0.61.0
+  - @procedures/http@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [d472a8b]
+  - @procedures/shell@0.60.1
+  - @procedures/http@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes

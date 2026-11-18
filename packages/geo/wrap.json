@@ -1,0 +1,20 @@
+{
+  "home": "@mark1russell7/geo",
+  "entry": ".",
+  "namespace": [
+    "geo"
+  ],
+  "manifest": "src/manifest.ts",
+  "overlay": {
+    "effects": {
+      "reads": [],
+      "writes": []
+    },
+    "functions": {
+      "geohash": {
+        "exempt": "The hand-written procedure geo.geohash of this package has this name. It also gives the cell of the hash and checks the longitude."
+      }
+    }
+  },
+  "pure": true
+}

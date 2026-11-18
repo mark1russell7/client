@@ -48,7 +48,10 @@ type McpToolContentInput: dist/types.d.ts#McpToolContentInput
 type McpToolDefinition: @procedures/mcp#McpToolDefinition (external)
 type McpToolExecution: @procedures/mcp#McpToolExecution (external)
 type McpToolFilter: @procedures/mcp#McpToolFilter (external)
+type McpToolListing: dist/transport/search-listing.d.ts#McpToolListing
 type McpTransportType: @procedures/mcp#McpTransportType (external)
+SEARCH_LISTING_NAMES: dist/transport/search-listing.d.ts#SEARCH_LISTING_NAMES
+SEARCH_LISTING_TOOLS: dist/transport/search-listing.d.ts#SEARCH_LISTING_TOOLS
 type ServeOptions: dist/procedures/mcp/serve.d.ts#ServeOptions
 type ServeSetup: dist/procedures/mcp/serve.d.ts#ServeSetup
 type SseTransportOptions: dist/types.d.ts#SseTransportOptions
@@ -82,6 +85,7 @@ redirectConsoleToStderr: dist/host.d.ts#redirectConsoleToStderr
 registerMcpProcedures: dist/module.d.ts#registerMcpProcedures
 resolveBundleRegister: dist/surface.d.ts#resolveBundleRegister
 taskSupportOf: @procedures/mcp#taskSupportOf (external)
+toolSearchDocuments: dist/transport/search-listing.d.ts#toolSearchDocuments
 
 ## ./module (dist/module.d.ts): names
 
@@ -181,6 +185,7 @@ export interface McpHostOptions {
     json?: "pretty" | "compact" | undefined;
     toolFilter?: Omit<McpToolFilter, "include"> | undefined;
     toolName?: ((path: readonly string[]) => string) | undefined;
+    listing?: McpToolListing | undefined;
     streamLimits?: {
         items?: number;
         time?: Duration;
@@ -271,6 +276,7 @@ export interface ServeOptions {
     name?: string | undefined;
     version?: string | undefined;
     instructions?: string | undefined;
+    listing?: "each" | "search" | undefined;
     debug?: boolean | undefined;
     faces?: McpHostFaces | undefined;
 }
@@ -431,6 +437,22 @@ export declare class McpServerTransport implements ServerTransport {
     getTools(): McpTool[];
 }
 
+### dist/transport/search-listing.d.ts#McpToolListing
+export type McpToolListing = "each" | "search";
+
+### dist/transport/search-listing.d.ts#SEARCH_LISTING_NAMES
+export declare const SEARCH_LISTING_NAMES: {
+    readonly search: "search_tools";
+    readonly describe: "describe_tool";
+    readonly call: "call_tool";
+};
+
+### dist/transport/search-listing.d.ts#SEARCH_LISTING_TOOLS
+export declare const SEARCH_LISTING_TOOLS: readonly Tool[];
+
+### dist/transport/search-listing.d.ts#toolSearchDocuments
+export declare function toolSearchDocuments(tools: Iterable<McpTool>): SearchDocument[];
+
 ### dist/transport/sse.d.ts#createSseTransport
 export declare function createSseTransport(_options?: SseTransportOptions): never;
 
@@ -462,6 +484,7 @@ export interface McpServerTransportOptions {
     content?: McpToolContentHook | undefined;
     json?: "pretty" | "compact" | undefined;
     toolFilter?: McpToolFilter;
+    listing?: McpToolListing | undefined;
     toolName?: ((path: readonly string[]) => string) | undefined;
     sseOptions?: SseTransportOptions;
     sdkTransport?: SdkTransport;

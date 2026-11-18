@@ -63,6 +63,8 @@ Input: `name` (without the scope), `preset` (default `lib`), `rootPath` and `dry
 
 The procedure makes `packages/<name>`. It starts `cue-config init` and `cue-config generate`, and it writes `src/index.ts`, `src/register.ts` and `src/types.ts`. It also sets the `client.procedures` field and adds a `workspace:*` dependency on `client`. Then start `pnpm install` and `pnpm build`. `cue-config` needs the CUE binary.
 
+The new package joins the fixed group of `@procedures/client` in `.changeset/config.json`, and it gets the version of that group. The packages of a fixed group share one version, and the package check fails on two versions. A release can change the version of the group before the merge of the new package. So before the merge, merge `main` and set the version again.
+
 The output gives `success`, `packageName`, `packagePath`, `created`, `operations` and `errors`.
 
 ## `lib.audit`

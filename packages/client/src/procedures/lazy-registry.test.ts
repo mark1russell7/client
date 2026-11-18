@@ -262,6 +262,18 @@ describe("the dispatch points with a lazy registry", () => {
     expect(loads.size).toBe(2);
   });
 
+  it("procedure.get and procedure.define hide a path outside the expose rule, also after the load of its package", async () => {
+    const { registry, loads } = lazy();
+    const server = new ProcedureServer({ registry, expose: (path) => path[0] !== "beta" });
+    server.registerFromRegistry();
+    const call = (id: string, path: string[], payload: unknown) => server.handle({ id, method: pathToMethod(path), payload, metadata: {} });
+    expect((await call("1", ["procedure", "get"], { path: "beta.one" })).payload).toEqual({ found: false });
+    const defined = await call("2", ["procedure", "define"], { path: ["beta", "one"], aggregation: { $proc: ["client", "identity"], input: { value: 1 } } });
+    expect(defined.status).toMatchObject({ type: "error", code: "NOT_EXPOSED" });
+    // A procedure that reads the registry sees each package (O93): the load does not change the answer
+    expect(loads.get("beta")).toBe(1);
+  });
+
   it("runs the authenticate function one time for a call that loads its package", async () => {
     const { registry } = lazy();
     let checks = 0;

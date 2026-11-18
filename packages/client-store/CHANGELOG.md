@@ -1,5 +1,76 @@
 # @procedures/store
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/collections@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/collections@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- 14f61a7: Break: under the expose rule of a host, `procedure.define` makes a procedure only at an exposed path. A hidden path gets `NOT_EXPOSED`, also a free path. Before this release, a new procedure at a free hidden path was possible. This ends the deprecation of 0.60.1.
+  
+  - `procedure.define`, `procedure.get` and `procedure.delete` examine the path before the lookup. A free hidden path and a used hidden path get the same answer.
+  - A lazy registry loads no package for a hidden path of these procedures.
+  - A nested `procedure.define` gets the same rule. Under an expose rule, `procedure.load` gives each stored program at a hidden path as a conflict. The scheduler then records `NOT_FOUND` for the run of that program.
+  
+  Migration steps for the site and each app:
+  
+  1. Find each call of `procedure.define` and each stored program under a host with an expose rule.
+  2. For each one at a hidden path, move the program to an exposed path. Or add its path to the expose rule of the host.
+  3. Store the moved programs again with `procedure.store`. Then remove the old entries from the program store.
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+  - @procedures/collections@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/collections@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- 6dbc47e: Deprecated: under the expose rule of a host, `procedure.define` at a free hidden path, and `procedure.load` of a stored program at a free hidden path. From 0.62.0, the define gets `NOT_EXPOSED`, and the load gives the program as a conflict.
+  
+  To prepare, move each such program to an exposed path, or add its path to the expose rule of the host. This note changes no code.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [4ab1acf]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/collections@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes

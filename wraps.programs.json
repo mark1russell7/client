@@ -1,0 +1,457 @@
+{
+  "programs": [
+    {
+      "name": "seeded-bootstrap-of-a-median",
+      "description": "The bootstrap interval of a median. The seed of the bootstrap comes from a label, through deriveSeed.",
+      "program": {
+        "$proc": [
+          "statistics",
+          "bootstrap"
+        ],
+        "input": {
+          "data": [
+            3,
+            1,
+            4,
+            1,
+            5,
+            9,
+            2,
+            6,
+            5,
+            3,
+            5,
+            8,
+            9,
+            7,
+            9
+          ],
+          "statistic": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": {
+                "$ref": "sample"
+              }
+            },
+            "$when": "$never"
+          },
+          "options": {
+            "runs": 400,
+            "seed": {
+              "$proc": [
+                "generators",
+                "deriveSeed"
+              ],
+              "input": {
+                "seed": 7,
+                "label": "bootstrap"
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "estimate": 5,
+        "low": 3,
+        "high": 7,
+        "level": 0.95,
+        "runs": 400,
+        "finite": 400,
+        "seed": 1120721394
+      }
+    },
+    {
+      "name": "content-hash-of-an-interval",
+      "description": "The SHA-256 of the canonical JSON of a Wilson interval: a key for a store of results.",
+      "program": {
+        "$proc": [
+          "generators",
+          "canonicalHash"
+        ],
+        "input": {
+          "value": {
+            "$proc": [
+              "statistics",
+              "wilson"
+            ],
+            "input": {
+              "k": 8,
+              "n": 10
+            }
+          }
+        }
+      },
+      "result": "e2f930fa8af8603e0805cd904854d52e38c3f453a5c7b8a8c8883dcc90e9bea8"
+    },
+    {
+      "name": "seeded-order-by-weight",
+      "description": "A Plackett-Luce order of four shares. The weight of each share is a normal quantile from statistics, and the seed is the hash of a name.",
+      "program": {
+        "$proc": [
+          "generators",
+          "plackettLuceOrder"
+        ],
+        "input": {
+          "seed": {
+            "$proc": [
+              "generators",
+              "sha256Hex"
+            ],
+            "input": {
+              "text": "an order"
+            }
+          },
+          "items": [
+            0.2,
+            0.9,
+            0.5,
+            0.7
+          ],
+          "logWeightOf": {
+            "$proc": [
+              "statistics",
+              "normalQuantile"
+            ],
+            "input": {
+              "p": {
+                "$ref": "item"
+              }
+            },
+            "$when": "$never"
+          }
+        }
+      },
+      "result": [
+        0.7,
+        0.9,
+        0.2,
+        0.5
+      ]
+    },
+    {
+      "name": "latin-hypercube-from-a-label",
+      "description": "A Latin hypercube of four points in two dimensions. The procedure makes its Random from a seed, and the seed comes from a label, through deriveSeed.",
+      "program": {
+        "$proc": [
+          "generators",
+          "latinHypercube"
+        ],
+        "input": {
+          "n": 4,
+          "d": 2,
+          "r": {
+            "seed": {
+              "$proc": [
+                "generators",
+                "deriveSeed"
+              ],
+              "input": {
+                "seed": 7,
+                "label": "design"
+              }
+            }
+          }
+        }
+      },
+      "result": [
+        [
+          0.8873362895683385,
+          0.8690022618393414
+        ],
+        [
+          0.5519742068136111,
+          0.4157125820638612
+        ],
+        [
+          0.09121613699244335,
+          0.5413490640348755
+        ],
+        [
+          0.3456299683894031,
+          0.19666967575903982
+        ]
+      ]
+    },
+    {
+      "name": "netem-time-of-a-datagram",
+      "description": "The time that netem gives one UDP datagram of 1,000 bytes at 10 Mbit/s. algebra gives the frame length and the time in nanoseconds, and quantity converts it to milliseconds.",
+      "program": {
+        "$proc": [
+          "quantity",
+          "format"
+        ],
+        "input": {
+          "amount": {
+            "$proc": [
+              "quantity",
+              "convert"
+            ],
+            "input": {
+              "amount": {
+                "$proc": [
+                  "quantity",
+                  "quantity"
+                ],
+                "input": {
+                  "value": {
+                    "$proc": [
+                      "algebra",
+                      "netemPacketTime"
+                    ],
+                    "input": {
+                      "length": {
+                        "$proc": [
+                          "algebra",
+                          "udpFrameLength"
+                        ],
+                        "input": {
+                          "payload": 1000
+                        }
+                      },
+                      "rate": {
+                        "rate": 1250000
+                      }
+                    }
+                  },
+                  "unit": "ns"
+                }
+              },
+              "to": "ms"
+            }
+          }
+        }
+      },
+      "result": "0.83 ms"
+    },
+    {
+      "name": "side-of-the-median-point",
+      "description": "The side of the point of the medians of a sample from the line through (0, 0) and (10, 10). The exact predicate gives 1 for the left side.",
+      "program": {
+        "$proc": [
+          "predicates",
+          "orient2dSign"
+        ],
+        "input": {
+          "ax": 0,
+          "ay": 0,
+          "bx": 10,
+          "by": 10,
+          "cx": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": [
+                1,
+                2,
+                3,
+                4,
+                9
+              ]
+            }
+          },
+          "cy": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": [
+                4,
+                5,
+                6,
+                7,
+                8
+              ]
+            }
+          }
+        }
+      },
+      "result": 1
+    },
+    {
+      "name": "format-of-a-duration-that-can-be-absent",
+      "description": "The text of a duration in milliseconds that can be null. optional maps a present value through quantity, and gives a fallback text for an absent value.",
+      "program": {
+        "$proc": [
+          "optional",
+          "getOr"
+        ],
+        "input": {
+          "o": {
+            "$proc": [
+              "optional",
+              "map"
+            ],
+            "input": {
+              "o": {
+                "$proc": [
+                  "optional",
+                  "fromNullable"
+                ],
+                "input": {
+                  "value": 1500
+                }
+              },
+              "f": {
+                "$proc": [
+                  "quantity",
+                  "format"
+                ],
+                "input": {
+                  "amount": {
+                    "$proc": [
+                      "quantity",
+                      "quantity"
+                    ],
+                    "input": {
+                      "value": {
+                        "$ref": "v"
+                      },
+                      "unit": "ms"
+                    }
+                  }
+                },
+                "$when": "$never"
+              }
+            }
+          },
+          "fallback": "unknown"
+        }
+      },
+      "result": "1,500 ms"
+    },
+    {
+      "name": "exact-seconds-of-a-sum-of-decimal-hours",
+      "description": "The seconds of 0.1 h plus 0.2 h, with no rounding. rational adds the two decimals as exact fractions, and quantity converts the sum exactly. In floating point, the sum is 0.30000000000000004 h.",
+      "program": {
+        "$proc": [
+          "rational",
+          "toString"
+        ],
+        "input": {
+          "a": {
+            "$proc": [
+              "quantity",
+              "convertExact"
+            ],
+            "input": {
+              "value": {
+                "$proc": [
+                  "rational",
+                  "add"
+                ],
+                "input": {
+                  "a": {
+                    "$proc": [
+                      "rational",
+                      "fromDecimal"
+                    ],
+                    "input": {
+                      "text": "0.1"
+                    }
+                  },
+                  "b": {
+                    "$proc": [
+                      "rational",
+                      "fromDecimal"
+                    ],
+                    "input": {
+                      "text": "0.2"
+                    }
+                  }
+                }
+              },
+              "from": "h",
+              "to": "s"
+            }
+          }
+        }
+      },
+      "result": "1080"
+    },
+    {
+      "name": "point-at-the-median-distance",
+      "description": "The point south-west of Boston at the median of the distances in kilometres from Boston to New York, Philadelphia and Washington. geo gives the distances and the point, and statistics gives the median.",
+      "program": {
+        "$proc": [
+          "geo",
+          "destinationKm"
+        ],
+        "input": {
+          "from": {
+            "lat": 42.3601,
+            "lon": -71.0589
+          },
+          "bearingDegrees": 225,
+          "distance": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": [
+                {
+                  "$proc": [
+                    "geo",
+                    "distanceKm"
+                  ],
+                  "input": {
+                    "a": {
+                      "lat": 42.3601,
+                      "lon": -71.0589
+                    },
+                    "b": {
+                      "lat": 40.7128,
+                      "lon": -74.006
+                    }
+                  }
+                },
+                {
+                  "$proc": [
+                    "geo",
+                    "distanceKm"
+                  ],
+                  "input": {
+                    "a": {
+                      "lat": 42.3601,
+                      "lon": -71.0589
+                    },
+                    "b": {
+                      "lat": 39.9526,
+                      "lon": -75.1652
+                    }
+                  }
+                },
+                {
+                  "$proc": [
+                    "geo",
+                    "distanceKm"
+                  ],
+                  "input": {
+                    "a": {
+                      "lat": 42.3601,
+                      "lon": -71.0589
+                    },
+                    "b": {
+                      "lat": 38.9072,
+                      "lon": -77.0369
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "result": {
+        "lat": 39.532415799556425,
+        "lon": -74.65024609466887
+      }
+    }
+  ]
+}

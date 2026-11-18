@@ -8,7 +8,8 @@
 import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, TypedClientMiddleware } from "../types.js";
 import type { CacheContext } from "./contexts.js";
 import { LRUCache } from "@mark1russell7/collections";
-import { isDuration, optionalMs, type Duration } from "../../duration.js";
+import { canonicalJson } from "@mark1russell7/rigor-generators";
+import { isDuration, optionalMs, toMs, type Duration } from "../../duration.js";
 import type { Effects } from "../../procedures/types.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
 import { methodName } from "../../server/method.js";
@@ -96,31 +97,11 @@ export interface CacheStats {
 }
 
 /**
- * Deterministic stringify for cache keys: recursively sorts object keys at every depth, so
- * payloads that are structurally equal (regardless of key order) map to the same key, and
- * null / primitive / array payloads are handled without throwing.
- *
- * Replaces a prior `JSON.stringify(payload, Object.keys(payload).sort())` which misused the
- * array-replacer form of JSON.stringify: that filters keys at *every* depth (so `{filter:{a:1}}`
- * and `{filter:{b:2}}` collided to the same key and returned each other's cached response) and
- * threw `TypeError` on null/primitive payloads. See documentation/BUGS-2026-07.md (C1).
+ * The form of the payload and the metadata in a cache key: the canonical JSON text of
+ * `@mark1russell7/rigor-generators`. The keys of each object are in order at each depth. A Date,
+ * a RegExp, a Map, a Set and a bigint get a tag with their value (CLI-128).
  */
-export function stableStringify(value: unknown): string {
-  if (typeof value === "bigint") return `${value}n`;
-  if (value === null || typeof value !== "object") {
-    // Primitives — and undefined/function/symbol (JSON.stringify → undefined): never throw.
-    return JSON.stringify(value) ?? String(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  const obj = value as Record<string, unknown>;
-  const body = Object.keys(obj)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
-    .join(",");
-  return `{${body}}`;
-}
+const KEY_FORM = { form: "json", tags: "typed" } as const;
 
 /**
  * The metadata keys that do not change a response: middleware state, tracing, and the keys of
@@ -156,14 +137,17 @@ function keyMetadata(metadata: Metadata): Record<string, unknown> {
  * response. Before, the key ignored the metadata: with `withContext({ auth })`, one user got
  * the cached response of another user, and a pagination cursor in the metadata returned the
  * first page forever (deep dive TRN-5).
+ *
+ * @throws TypeError when the payload or the metadata holds a function, a symbol or a cycle. The
+ * middleware then sends the call without the cache.
  */
 export function defaultKeyGenerator(method: Method, payload: unknown, metadata?: Metadata): string {
   // The name of the codec: a path of one segment has the key of its operation, not ".operation" (CLI-28)
   const name = methodName(method);
   const methodKey = method.version ? `${method.version}:${name}` : name;
 
-  const base = `${methodKey}:${stableStringify(payload)}`;
-  return metadata ? `${base}|${stableStringify(keyMetadata(metadata))}` : base;
+  const base = `${methodKey}:${canonicalJson(payload, KEY_FORM)}`;
+  return metadata ? `${base}|${canonicalJson(keyMetadata(metadata), KEY_FORM)}` : base;
 }
 
 /** A deep copy of a cache entry, or undefined when the payload cannot be copied. */
@@ -171,8 +155,9 @@ function copyItem<T>(item: ResponseItem<T>): ResponseItem<T> | undefined {
   try {
     return structuredClone(item);
   } catch {
-    return undefined;
+    // A payload with a function or a symbol has no copy
   }
+  return undefined;
 }
 
 /** A stored response and the time at which it expires. */
@@ -201,38 +186,38 @@ function cacheOverrides(value: unknown): { ttl?: number; bypass?: boolean; refre
   if (typeof value !== "object" || value === null) return {};
   const { ttl, bypass, refresh } = value as Record<string, unknown>;
   return {
-    ...(isDuration(ttl) && ttl.value >= 0 ? { ttl: optionalMs(ttl, "cache.ttl")! } : {}),
+    // A ttl that is not a duration, or is below zero, keeps the ttl of the options
+    ...(isDuration(ttl) && ttl.value >= 0 ? { ttl: toMs(ttl) } : {}),
     ...(bypass === true ? { bypass: true } : {}),
     ...(refresh === true ? { refresh: true } : {}),
   };
 }
 
-/**
- * Default should cache predicate - only cache successful responses.
- */
 /** The value of `untilAbort` when the signal aborts first. */
 const ABORTED: unique symbol = Symbol("aborted");
 
-/** The value of a promise, or `ABORTED` when the signal aborts first. Without a signal, the promise. */
-function untilAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T | typeof ABORTED> {
-  if (signal === undefined) return promise;
+/**
+ * This function gives the entry of a call in flight, or `ABORTED` when the signal aborts first.
+ * Without a signal, it gives the entry. The promise of a call in flight does not reject: an error
+ * settles it with `undefined`.
+ */
+function untilAbort(
+  pending: Promise<CacheEntry | undefined>,
+  signal: AbortSignal | undefined,
+): Promise<CacheEntry | undefined | typeof ABORTED> {
+  if (signal === undefined) return pending;
   if (signal.aborted) return Promise.resolve(ABORTED);
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const onAbort = (): void => resolve(ABORTED);
     signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(
-      (value) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(value);
-      },
-      (error: unknown) => {
-        signal.removeEventListener("abort", onAbort);
-        reject(error);
-      },
-    );
+    void pending.then((entry) => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(entry);
+    });
   });
 }
 
+/** This function is the default `shouldCache`: the cache stores only a response that succeeded. */
 function defaultShouldCache(item: ResponseItem<unknown>): boolean {
   return item.status.type === "success";
 }
@@ -326,8 +311,8 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
   const inFlight = new Map<string, Promise<CacheEntry | undefined>>();
 
   /** A write that succeeded deletes the entries that read one of its resources (R13). */
-  const invalidateAfterWrite = (method: Method): void => {
-    const writes = effectsOf?.(method)?.writes;
+  const invalidateAfterWrite = (effects: (method: Method) => Effects | undefined, method: Method): void => {
+    const writes = effects(method)?.writes;
     if (!writes || writes.length === 0) return;
     cache.deleteWhere((entry) => entry.reads === undefined || entry.reads.some((resource) => writes.includes(resource)));
   };
@@ -340,7 +325,7 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
           if (item.status.type === "error") failed = true;
           yield item;
         }
-        if (!failed && effectsOf) invalidateAfterWrite(context.message.method);
+        if (!failed && effectsOf) invalidateAfterWrite(effectsOf, context.message.method);
         return;
       }
 
@@ -352,14 +337,23 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
         metadata["cache"] = { ...overrides, hit };
       };
 
-      if (overrides.bypass) {
+      // The key of the call, or undefined when the key generator throws: a payload with a
+      // function, a symbol or a cycle has no key, so the call goes past the cache (CLI-128)
+      const keyOf = (): string | undefined => {
+        try {
+          return keyGenerator(context.message.method, context.message.payload, metadata);
+        } catch {
+          // The call has no key
+        }
+        return undefined;
+      };
+      const cacheKey = overrides.bypass ? undefined : keyOf();
+
+      if (cacheKey === undefined) {
         yield* next(context);
         setState(false);
         return;
       }
-
-      // Generate cache key
-      const cacheKey = keyGenerator(context.message.method, context.message.payload, metadata);
 
       // Check cache - use has() to avoid throwing "Key not found" error. A refresh skips the read.
       if (!overrides.refresh && cache.has(cacheKey)) {
@@ -407,14 +401,15 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
       try {
         for await (const item of next(context)) {
           count++;
-          if (count === 1) first = item;
+          // The store needs a response of one item: the first item is the response
+          first ??= item;
           yield item;
         }
         setState(false);
 
         // An inner layer that changed the key metadata during the call (an auth middleware
         // inside the cache) makes the key wrong: such a response is not stored (R13)
-        const keyAfter = keyGenerator(context.message.method, context.message.payload, metadata);
+        const keyAfter = keyOf();
         if (count === 1 && first && shouldCache(first) && keyAfter === cacheKey) {
           const copy = copyItem(first);
           if (copy) {

@@ -1,5 +1,62 @@
 # @procedures/shell
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- d472a8b: A time limit, an abort and a stop end a command also when a descendant keeps the output pipes of the command.
+  
+  - Before, a command ended only when each holder of its stdout and stderr pipes closed them. A descendant that outlived the first process held `runCommand`, `streamCommand` and `ProcessRegistry.stop` after the time limit or the abort.
+  - At a time limit, an abort or a stop, the pipes get 250 ms after the end of the first process. Then the command closes the pipes and ends.
+  - On POSIX, `killTree` also signals the process group of a first process that ended, while a process of that group lives.
+  - `ProcessRegistry.stop` gives `stopped: false` when the process did not end in the grace time. The documented rule of `stopped` is "true when this call ended a running process", so this change is a fix.
+  - Without a time limit or a signal, a command ends when its pipes close, as in `node:child_process`.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
 ## 0.60.0
 
 ### Patch Changes

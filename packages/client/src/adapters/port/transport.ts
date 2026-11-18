@@ -150,6 +150,8 @@ export class PortTransport implements Transport {
           id: frame.id,
           method: frame.method!,
           payload: frame.payload === undefined ? {} : frame.payload,
+          // A local face, as LocalTransport: the metadata keeps the key `auth`, and only the
+          // internal keys stay out. A network face drops `auth` too (wireMetadata)
           metadata: withoutInternalKeys(frame.metadata),
           signal,
           // The face of the request, for the error policy of the server (CLI-80)

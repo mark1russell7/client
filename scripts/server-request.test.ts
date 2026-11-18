@@ -11,10 +11,12 @@ import {
   fitOf,
   fitRowsOf,
   FORMAT,
+  HEAP_INTERVAL_BYTES,
   jsonBytes,
   markdownOf,
   PROFILE_DEFAULTS,
   PROFILE_INTERVAL_US,
+  PROFILE_KINDS,
   profileOptionsOf,
   recordOf,
   REQUESTS,
@@ -25,6 +27,10 @@ import {
 } from "./server-request.ts";
 import {
   groupOf,
+  HEAP_PROFILE_FORMAT,
+  heapAmountsOf,
+  heapAnalysisOf,
+  heapMarkdownOf,
   HOST_GROUP,
   HOST_SIDE,
   isHostSide,
@@ -39,6 +45,9 @@ import {
   selfTimesOf,
   type CpuProfile,
   type ExcessRow,
+  type HeapProfile,
+  type HeapProfileNode,
+  type HeapRecord,
   type ProfileRecord,
 } from "./server-request-profile.ts";
 
@@ -814,8 +823,8 @@ describe("server-request profile record", () => {
 
 describe("server-request profile options", () => {
   it("gives the two cases and the counts, with the defaults", () => {
-    assert.deepEqual(profileOptionsOf("chain-200,chain-1", "500", "800"), { cases: ["chain-200", "chain-1"], warmup: 500, calls: 800 });
-    assert.deepEqual(profileOptionsOf(" chain-200 , chain-1 ", undefined, undefined), { cases: ["chain-200", "chain-1"], ...PROFILE_DEFAULTS });
+    assert.deepEqual(profileOptionsOf("chain-200,chain-1", "500", "800"), { cases: ["chain-200", "chain-1"], warmup: 500, calls: 800, kind: "cpu" });
+    assert.deepEqual(profileOptionsOf(" chain-200 , chain-1 ", undefined, undefined), { cases: ["chain-200", "chain-1"], ...PROFILE_DEFAULTS, kind: "cpu" });
     assert.deepEqual(PROFILE_DEFAULTS, { warmup: 1000, calls: 1000 });
     assert.equal(profileOptionsOf("one-call,chain-1", "0", "1").warmup, 0);
   });
@@ -829,5 +838,119 @@ describe("server-request profile options", () => {
   it("throws for a warm-up that is not a whole number of 0 or more, and for calls that are not a whole number above 0", () => {
     for (const value of ["-1", "1.5", "x"]) assert.throws(() => profileOptionsOf("chain-200,chain-1", value, undefined), /--profile-warmup/, value);
     for (const value of ["0", "-1", "2.5", "x"]) assert.throws(() => profileOptionsOf("chain-200,chain-1", undefined, value), /--profile-calls/, value);
+  });
+});
+
+describe("server-request profile kind", () => {
+  it("gives the kind cpu without --profile-kind, and the kind heap for heap", () => {
+    assert.equal(profileOptionsOf("chain-200,chain-1", undefined, undefined).kind, "cpu");
+    assert.equal(profileOptionsOf("chain-200,chain-1", undefined, undefined, "cpu").kind, "cpu");
+    assert.equal(profileOptionsOf("chain-200,chain-1", undefined, undefined, "heap").kind, "heap");
+    assert.deepEqual(PROFILE_KINDS, ["cpu", "heap"]);
+  });
+
+  it("throws for a kind that is not cpu or heap", () => {
+    for (const value of ["", "CPU", "alloc"]) assert.throws(() => profileOptionsOf("chain-200,chain-1", undefined, undefined, value), /--profile-kind/, value);
+  });
+
+  it("has the interval of 16 KiB and the format server-request-heap/1", () => {
+    assert.equal(HEAP_INTERVAL_BYTES, 16_384);
+    assert.equal(HEAP_PROFILE_FORMAT, "server-request-heap/1");
+  });
+});
+
+/** A node of a heap profile, with its children. */
+const heapNode = (frame: Frame, selfSize: number, children: HeapProfileNode[] = []): HeapProfileNode => ({ callFrame: frame, selfSize, children });
+const ROOT: Frame = { functionName: "(root)", url: "", lineNumber: -1 };
+// Profile a: the chain allocates in two stacks, the host in one, and zod in one
+const HEAP_A: HeapProfile = {
+  head: heapNode(ROOT, 0, [heapNode(F.host, 30_000, [heapNode(F.chain, 50_000), heapNode(F.zod, 4_000)]), heapNode(F.chain, 70_000), heapNode(F.node, 0)]),
+};
+// Profile b: fewer bytes of the same functions, and a function of only this profile
+const HEAP_B: HeapProfile = { head: heapNode(ROOT, 0, [heapNode(F.host, 20_000, [heapNode(F.chain, 10_000)]), heapNode(F.peer, 6_000)]) };
+const HEAP = heapAnalysisOf({ id: "chain-200", profile: HEAP_A, calls: 10 }, { id: "chain-1", profile: HEAP_B, calls: 20 }, TREE);
+
+describe("server-request heap profile", () => {
+  const row = (key: string) => HEAP.functions.find((r) => r.key === key)!;
+
+  it("adds the bytes of the nodes of one function, and counts only the nodes with bytes", () => {
+    const amounts = heapAmountsOf(HEAP_A, TREE);
+    assert.deepEqual(
+      amounts.map((f) => [f.key, f.amount, f.count]),
+      [
+        ["dispatch packages/server/dist/host.js:41", 30_000, 1],
+        ["chain packages/client/dist/procedures/chain.js:5", 120_000, 2],
+        ["_parse node_modules/zod:100", 4_000, 1],
+      ],
+    );
+  });
+
+  it("walks a deep stack with no recursion", () => {
+    let node = heapNode(F.chain, 1);
+    for (let i = 0; i < 100_000; i++) node = heapNode(F.chain, 1, [node]);
+    const [chain] = heapAmountsOf({ head: node }, TREE);
+    assert.equal(chain!.amount, 100_001);
+    assert.equal(chain!.count, 100_001);
+  });
+
+  it("gives the totals of each profile: calls, functions with bytes, bytes and bytes per call", () => {
+    assert.deepEqual(HEAP.a, { id: "chain-200", calls: 10, functions: 3, totalBytes: 154_000, perCallBytes: 15_400 });
+    assert.deepEqual(HEAP.b, { id: "chain-1", calls: 20, functions: 3, totalBytes: 36_000, perCallBytes: 1_800 });
+  });
+
+  it("gives the excess bytes per call of each function for unequal counts of calls, and sorts from the largest", () => {
+    assert.deepEqual(
+      HEAP.functions.map((r) => [r.key, r.excess]),
+      [
+        ["chain packages/client/dist/procedures/chain.js:5", 11_500],
+        ["dispatch packages/server/dist/host.js:41", 2_000],
+        ["_parse node_modules/zod:100", 400],
+        ["handle packages/client-server/dist/http.js:9", -300],
+      ],
+    );
+    assert.deepEqual(row("chain packages/client/dist/procedures/chain.js:5").a, { amount: 120_000, perCall: 12_000, count: 2 });
+    assert.deepEqual(row("handle packages/client-server/dist/http.js:9").a, { amount: 0, perCall: 0, count: 0 });
+    assert.equal(HEAP.totalExcessBytes, 13_600);
+    assert.equal(HEAP.totalExcessBytes, HEAP.a.perCallBytes - HEAP.b.perCallBytes);
+    assert.ok(Math.abs(row("chain packages/client/dist/procedures/chain.js:5").share - 11_500 / 13_600) < 1e-12);
+  });
+
+  it("gives the groups: the sums of their functions, from the largest excess", () => {
+    assert.deepEqual(
+      HEAP.groups.map((g) => [g.group, g.functions, g.excess]),
+      [
+        ["packages/client", 1, 11_500],
+        [HOST_GROUP, 2, 1_700],
+        ["node_modules/zod", 1, 400],
+      ],
+    );
+  });
+
+  it("throws for a count of calls that is not a whole number above 0", () => {
+    for (const calls of [0, -1, 1.5]) {
+      assert.throws(() => heapAnalysisOf({ id: "a", profile: HEAP_A, calls }, { id: "b", profile: HEAP_B, calls: 1 }, TREE), /whole number above 0/);
+    }
+  });
+
+  it("gives the Markdown: the interval, the totals, the functions and the groups in bytes per call", () => {
+    const record: HeapRecord = {
+      format: HEAP_PROFILE_FORMAT,
+      refs: { head: "abc" },
+      node: "v26.0.0",
+      run: { label: "local" },
+      samplingIntervalBytes: HEAP_INTERVAL_BYTES,
+      warmup: 1000,
+      calls: 10,
+      files: { "chain-200": "chain-200/host.heapprofile", "chain-1": "chain-1/host.heapprofile" },
+      analysis: HEAP,
+    };
+    const md = heapMarkdownOf(record);
+    assert.match(md, /^# Server request heap profile \(O94\): `chain-200` against `chain-1`/);
+    assert.match(md, /a mean interval of 16384 bytes/);
+    assert.match(md, /\| `chain-200` \| 10 \| 3 \| 154000 \| 15400 \|/);
+    assert.match(md, /The total excess is 13600 bytes per call\./);
+    assert.match(md, /\| 1 \| `chain` \| `packages\/client\/dist\/procedures\/chain\.js:6` \| 12000 \| 500 \| 11500 \| 84\.6 % \|/);
+    assert.match(md, /\| `host side` \| 2 \| 3000 \| 1300 \| 1700 \| 12\.5 % \|/);
+    assert.deepEqual(JSON.parse(JSON.stringify(record)).analysis, HEAP);
   });
 });

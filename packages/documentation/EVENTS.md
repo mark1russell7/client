@@ -393,7 +393,7 @@ The bound goes to the host, not to the change events:
 - That queue grows past the service rate also with no subscriber. Thus a bound in the change events does not stop the fault.
 - The limits of the host (CLI-40) refuse a call past a rate with `RATE_LIMITED` and a wait in `retry-after`. The work did not start, so a retry after the wait is safe.
 - A rate limit needs the service rate, and the service rate changes with the storage and the load. A bound on the calls in flight does not need it.
-- The limiter of `@mark1russell7/service` has only rate policies (`TokenBucket` and `SlidingWindow`). Roadmap item CLI-132 adds a policy of calls in flight to that package first, then to the limits of the host.
+- The limiter of `@mark1russell7/service` 0.10.0 has a bound on the calls in flight (`InFlightBound`) beside its rate policies. A limit of the host takes it (CLI-132). A call past the bound gets `RATE_LIMITED` before its work starts.
 
 `changeEvents` stays `true` by default:
 
