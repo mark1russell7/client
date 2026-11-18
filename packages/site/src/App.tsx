@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { build, failedPackages } from "./data/site";
 import { href, interceptLinks, routePath, useRoute } from "./lib/router";
-import { metaOf, needsCatalog, NOT_FOUND_META, type CatalogData } from "./lib/seo";
+import { LOAD_FAILURE_META, metaOf, needsCatalog, NOT_FOUND_META, type CatalogData } from "./lib/seo";
 import { cycleTheme, THEME_LABEL, useTheme } from "./lib/theme";
 import { NotFound } from "./pages/NotFound";
 import { Home } from "./pages/Home";
@@ -127,14 +127,26 @@ function Footer(): ReactElement {
  * The catalog for the meta data of the page of a procedure or of a package. The main bundle does
  * not hold the catalog, because it grows with each library that becomes procedures. Its code loads
  * the first time that a route needs it, in the same chunk as the pages that show procedures.
+ * The failure is the error of the import, for example a chunk that a new deploy removed. The next
+ * route that needs the catalog tries the import again.
  */
-function useCatalog(needed: boolean): CatalogData | null {
+function useCatalog(needed: boolean, routeKey: string): { catalog: CatalogData | null; failure: unknown } {
   const [catalog, setCatalog] = useState<CatalogData | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
   useEffect(() => {
     if (!needed || catalog !== null) return;
-    void import("./data").then(({ packages, procedures }) => setCatalog({ packages, procedures }));
-  }, [needed, catalog]);
-  return catalog;
+    setFailure(null);
+    import("./data").then(
+      ({ packages, procedures }) => setCatalog({ packages, procedures }),
+      (error: unknown) => setFailure(error ?? new Error("The catalog did not load")),
+    );
+  }, [needed, catalog, routeKey]);
+  return { catalog, failure };
+}
+
+/** This component throws the error that it gets, so that the error boundary of the page shows it. */
+function Rethrow({ error }: { error: unknown }): ReactElement {
+  throw error;
 }
 
 /** This function sets the content of a meta element of the head, when the element exists. */
@@ -144,9 +156,10 @@ function setMeta(selector: string, attribute: string, value: string): void {
 
 export function App(): ReactElement {
   const route = useRoute();
-  const catalog = useCatalog(needsCatalog(route));
-  // Undefined until the catalog loads: the page shows its loading state, and the title changes after
+  const { catalog, failure } = useCatalog(needsCatalog(route), `${route.page}/${route.rest}`);
+  // Undefined until the catalog loads: the page shows its loading state, and the title changes after the catalog loads
   const meta = useMemo(() => metaOf(route, catalog), [route.page, route.rest, catalog]);
+  const failed = meta === undefined && failure !== null;
   const palette = useCommandPalette();
   const [shortcut, setShortcut] = useState("Ctrl K");
   useEffect(() => setShortcut(shortcutLabel()), []);
@@ -154,11 +167,11 @@ export function App(): ReactElement {
   useEffect(() => interceptLinks(), []);
   // The title and the description of the page, as the build writes them in its HTML file
   useEffect(() => {
-    if (meta === undefined) return;
-    const current = meta ?? NOT_FOUND_META;
+    if (meta === undefined && !failed) return;
+    const current = failed ? LOAD_FAILURE_META : (meta ?? NOT_FOUND_META);
     document.title = current.title;
     setMeta('meta[name="description"]', "content", current.description);
-  }, [meta]);
+  }, [meta, failed]);
 
   let page: ReactElement;
   switch (meta === null ? "" : route.page) {
@@ -192,6 +205,8 @@ export function App(): ReactElement {
     default:
       page = <Home />;
   }
+  // The catalog did not load: the error boundary of the page shows the error
+  if (failed) page = <Rethrow error={failure} />;
 
   return (
     <div className="app">
