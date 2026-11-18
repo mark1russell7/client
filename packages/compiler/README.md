@@ -251,8 +251,8 @@ Each other function gets an exemption with its reason and the part of the signat
 | Reason | The cause | The plan |
 |---|---|---|
 | `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
-| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
-| `output-not-json` | The output is not JSON, for example a class instance or an `Iterable`. | The handle of the instance. |
+| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes and no class of the package satisfies, or a type that does not resolve. | No change. |
+| `output-not-json` | The output is not JSON, for example an `Iterable` or a class instance inside an object. | The handle of an instance inside an object. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
 | `overlay` | The overlay exempts the function. | No change. |
 | `unresolved` | A re-export does not resolve, for example because its module is not installed. | Install the module. |
@@ -324,6 +324,29 @@ A parameter that is not JSON, for example a `Random` with methods, gets a constr
 - When more than one factory gives the type, the field `constructors` of the overlay names one. Without it, the function stays exempt, and the detail names the factories.
 - Only a parameter of the function gets a constructed input, not a property of a parameter.
 - Before each call, the loader makes a new value with the factory. Thus a call does not change the next call.
+
+### A handle
+
+An instance of a class is not JSON, and it can have a state, for example an open database. A parameter or an output of a class type gets a handle:
+
+```json
+{ "$proc": ["sqlite", "open"], "input": { "path": "/data/orders.db" } }
+```
+
+- The output of `open` is `{ "handle": "h_<32 hex digits>" }`. The next calls give this value for the parameter of the class.
+- The schema of the handle has the keyword `x-procedures-handle`. Its value is the kind of the handle: the module and the class, for example `node:sqlite#DatabaseSync`.
+- The module of the kind is the name of an ambient module, the package of the declaration file, or the package of the manifest.
+- The loader keeps the object of an output in the handle scope of the caller. For the input of a handle, it gets the object from the same scope.
+- An optional object gives `null` or a handle. An absent object opens nothing.
+- A face with no handle scope refuses the call with `NOT_ACCEPTABLE`, before the function makes an object.
+- When the scope refuses an object, for example over its limit, the loader closes the object.
+- A procedure that takes a handle reads `handles`. A procedure that gives a handle writes `handles`. Unknown effects stay unknown.
+- The module brings `handleModule` of `@procedures/client`, for `handle.list` and `handle.close`.
+- A parameter of an interface takes a handle of each class of the package that is assignable to it. For example, a `SqlConnection` takes a `node:sqlite#DatabaseSync`.
+- The classes of the package are the classes at the top of a parameter or of the output of its functions.
+- A parameter of a type parameter uses its constraint. An input that takes more than one kind has the list of the kinds.
+- Only a parameter or the output gets a handle, not a class instance inside an object. An output of an interface has no kind, so it stays exempt.
+- A class instance is a handle, also when a pure function gives the class. Only when the field `constructors` of the overlay names a factory of the class does the parameter get a constructed input.
 
 ## The procedures
 

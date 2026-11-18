@@ -4,11 +4,22 @@
  */
 
 import * as z from "zod";
-import { defineModule, defineProcedure, type AnyProcedure, type Effects, type ProcedureContext, type ProcedureModule } from "@procedures/client/browser";
+import {
+  closeValue,
+  defineModule,
+  defineProcedure,
+  handleModule,
+  handleScopeOf,
+  type AnyProcedure,
+  type Effects,
+  type ProcedureContext,
+  type ProcedureModule,
+} from "@procedures/client/browser";
 import type { ExportProcedure, ExportsConstruct, ExportsJsonSchema, ExportsManifest } from "./types.js";
 import { CONSTRUCT_KEYWORD, EXPORTS_MANIFEST_FORMAT } from "./types.js";
 import { codecDecoder } from "./codecs.js";
 import { withDefinitions } from "./definitions.js";
+import { handleKindsOf } from "./handles.js";
 import { jsonValue } from "./json.js";
 import { reachesProgram, registerOperator, withSubPrograms } from "./programs.js";
 
@@ -26,7 +37,9 @@ export interface ExportsModuleOptions {
  * Each procedure gives the properties of its input to its function in the order of `params`.
  * A call at a sub-program position of the input becomes a function (`./programs.ts`). The value
  * of a constructed input comes from its function of the package, before each call. The value of a
- * codec, for example a bigint, comes from its JSON form (`./codecs.ts`).
+ * codec, for example a bigint, comes from its JSON form (`./codecs.ts`). The object of a handle
+ * input comes from the handle scope of the caller, and the object of a handle output goes into it
+ * (`./handles.ts`). Then the module brings `handleModule`, for `handle.list` and `handle.close`.
  *
  * The function throws when the manifest names a function that the package does not export: then
  * the manifest is older or newer than the package.
@@ -46,7 +59,8 @@ export function exportsModule(
   }
   const procedures: AnyProcedure[] = manifest.procedures.map((procedure) => procedureOf(procedure, functions, manifest.$defs));
   const name = options.name ?? (manifest.entry === "." ? manifest.package : `${manifest.package}/${manifest.entry.replace(/^\.\//, "")}`);
-  return defineModule(name, procedures);
+  const handles = manifest.procedures.some((procedure) => usesHandles(procedure));
+  return defineModule(name, procedures, handles ? [handleModule] : []);
 }
 
 /** The JSON Schema of the input of a procedure, with the definitions that it refers to. */
@@ -79,6 +93,18 @@ function procedureOf(
   const decode = codecDecoder(procedure.input, defs);
   const call = (record: Record<string, unknown>): unknown =>
     fn(...argumentsOf(procedure, decode === undefined ? record : (decode(record) as Record<string, unknown>), makers));
+  // The kind of each handle input, and the kind of a handle output (d40-handles)
+  const properties = (procedure.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
+  const handleInputs = Object.entries(properties).flatMap(([name, schema]) => {
+    const kinds = handleKindsOf(schema);
+    return kinds === undefined ? [] : [[name, kinds] as const];
+  });
+  // The kind of the object of an output is the kind of its class: one kind
+  const outputKinds = handleKindsOf(procedure.output);
+  if (outputKinds !== undefined && outputKinds.length !== 1) {
+    throw new Error(`The output of ${procedure.name} has the handle kinds ${outputKinds.join(", ")}: an output has one kind`);
+  }
+  const handleOutput = outputKinds?.[0];
   const defined = defineProcedure({
     path: [...procedure.path],
     input,
@@ -90,14 +116,39 @@ function procedureOf(
     handler: async (value: unknown, ctx?: ProcedureContext) => {
       let record = (value ?? {}) as Record<string, unknown>;
       if (programs) record = (await withSubPrograms(record, procedure.input, defs, procedure.path, ctx)) as Record<string, unknown>;
-      return jsonValue(await call(record));
+      if (handleInputs.length > 0) {
+        const scope = handleScopeOf(ctx);
+        record = { ...record };
+        for (const [name, kinds] of handleInputs) {
+          const ref = record[name];
+          if (ref !== undefined && ref !== null) record[name] = scope.get(ref as { handle: string }, kinds);
+        }
+      }
+      if (handleOutput === undefined) return jsonValue(await call(record));
+      // The scope must exist before the call, so a call with no scope opens no object
+      const scope = handleScopeOf(ctx);
+      const made = await call(record);
+      if (made === undefined || made === null) return null;
+      try {
+        return scope.open(handleOutput, made);
+      } catch (error) {
+        // The scope refused the object, so this call still owns it
+        await closeValue(made);
+        throw error;
+      }
     },
   }) as AnyProcedure;
   // A sub-program calls a pure function that gives its value at once, and that takes no sub-program
-  if (!programs && procedure.async !== true && isPure(procedure.effects)) {
+  if (!programs && handleInputs.length === 0 && handleOutput === undefined && procedure.async !== true && isPure(procedure.effects)) {
     registerOperator(defined.handler as object, { path: procedure.path, input, call: (record) => jsonValue(call(record)) });
   }
   return defined;
+}
+
+/** True when a procedure takes or gives a handle. */
+function usesHandles(procedure: ExportProcedure): boolean {
+  const properties = (procedure.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
+  return handleKindsOf(procedure.output) !== undefined || Object.values(properties).some((schema) => handleKindsOf(schema) !== undefined);
 }
 
 /** The construct of each parameter, in the order of the parameters: undefined for a JSON input. */

@@ -1311,6 +1311,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         signal,
         // What the face of the call offers: it asks the person, and it shows the progress (CLI-12)
         ...(request.elicit ? { elicit: request.elicit } : {}),
+        // The objects with a state of the owner of the request (d40-handles)
+        ...(request.handles ? { handles: request.handles } : {}),
         ...(request.progress ? { progress: request.progress } : {}),
         repository,
         // The rule of the face of the request meets the rule of the server, also for each nested call (AG1-B)

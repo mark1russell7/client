@@ -75,6 +75,7 @@ DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
 DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
+DEFAULT_MAX_HANDLES: dist/procedures/handles.d.ts#DEFAULT_MAX_HANDLES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -137,8 +138,20 @@ type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
 type GuardedHeaders: dist/server/browser-guard.d.ts#GuardedHeaders
 type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
+HANDLE_KEYWORD: dist/procedures/handles.d.ts#HANDLE_KEYWORD
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
+type HandleCloseFailure: dist/procedures/handles.d.ts#HandleCloseFailure
+type HandleCloseInput: dist/procedures/handle-procedures.d.ts#HandleCloseInput
+type HandleEndReport: dist/procedures/handles.d.ts#HandleEndReport
+HandleError: dist/procedures/handles.d.ts#HandleError
+type HandleInfo: dist/procedures/handles.d.ts#HandleInfo
+type HandleListInput: dist/procedures/handle-procedures.d.ts#HandleListInput
+type HandleListOutput: dist/procedures/handle-procedures.d.ts#HandleListOutput
+type HandleOpenOptions: dist/procedures/handles.d.ts#HandleOpenOptions
+type HandleRef: dist/procedures/handles.d.ts#HandleRef
+HandleScope: dist/procedures/handles.d.ts#HandleScope
+type HandleScopeOptions: dist/procedures/handles.d.ts#HandleScopeOptions
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -448,6 +461,7 @@ checkBrowserRequest: dist/server/browser-guard.d.ts#checkBrowserRequest
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+closeValue: dist/procedures/handles.d.ts#closeValue
 collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
@@ -525,6 +539,11 @@ getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedu
 getRefName: dist/procedures/ref.d.ts#getRefName
 getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+handleCloseProcedure: dist/procedures/handle-procedures.d.ts#handleCloseProcedure
+handleListProcedure: dist/procedures/handle-procedures.d.ts#handleListProcedure
+handleModule: dist/procedures/handle-procedures.d.ts#handleModule
+handleSchema: dist/procedures/handles.d.ts#handleSchema
+handleScopeOf: dist/procedures/handles.d.ts#handleScopeOf
 hasAmbientCredentials: dist/server/browser-guard.d.ts#hasAmbientCredentials
 hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
@@ -552,6 +571,7 @@ isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
 isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
+isHandleRef: dist/procedures/handles.d.ts#isHandleRef
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isKnownErrorCode: dist/client/errors/registry.d.ts#isKnownErrorCode
 isLiteral: dist/procedures/ref.d.ts#isLiteral
@@ -775,6 +795,7 @@ DEFAULT_LIVE_KEYS: dist/events/live-state.d.ts#DEFAULT_LIVE_KEYS
 DEFAULT_LIVE_TOPICS: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPICS
 DEFAULT_LIVE_TOPIC_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_TOPIC_BYTES
 DEFAULT_LIVE_VALUE_BYTES: dist/events/live-state.d.ts#DEFAULT_LIVE_VALUE_BYTES
+DEFAULT_MAX_HANDLES: dist/procedures/handles.d.ts#DEFAULT_MAX_HANDLES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -834,8 +855,20 @@ type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
 type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
+HANDLE_KEYWORD: dist/procedures/handles.d.ts#HANDLE_KEYWORD
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
+type HandleCloseFailure: dist/procedures/handles.d.ts#HandleCloseFailure
+type HandleCloseInput: dist/procedures/handle-procedures.d.ts#HandleCloseInput
+type HandleEndReport: dist/procedures/handles.d.ts#HandleEndReport
+HandleError: dist/procedures/handles.d.ts#HandleError
+type HandleInfo: dist/procedures/handles.d.ts#HandleInfo
+type HandleListInput: dist/procedures/handle-procedures.d.ts#HandleListInput
+type HandleListOutput: dist/procedures/handle-procedures.d.ts#HandleListOutput
+type HandleOpenOptions: dist/procedures/handles.d.ts#HandleOpenOptions
+type HandleRef: dist/procedures/handles.d.ts#HandleRef
+HandleScope: dist/procedures/handles.d.ts#HandleScope
+type HandleScopeOptions: dist/procedures/handles.d.ts#HandleScopeOptions
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -1143,6 +1176,7 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+closeValue: dist/procedures/handles.d.ts#closeValue
 collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
@@ -1219,6 +1253,11 @@ getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedu
 getRefName: dist/procedures/ref.d.ts#getRefName
 getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+handleCloseProcedure: dist/procedures/handle-procedures.d.ts#handleCloseProcedure
+handleListProcedure: dist/procedures/handle-procedures.d.ts#handleListProcedure
+handleModule: dist/procedures/handle-procedures.d.ts#handleModule
+handleSchema: dist/procedures/handles.d.ts#handleSchema
+handleScopeOf: dist/procedures/handles.d.ts#handleScopeOf
 hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
@@ -1244,6 +1283,7 @@ isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
 isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
+isHandleRef: dist/procedures/handles.d.ts#isHandleRef
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isKnownErrorCode: dist/client/errors/registry.d.ts#isKnownErrorCode
 isLiteral: dist/procedures/ref.d.ts#isLiteral
@@ -1686,6 +1726,7 @@ type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_MAX_HANDLES: dist/procedures/handles.d.ts#DEFAULT_MAX_HANDLES
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
@@ -1720,7 +1761,19 @@ type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
 type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
 type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
+HANDLE_KEYWORD: dist/procedures/handles.d.ts#HANDLE_KEYWORD
 HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
+type HandleCloseFailure: dist/procedures/handles.d.ts#HandleCloseFailure
+type HandleCloseInput: dist/procedures/handle-procedures.d.ts#HandleCloseInput
+type HandleEndReport: dist/procedures/handles.d.ts#HandleEndReport
+HandleError: dist/procedures/handles.d.ts#HandleError
+type HandleInfo: dist/procedures/handles.d.ts#HandleInfo
+type HandleListInput: dist/procedures/handle-procedures.d.ts#HandleListInput
+type HandleListOutput: dist/procedures/handle-procedures.d.ts#HandleListOutput
+type HandleOpenOptions: dist/procedures/handles.d.ts#HandleOpenOptions
+type HandleRef: dist/procedures/handles.d.ts#HandleRef
+HandleScope: dist/procedures/handles.d.ts#HandleScope
+type HandleScopeOptions: dist/procedures/handles.d.ts#HandleScopeOptions
 type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
 type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
@@ -1878,6 +1931,7 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+closeValue: dist/procedures/handles.d.ts#closeValue
 collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
@@ -1930,6 +1984,11 @@ getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedu
 getRefName: dist/procedures/ref.d.ts#getRefName
 getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+handleCloseProcedure: dist/procedures/handle-procedures.d.ts#handleCloseProcedure
+handleListProcedure: dist/procedures/handle-procedures.d.ts#handleListProcedure
+handleModule: dist/procedures/handle-procedures.d.ts#handleModule
+handleSchema: dist/procedures/handles.d.ts#handleSchema
+handleScopeOf: dist/procedures/handles.d.ts#handleScopeOf
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
 hintImagesOf: dist/procedures/collection/hint-filter.d.ts#hintImagesOf
@@ -1944,6 +2003,7 @@ isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
 isEnvelopeProgram: dist/procedures/envelope.d.ts#isEnvelopeProgram
 isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
+isHandleRef: dist/procedures/handles.d.ts#isHandleRef
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
 isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
@@ -5176,6 +5236,114 @@ export declare const HOST_NAMESPACES: readonly string[];
 ### dist/procedures/forward.d.ts#forwardedModule
 export declare function forwardedModule(manifest: ProcedureManifest, call: ForwardCall, options: ForwardOptions): ProcedureModule;
 
+### dist/procedures/handle-procedures.d.ts#HandleCloseInput
+export interface HandleCloseInput {
+    handle: string;
+}
+
+### dist/procedures/handle-procedures.d.ts#HandleListInput
+export interface HandleListInput {
+    kind?: string | undefined;
+}
+
+### dist/procedures/handle-procedures.d.ts#HandleListOutput
+export interface HandleListOutput {
+    handles: HandleInfo[];
+    count: number;
+}
+
+### dist/procedures/handle-procedures.d.ts#handleCloseProcedure
+export declare const handleCloseProcedure: Procedure<HandleCloseInput, {
+    closed: boolean;
+}, ProcedureMetadata>;
+
+### dist/procedures/handle-procedures.d.ts#handleListProcedure
+export declare const handleListProcedure: Procedure<HandleListInput, HandleListOutput, ProcedureMetadata>;
+
+### dist/procedures/handle-procedures.d.ts#handleModule
+export declare const handleModule: ProcedureModule;
+
+### dist/procedures/handles.d.ts#DEFAULT_MAX_HANDLES
+export declare const DEFAULT_MAX_HANDLES = 64;
+
+### dist/procedures/handles.d.ts#HANDLE_KEYWORD
+export declare const HANDLE_KEYWORD: "x-procedures-handle";
+
+### dist/procedures/handles.d.ts#HandleCloseFailure
+export interface HandleCloseFailure {
+    readonly handle: string;
+    readonly kind: string;
+    readonly error: unknown;
+}
+
+### dist/procedures/handles.d.ts#HandleEndReport
+export interface HandleEndReport {
+    readonly closed: number;
+    readonly failed: readonly HandleCloseFailure[];
+}
+
+### dist/procedures/handles.d.ts#HandleError
+export declare class HandleError extends Error {
+    readonly name = "HandleError";
+    readonly code: "VALIDATION_ERROR" | "RATE_LIMITED" | "NOT_ACCEPTABLE";
+    readonly retryable = false;
+    constructor(code: HandleError["code"], message: string);
+}
+
+### dist/procedures/handles.d.ts#HandleInfo
+export interface HandleInfo {
+    readonly handle: string;
+    readonly kind: string;
+    readonly label?: string;
+    readonly openedAt: number;
+    readonly usedAt: number;
+}
+
+### dist/procedures/handles.d.ts#HandleOpenOptions
+export interface HandleOpenOptions<T> {
+    readonly close?: ((value: T) => unknown) | undefined;
+    readonly label?: string | undefined;
+}
+
+### dist/procedures/handles.d.ts#HandleRef
+export interface HandleRef {
+    readonly handle: string;
+}
+
+### dist/procedures/handles.d.ts#HandleScope
+export declare class HandleScope {
+    constructor(options?: HandleScopeOptions);
+    get size(): number;
+    get ended(): boolean;
+    open<T>(kind: string, value: T, options?: HandleOpenOptions<T>): HandleRef;
+    get<T = unknown>(ref: HandleRef | string, kind?: string | readonly string[]): T;
+    has(ref: HandleRef | string): boolean;
+    list(): HandleInfo[];
+    close(ref: HandleRef | string): Promise<boolean>;
+    end(): Promise<HandleEndReport>;
+}
+
+### dist/procedures/handles.d.ts#HandleScopeOptions
+export interface HandleScopeOptions {
+    readonly maxHandles?: number | undefined;
+    readonly idleMs?: number | undefined;
+    readonly now?: (() => number) | undefined;
+}
+
+### dist/procedures/handles.d.ts#closeValue
+export declare function closeValue(value: unknown): Promise<void>;
+
+### dist/procedures/handles.d.ts#handleSchema
+export declare function handleSchema(kind: string | readonly string[]): JsonSchema;
+
+### dist/procedures/handles.d.ts#handleScopeOf
+export declare function handleScopeOf(ctx: {
+    handles?: HandleScope | undefined;
+} | undefined): HandleScope;
+
+### dist/procedures/handles.d.ts#isHandleRef
+export declare function isHandleRef(value: unknown): value is HandleRef;
+
 ### dist/procedures/hints.d.ts#ToolHintOverride
 export interface ToolHintOverride {
     readonly readOnlyHint?: false | undefined;
@@ -5352,6 +5520,7 @@ export interface InvokeOptions {
     repository?: RepositoryProvider | undefined;
     bus?: EventBus | undefined;
     elicit?: Elicit | undefined;
+    handles?: HandleScope | undefined;
     progress?: ReportProgress | undefined;
     inputValidated?: boolean | undefined;
     client?: ProcedureClient | ((invocation: Invocation) => ProcedureClient) | undefined;
@@ -6229,6 +6398,7 @@ export interface ProcedureContext {
     expose?: ((path: ProcedurePath) => boolean) | undefined;
     onRef?: ((event: HydrationEvent) => void) | undefined;
     elicit?: Elicit | undefined;
+    handles?: HandleScope | undefined;
     progress?: ReportProgress | undefined;
     capability: Capability;
     resources: ResourcesOf;
@@ -6925,6 +7095,7 @@ export interface ServerRequest<TReq = unknown> {
     payload: TReq;
     metadata: Metadata;
     elicit?: Elicit | undefined;
+    handles?: HandleScope | undefined;
     progress?: ReportProgress | undefined;
     signal?: AbortSignal;
     transport?: string | undefined;

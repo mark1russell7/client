@@ -43,6 +43,7 @@ import { NARROWING_METADATA_KEY, narrowWithin, narrowingOf, type NarrowingNote }
 import { timeoutAfterMs } from "./interceptors.js";
 import { carryUntrustedMarks, markUntrusted, untrustedFieldsOf } from "./untrusted.js";
 import type { Elicit } from "./elicit.js";
+import type { HandleScope } from "./handles.js";
 import type { ReportProgress } from "./progress.js";
 import type { EventBus } from "../events/types.js";
 import type { Principal } from "../server/types.js";
@@ -155,6 +156,8 @@ export interface InvokeOptions {
    * gives it. The nested calls get the same function.
    */
   elicit?: Elicit | undefined;
+  /** The handle scope of the owner of the call (`ctx.handles`, d40-handles). The nested calls get the same scope. */
+  handles?: HandleScope | undefined;
   /**
    * The function that tells the caller the progress of the call (`ctx.progress`). Only the call
    * of the host gets it in its context, not its nested calls.
@@ -720,6 +723,7 @@ export function createProcedureContext(
   // What the face of the call offers (CLI-12): the nested calls ask the same person, and only
   // the call of the host reports its progress, so the values of one call stay in order
   if (options.elicit) context.elicit = options.elicit;
+  if (options.handles) context.handles = options.handles;
   if (options.progress && !invocation?.parent && !options.parent) context.progress = options.progress;
   return context;
 }
