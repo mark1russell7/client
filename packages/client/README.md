@@ -226,12 +226,44 @@ const registry = createRegistry(jobs);
 
 - The stub of an entry has the description, the JSON Schemas, the effects and the command-line metadata of the entry. A tool list shows them, and the policy of the host reads the effects.
 - The peer examines each input with its own schemas and applies its own policy. A validation error of the peer comes back with its code.
-- Without `namespaces`, the module forwards each namespace except `client` and `procedure` (`HOST_NAMESPACES`), because each host has them.
+- Without `namespaces`, the module forwards each namespace except `client`, `procedure` and `handle` (`HOST_NAMESPACES`), because each host has them.
 - `prefix` puts a path in front of each local path. With `["jobs"]`, the entry `queue.add` becomes `jobs.queue.add`.
 - The module leaves out each stream without an end. A stub gives the last item of a stream.
 - `signal` stops the read of the manifest, for example `AbortSignal.timeout(5000)` for a peer that does not answer. Each call of a stub takes the signal of its own context.
 - The peer must expose `procedure.manifest`. A host that has the client module (`createRegistry()`) has it. Another registry can register `manifestProcedure`.
 - `forwardedModule(manifest, call, options)` makes the same stubs with another transport.
+
+### Objects with a state: handles
+
+A database, a service or a page of a browser is not JSON. A procedure that opens such an object keeps it in the handle scope of its caller. It gives a handle: `{ "handle": "h_<32 hex digits>" }`. The procedures that take the handle get the object from the same scope.
+
+```typescript
+import { handleModule, handleSchema, handleScopeOf } from "@procedures/client";
+
+const open = createProcedure()
+  .path(["db", "open"])
+  .input(z.object({ path: z.string() }))
+  .output(z.object({ handle: z.string() }))
+  .handler(async ({ path }, ctx) => handleScopeOf(ctx).open("sqlite.Database", openDatabase(path), { label: path }))
+  .build();
+
+const query = createProcedure()
+  .path(["db", "query"])
+  .input(z.object({ db: z.object({ handle: z.string() }), sql: z.string() }))
+  .handler(async ({ db, sql }, ctx) => handleScopeOf(ctx).get<Database>(db, "sqlite.Database").all(sql))
+  .build();
+
+const registry = createRegistry({ name: "db", procedures: [open, query], requires: [handleModule] });
+```
+
+- The face of the host gives one `HandleScope` to each owner. Each MCP session has its own scope. The end of the session closes each object of its scope.
+- A handle resolves only in the scope that opened it. A caller of another session cannot use it. The ids have 128 random bits.
+- `handleModule` adds `handle.list` and `handle.close`. `handle.list` gives the open objects of the caller. `handle.close` closes one.
+- The scope closes an object with the `close` option of the open. Without it, the scope uses `Symbol.asyncDispose`, `Symbol.dispose` or a `close()` method.
+- The option `handles` of the MCP transport sets `maxHandles` (64 by default) and `idleMs`. An object that no call used for `idleMs` closes.
+- `handleSchema(kind)` gives the JSON Schema of a handle. Its keyword `x-procedures-handle` gives the kind of the object.
+- The errors have the codes of the protocol. `VALIDATION_ERROR` is for a handle that is not open. `RATE_LIMITED` is for a full scope. `NOT_ACCEPTABLE` is for a face that keeps no handles.
+- A peer does not forward `handle.*`. The handles of a host stay in the host.
 
 ## API Reference
 
