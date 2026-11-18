@@ -41,6 +41,8 @@ docker.stop: destructive, idempotent
 docker.tag: destructive, idempotent
 docker.volume.create: additive, idempotent
 docker.volume.list: read only
+handle.close: additive, idempotent
+handle.list: read only
 json.diff: read only
 json.merge: read only
 json.patch: read only
@@ -84,10 +86,17 @@ program.check: read only
 program.compile: read only
 program.diagram: read only
 program.explain: read only
+sqlite.addMissingColumns: additive, idempotent
+sqlite.checkIntegrity: read only
+sqlite.checkpoint: additive, idempotent
 sqlite.execute: destructive
+sqlite.openDatabase: additive
 sqlite.query: read only
 sqlite.schema: read only
+sqlite.schemaVersion: read only
+sqlite.tableColumns: read only
 sqlite.tables: read only
+sqlite.userVersion: read only
 vitest.coverage: destructive, open world
 vitest.run: destructive, open world
 yaml.parse: read only
