@@ -90,7 +90,7 @@ The rules and the table of all the procedures are in [CAPABILITIES-2026-10.md](.
 
 ## How it selects the tools
 
-1. The server loads each bundle. A bundle can export `mcpNamespaces`, `mcpExclude` and `mcpHostModules`.
+1. The server loads each bundle. A bundle can export `mcpNamespaces`, `mcpExclude`, `mcpHostModules` and `mcpInstructions`.
    The registry gets the `mcpHostModules` before the bundles, so they replace the modules of the bundles with their names. `@procedures/bundle-assistant` gives `geo` and `ics` with the host policy of `@procedures/http` so.
 2. A procedure is a tool when its namespace is in `mcpNamespaces` of a bundle, and its key is not in `mcpExclude`.
 3. A `ProcedureServer` serves the registry with that rule as its `expose` rule. A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedure.define`) can use only exposed procedures.
@@ -114,6 +114,7 @@ A repository outside this monorepo can give its tools to this server, with no se
 - An entry is a module file when it is a `file:` URL, an absolute path, or a path that starts with `./` or `../`. A relative path starts from the folder of the process.
 - The default export of the file is a procedure module: an object with a list of procedures.
 - The export `mcpNamespaces` of the file gives its tools. Without it, the tools are the namespaces of the procedures of the module. The modules in `requires` add no tool.
+- The export `mcpInstructions` of the file is a text for the model, for example the tool to read first. The server joins the instructions of its bundles and files in their order, and gives them to the client at the start of the session.
 - The file can use its own copy of `@procedures/client`. A procedure is data, so the validators of that copy examine each input.
 - When a file does not load, the server stops with a message that names the file. A bundle without a `module` entry cannot have module files next to it.
 
@@ -123,7 +124,7 @@ This module file of one line gives the five tools of Vex. Put it in a folder wit
 export { vexModule as default } from "@mark1russell7/vex-mcp";
 ```
 
-`src/module-file.test.ts` loads a module file with no imports next to `bundle-mcp`, and starts its tool through the server.
+`src/module-file.test.ts` loads a module file with no imports next to `bundle-mcp`, and starts its tool through the server. It also examines the joined instructions of two files.
 
 ## The procedures of running peers
 

@@ -19,6 +19,11 @@ export type { ToolSurface };
 export interface BundleSurfaceModule {
   mcpNamespaces?: readonly string[];
   mcpExclude?: readonly string[];
+  /**
+   * The instructions of the tools of the bundle for the model, for example the tool to read first.
+   * The server joins the instructions of its bundles (`mergeInstructions`).
+   */
+  mcpInstructions?: string;
 }
 
 /** The expose rule of a tool surface: `surfaceRule()` of the core host policy (roadmap 2.3). */
@@ -41,6 +46,19 @@ export function mergeSurfaces(modules: readonly BundleSurfaceModule[]): ToolSurf
     for (const key of module.mcpExclude ?? []) exclude.add(key);
   }
   return namespaces ? { namespaces: [...namespaces].sort(), exclude: [...exclude].sort() } : undefined;
+}
+
+/**
+ * This function joins the instructions of some bundles in their order, with a blank line between two.
+ * A text that comes two times counts one time. It gives undefined when no bundle has instructions.
+ */
+export function mergeInstructions(modules: readonly BundleSurfaceModule[]): string | undefined {
+  const texts: string[] = [];
+  for (const module of modules) {
+    const text = typeof module.mcpInstructions === "string" ? module.mcpInstructions.trim() : "";
+    if (text !== "" && !texts.includes(text)) texts.push(text);
+  }
+  return texts.length > 0 ? texts.join("\n\n") : undefined;
 }
 
 /**
