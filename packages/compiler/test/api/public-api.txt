@@ -45,6 +45,8 @@ type ExportOthers: dist/exports/types.d.ts#ExportOthers
 type ExportProcedure: dist/exports/types.d.ts#ExportProcedure
 type ExportsCodec: dist/exports/types.d.ts#ExportsCodec
 type ExportsConstruct: dist/exports/types.d.ts#ExportsConstruct
+type ExportsFunctions: dist/exports/load.d.ts#ExportsFunctions
+type ExportsFunctionsSource: dist/exports/load.d.ts#ExportsFunctionsSource
 type ExportsJsonSchema: dist/exports/types.d.ts#ExportsJsonSchema
 type ExportsManifest: dist/exports/types.d.ts#ExportsManifest
 type ExportsModuleOptions: dist/exports/load.d.ts#ExportsModuleOptions
@@ -358,12 +360,14 @@ export declare function explainProgram(program: unknown, options: CheckOptions):
 ### dist/exports/generate.d.ts#ExportsFunctionOverlay
 export interface ExportsFunctionOverlay {
     readonly effects?: Effects;
+    readonly fsRoot?: FsRootRules;
     readonly exempt?: string;
 }
 
 ### dist/exports/generate.d.ts#ExportsOverlay
 export interface ExportsOverlay {
     readonly effects?: Effects;
+    readonly fsRoot?: FsRootRules;
     readonly functions?: Readonly<Record<string, ExportsFunctionOverlay>>;
     readonly constructors?: Readonly<Record<string, string>>;
 }
@@ -381,6 +385,12 @@ export interface GenerateExportsOptions {
 ### dist/exports/generate.d.ts#generateExportsManifest
 export declare function generateExportsManifest(options: GenerateExportsOptions): ExportsManifest;
 
+### dist/exports/load.d.ts#ExportsFunctions
+export type ExportsFunctions = Readonly<Record<string, unknown>>;
+
+### dist/exports/load.d.ts#ExportsFunctionsSource
+export type ExportsFunctionsSource = ExportsFunctions | (() => Promise<ExportsFunctions>);
+
 ### dist/exports/load.d.ts#ExportsModuleOptions
 export interface ExportsModuleOptions {
     readonly name?: string;
@@ -393,7 +403,7 @@ export declare function exportInputSchema(manifest: ExportsManifest, procedure: 
 export declare function exportOutputSchema(manifest: ExportsManifest, procedure: ExportProcedure): ExportsJsonSchema;
 
 ### dist/exports/load.d.ts#exportsModule
-export declare function exportsModule(manifest: ExportsManifest, functions: Readonly<Record<string, unknown>>, options?: ExportsModuleOptions): ProcedureModule;
+export declare function exportsModule(manifest: ExportsManifest, functions: ExportsFunctionsSource, options?: ExportsModuleOptions): ProcedureModule;
 
 ### dist/exports/types.d.ts#CODEC_KEYWORD
 export declare const CODEC_KEYWORD: "x-procedures-codec";
@@ -438,6 +448,7 @@ export interface ExportProcedure {
     readonly output: ExportsJsonSchema;
     readonly async?: true;
     readonly effects?: Effects;
+    readonly fsRoot?: FsRootRules;
     readonly generics?: readonly string[];
 }
 

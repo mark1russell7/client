@@ -34,5 +34,9 @@
   "@mark1russell7/rigor-statistics": {
     "procedures": 82,
     "functions": 82
+  },
+  "@mark1russell7/sqlite": {
+    "procedures": 9,
+    "functions": 25
   }
 }

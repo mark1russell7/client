@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 593 across 57 namespaces. Loaded 54 package register(s).
+**Total procedures:** 604 across 58 namespaces. Loaded 54 package register(s).
 
 ## Namespaces
 
@@ -26,6 +26,7 @@
 - [`geo.*`](#geo) — 46 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
+- [`handle.*`](#handle) — 2 procedure(s)
 - [`http.*`](#http) — 4 procedure(s)
 - [`ics.*`](#ics) — 4 procedure(s)
 - [`iosBackup.*`](#iosBackup) — 3 procedure(s)
@@ -57,7 +58,7 @@
 - [`shell.*`](#shell) — 4 procedure(s)
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
-- [`sqlite.*`](#sqlite) — 7 procedure(s)
+- [`sqlite.*`](#sqlite) — 16 procedure(s)
 - [`statistics.*`](#statistics) — 82 procedure(s)
 - [`systems.*`](#systems) — 1 procedure(s)
 - [`tailscale.*`](#tailscale) — 1 procedure(s)
@@ -418,6 +419,13 @@
 | `git.worktree.add` | Add a working tree in a new folder |
 | `git.worktree.list` | List the working trees of the repository |
 | `git.worktree.remove` | Remove a working tree and its folder |
+
+## handle
+
+| Procedure | Description |
+|-----------|-------------|
+| `handle.close` | Close a handle of the caller and its object, for example a database |
+| `handle.list` | The open handles of the caller: the objects with a state that its procedures opened |
 
 ## http
 
@@ -807,13 +815,22 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `sqlite.addMissingColumns` | This function adds each column that a table does not have, and gives the names of the added columns in their order. |
 | `sqlite.backup` | Copy a database to a new file (it does not replace a file) |
+| `sqlite.checkIntegrity` | This function does the integrity check of SQLite on a connection. A file that is not a database gives a problem, not an error. A different error, for example a lock that is not free, goes to the caller. |
+| `sqlite.checkpoint` | This function does a checkpoint of the write-ahead log, and gives its result. |
+| `sqlite.clearDatabase` | This function drops each view and each table of the database, and sets `user_version` to 0. The indexes and the triggers go with their tables and views. The tables of SQLite itself (`sqlite_*`) stay. Then `migrate` makes each step again. |
 | `sqlite.execute` | Execute a SQL statement (INSERT, UPDATE, DELETE) |
 | `sqlite.migrate` | Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction |
+| `sqlite.openDatabase` | This function opens a database, and makes the file when it is not there. `:memory:` gives a database with no file. With `readOnly`, the file must exist. |
 | `sqlite.query` | Execute a SQL SELECT query (read only: a statement that changes data fails) |
 | `sqlite.schema` | The columns, indexes and foreign keys of a table (read only) |
+| `sqlite.schemaVersion` | This function gives the schema version of a database. Without a part, it is the `user_version` of the file. With a part, it is the version of that part in the table `schema_versions`, and 0 when the file does not have the part. |
+| `sqlite.snapshot` | This function writes a copy of an open database to a file with `VACUUM INTO`. The copy is one consistent state, and writers can continue during the copy. The function writes a temporary file first, and then it replaces the file at the path. Thus a reader of the path sees the old copy or the new copy. |
+| `sqlite.tableColumns` | This function gives the names of the columns of a table, in the order of the table. A table that does not exist gives an empty list. |
 | `sqlite.tables` | The tables and views of a database (read only: a missing file is an error) |
 | `sqlite.transaction` | Run statements in one transaction: they all take effect, or none does |
+| `sqlite.userVersion` | This function gives the pragma `user_version` of a database. |
 
 ## statistics
 

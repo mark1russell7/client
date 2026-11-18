@@ -50,6 +50,20 @@ function clientOf(manifest: ExportsManifest): Client {
 const manifest = manifestOfFixture();
 
 describe("generateExportsManifest", () => {
+  it("carries the root rules of the overlay to the metadata of each procedure, and throws on a rule for an unknown input", () => {
+    const options = { declarations: join(fixtureDir, "fixture.d.ts"), package: "fixture", namespace: ["fixture"] };
+    const rules = { paths: ["name"], values: [":memory:"] };
+    const ruled = generateExportsManifest({ ...options, overlay: { effects: { reads: ["fs"], writes: [] }, fsRoot: {}, functions: { greet: { fsRoot: rules } } } });
+    const byName = (name: string) => ruled.procedures.find((procedure) => procedure.name === name)!;
+    expect(byName("greet").fsRoot).toEqual(rules);
+    // The rules of the package confine a procedure that names no path
+    expect(byName("add").fsRoot).toEqual({});
+    const greet = exportsModule(ruled, fixture).procedures.find((procedure) => procedure.path[1] === "greet")!;
+    expect(greet.metadata.fsRoot).toEqual(rules);
+    expect(() => generateExportsManifest({ ...options, overlay: { functions: { greet: { fsRoot: { paths: ["file"] } } } } })).toThrow(
+      "The root rules of greet name the inputs file, but the function has no parameters with these names",
+    );
+  }, GENERATE_TIMEOUT * 2);
 
   it("gives the golden manifest of the fixture", async () => {
     await expect(`${JSON.stringify(manifest, null, 2)}\n`).toMatchFileSnapshot("../test/exports/fixture.manifest.json");
@@ -311,6 +325,43 @@ describe("exportsModule", () => {
   it("throws when the package does not export a function of the manifest", () => {
     const { add: _add, ...rest } = fixture;
     expect(() => exportsModule(manifest, rest)).toThrow(/does not export the functions add/);
+  });
+
+  it("takes a loader in place of the functions: the first call loads them one time, and checks them then", async () => {
+    let loads = 0;
+    const lazy = new ProcedureRegistry();
+    registerModules(lazy, [
+      exportsModule(manifest, async () => {
+        loads++;
+        return fixture;
+      }),
+    ]);
+    const client = new Client({ transport: stubTransport }).useRegistry(lazy);
+    expect(loads).toBe(0);
+    expect(await client.exec(["fixture", "add"], { a: 2, b: 3 })).toBe(5);
+    expect(await client.exec(["fixture", "total"], { values: [1, 2] })).toBe(3);
+    expect(loads).toBe(1);
+    // A package without a function of the manifest fails at the first call, not when the module is made
+    const { add: _add, ...rest } = fixture;
+    const partial = new ProcedureRegistry();
+    registerModules(partial, [exportsModule(manifest, async () => rest)]);
+    await expect(new Client({ transport: stubTransport }).useRegistry(partial).exec(["fixture", "add"], { a: 2, b: 3 })).rejects.toThrow(/does not export the functions add/);
+  });
+
+  it("loads the functions again after a failed load", async () => {
+    let loads = 0;
+    const lazy = new ProcedureRegistry();
+    registerModules(lazy, [
+      exportsModule(manifest, async () => {
+        loads++;
+        if (loads === 1) throw new Error("The package is not there yet");
+        return fixture;
+      }),
+    ]);
+    const client = new Client({ transport: stubTransport }).useRegistry(lazy);
+    await expect(client.exec(["fixture", "add"], { a: 2, b: 3 })).rejects.toThrow("The package is not there yet");
+    expect(await client.exec(["fixture", "add"], { a: 2, b: 3 })).toBe(5);
+    expect(loads).toBe(2);
   });
 
   it("gives the JSON form of an output, and copies only what changes", () => {

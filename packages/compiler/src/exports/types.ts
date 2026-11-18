@@ -7,7 +7,7 @@
  * from its package (direction 40).
  */
 
-import type { Effects } from "@procedures/client/browser";
+import type { Effects, FsRootRules } from "@procedures/client/browser";
 
 /** The format name of the manifest. A change that breaks a reader gives a new number. */
 export const EXPORTS_MANIFEST_FORMAT = "procedures-exports/1" as const;
@@ -115,6 +115,11 @@ export interface ExportProcedure {
   readonly async?: true;
   /** The effects of the call. Absent means unknown: a check with a capability fails closed. */
   readonly effects?: Effects;
+  /**
+   * The inputs that name a file or a folder, for the root of a host. The loader gives them as
+   * `metadata.fsRoot`. Without them, a host with a root refuses a procedure that reads or writes `fs`.
+   */
+  readonly fsRoot?: FsRootRules;
   /** The type parameters that the schemas read as a JSON value, or as their constraint. */
   readonly generics?: readonly string[];
 }

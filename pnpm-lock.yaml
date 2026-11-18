@@ -1241,11 +1241,14 @@ importers:
   packages/client-sqlite:
     dependencies:
       '@mark1russell7/sqlite':
-        specifier: ^0.3.6
+        specifier: ^0.3.9
         version: 0.3.9
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       zod:
         specifier: ^4.6.5
         version: 4.6.7
