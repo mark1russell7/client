@@ -10,7 +10,10 @@
  * The field `worstMs` of a `block` case is the budget candidate: the worst sliced time of all rounds.
  *
  * The fields `plainGcMs` and `slicedGcMs` are the median GC time of a child in its timed publishes, over all rounds.
- * A job file of an older run has no GC time. Then the field is null.
+ * The fields `plainGcMaxMs` and `slicedGcMaxMs` are the median of the longest GC event of a child. The field
+ * `blockLessGcMs` of a `block` case is the median of the sliced block of a child less its longest GC event: a value of
+ * 0 or less tells that one GC event explains the block. `fan-out-gc.ts` reads each child.
+ * A job file of an older run has no GC time or no longest GC event. Then the field is null.
  *
  * The field `growth` is the growth gate (`fan-out-growth.ts`). The script `fan-out-gate.ts` fails the job when it does not pass.
  */
@@ -21,6 +24,8 @@ import { parseArgs } from "node:util";
 import { type GrowthVerdict, aaBand, caseIntervals, caseRatios, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
 import type { ChildFields } from "@mark1russell7/rigor-bench/fresh";
 import { median } from "@mark1russell7/rigor-statistics";
+import { parseCase } from "./fan-out-cases.js";
+import { blockLessGc, childGc } from "./fan-out-gc.js";
 import { type GrowthSkip, fanOutGrowth } from "./fan-out-growth.js";
 
 /** A record of a job file. A record of a child that gives fields has them, as `freshRun` writes them. */
@@ -56,16 +61,16 @@ const round = (value: number, digits: number): number => Number(value.toFixed(di
 
 const timesOf = (id: string, arm: "a" | "b"): number[] => pool.candidate.filter((record) => record.case === id).map((record) => record[arm]);
 
-/** The median GC time of one arm in a case: the sum of both halves of each child. A case with no GC time gives null. */
-const gcOf = (id: string, arm: "a" | "b"): number | null => {
-  const times = jobs
+/** The median of one read of each child of a case. A case with no read gives null. */
+const medianOf = (id: string, read: (record: JobRecord) => number | undefined): number | null => {
+  const values = jobs
     .flatMap((job) => job.candidate)
     .filter((record) => record.case === id)
     .flatMap((record) => {
-      const gcMs = record.fields?.[arm].events?.gcMs;
-      return gcMs === undefined ? [] : [gcMs[0] + gcMs[1]];
+      const value = read(record);
+      return value === undefined ? [] : [value];
     });
-  return times.length === 0 ? null : round(median(times), 3);
+  return values.length === 0 ? null : round(median(values), 3);
 };
 
 const cases = caseIntervals(pool.candidate).map((entry) => ({
@@ -73,8 +78,11 @@ const cases = caseIntervals(pool.candidate).map((entry) => ({
   plainMs: round(median(timesOf(entry.case, "a")), 3),
   slicedMs: round(median(timesOf(entry.case, "b")), 3),
   worstMs: round(Math.max(...timesOf(entry.case, "b")), 3),
-  plainGcMs: gcOf(entry.case, "a"),
-  slicedGcMs: gcOf(entry.case, "b"),
+  plainGcMs: medianOf(entry.case, (record) => childGc(record.fields?.a)?.sumMs),
+  slicedGcMs: medianOf(entry.case, (record) => childGc(record.fields?.b)?.sumMs),
+  plainGcMaxMs: medianOf(entry.case, (record) => childGc(record.fields?.a)?.maxMs),
+  slicedGcMaxMs: medianOf(entry.case, (record) => childGc(record.fields?.b)?.maxMs),
+  ...(parseCase(entry.case).measure === "block" ? { blockLessGcMs: medianOf(entry.case, (record) => blockLessGc(record.b, record.fields?.b)) } : {}),
   ratio: round(entry.ratio, 4),
   low: round(entry.low, 4),
   high: round(entry.high, 4),
