@@ -37,6 +37,7 @@ import { realClock, type Cancel } from "../../../clock.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 import { writeLog, type Logger } from "../../../logger.js";
+import { HandleScope, type HandleScopeOptions } from "../../../procedures/handles.js";
 import {
   remoteEvents,
   subscribeRemote,
@@ -100,7 +101,17 @@ export class WebSocketServerTransport implements ServerTransport {
   private options: Required<
     Omit<
       WebSocketServerTransportOptions,
-      "server" | "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout" | "secretHeaders" | "logger" | "maxBufferedBytes"
+      | "server"
+      | "authenticate"
+      | "onConnection"
+      | "allowedOrigins"
+      | "allowedHosts"
+      | "heartbeat"
+      | "reverseRequestTimeout"
+      | "secretHeaders"
+      | "logger"
+      | "maxBufferedBytes"
+      | "handles"
     >
   > & {
     server: WebSocketServerTransportOptions["server"];
@@ -153,6 +164,11 @@ export class WebSocketServerTransport implements ServerTransport {
   /** The browser checks of each connection (see `server/browser-guard.ts`) */
   private readonly guard: BrowserGuardOptions;
 
+  /** The options of the handle scope of each connection (d40-handles) */
+  private readonly handleOptions: HandleScopeOptions | undefined;
+  /** The handle scope of each connection: its objects with a state. The close of the connection ends it. */
+  private readonly handleScopes = new Map<string, HandleScope>();
+
   // Connection lifecycle event handlers
   private connectHandlers: ConnectionEventHandler[] = [];
   private disconnectHandlers: ConnectionEventHandler[] = [];
@@ -176,6 +192,7 @@ export class WebSocketServerTransport implements ServerTransport {
     }
     this.maxBufferedBytes = maxBufferedBytes;
     this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
+    this.handleOptions = options.handles;
     // CSRF: a server that reads the cookies of each request needs named origins (CLI-2a)
     assertNamedOrigins("WebSocketServerTransport", server.ambientCredentials, options.allowedOrigins, "allowedOrigins");
     this.secretHeaders = headerNames(options.secretHeaders);
@@ -287,7 +304,9 @@ export class WebSocketServerTransport implements ServerTransport {
     }
     this.detach?.();
     this.detach = undefined;
-    if (this.wss) {
+    // The stop awaits the close of the handles: a second stop in that time cannot take the server away
+    const wss = this.wss;
+    if (wss) {
       // Stop the requests in progress, so their handlers end (deep dive TRN-15), and fail the
       // calls that the server sent to its clients. Each stopped call gets its error frame before the
       // socket closes, with the flag of its effects (CLI-48).
@@ -297,6 +316,8 @@ export class WebSocketServerTransport implements ServerTransport {
       }
       this.channels.clear();
       this.callSettled();
+      // Each object of each connection closes before the stop ends (d40-handles)
+      await Promise.all([...this.handleScopes.keys()].map((connectionId) => this.endHandles(connectionId)));
 
       // Close all connections
       for (const ws of this.connections) {
@@ -306,12 +327,12 @@ export class WebSocketServerTransport implements ServerTransport {
 
       // Close server
       return new Promise((resolve, reject) => {
-        this.wss!.close((err?: Error) => {
+        wss.close((err?: Error) => {
           if (err) {
             reject(err);
           } else {
             writeLog(this.logger, "info", "WebSocket server stopped", { transport: this.name, path: this.options.path }, `[${this.name}] WebSocket server stopped`);
-            this.wss = null;
+            if (this.wss === wss) this.wss = null;
             resolve();
           }
         });
@@ -400,6 +421,38 @@ export class WebSocketServerTransport implements ServerTransport {
   /** This method stops the transport: the same as `stop()`. */
   close(): Promise<void> {
     return this.stop();
+  }
+
+  /**
+   * The handle scope of an open connection (d40-handles). The first call of the connection makes
+   * it. A closed connection has no scope, so a late call opens no object that nothing closes.
+   */
+  private handleScopeFor(connectionId: string): HandleScope | undefined {
+    if (!this.channels.has(connectionId)) return undefined;
+    let scope = this.handleScopes.get(connectionId);
+    if (scope === undefined) {
+      scope = new HandleScope(this.handleOptions);
+      this.handleScopes.set(connectionId, scope);
+    }
+    return scope;
+  }
+
+  /** This method ends the handle scope of a connection: each object of the connection closes. */
+  private async endHandles(connectionId: string): Promise<void> {
+    const scope = this.handleScopes.get(connectionId);
+    if (scope === undefined) return;
+    this.handleScopes.delete(connectionId);
+    const report = await scope.end();
+    for (const failure of report.failed) {
+      writeLog(
+        this.logger,
+        "error",
+        "A handle did not close",
+        { transport: this.name, connectionId, handle: failure.handle, kind: failure.kind, error: failure.error },
+        `[${this.name}] The handle ${failure.handle} (${failure.kind}) did not close:`,
+        failure.error,
+      );
+    }
   }
 
   /** A call ended: a drain can end when no call is in flight. */
@@ -494,6 +547,8 @@ export class WebSocketServerTransport implements ServerTransport {
       channel?.outgoing.failAll("WebSocket connection closed");
       this.channels.delete(connectionId);
       this.callSettled();
+      // The objects of the connection close with it (d40-handles)
+      void this.endHandles(connectionId);
       this.eventTransports.delete(connectionId);
       const conn = this.trackedConnections.get(connectionId);
       if (conn) {
@@ -546,6 +601,8 @@ export class WebSocketServerTransport implements ServerTransport {
       signal,
       // The face of the request, for the error policy of the server (CLI-80)
       transport: "websocket",
+      // The objects with a state of the connection (d40-handles)
+      handles: this.handleScopeFor(connectionId),
       // The credentials of the connection: the bearer token of its upgrade (R18), its cookies,
       // its headers and its query (CLI-2a)
       credentials,
