@@ -1,5 +1,35 @@
 # @procedures/quantity
 
+## 0.62.1
+
+### Patch Changes
+
+- 4ce6ac9: A `bigint`, a `Map`, a `Set` and an `Iterable` input can go into a procedure: each has a codec, a JSON form.
+  
+  - The generator of `@procedures/compiler` gives each of these types a schema with the new keyword `x-procedures-codec`. A `bigint` is a decimal string, a `Map` is a list of entries, and a `Set` or an `Iterable` input is a list.
+  - The loader `exportsModule()` decodes the input with its schema before the call. In a union, the value goes to the first member whose schema accepts it. The codec of a constructed input is decoded before its factory makes the value.
+  - `jsonValue()` gives the JSON form of a `bigint`, a `Map` and a `Set` at each depth. Before, a `Map` and a `Set` became `{}` in JSON, and a `bigint` failed.
+  - A sub-program gets the JSON form of each argument, and the function of the package gets the decoded result.
+  - An `Iterable` in an output stays exempt with the reason `output-not-json`, because an iterable can have no end. So a sub-program cannot take an `Iterable`.
+  - The new exports `CODEC_KEYWORD` and `ExportsCodec` give the keyword and its values.
+  - `@procedures/algebra` has 44 procedures (before 41), `@procedures/quantity` has 31 (before 27), and `@procedures/statistics` has 82 (before 81). The new procedures include `quantity.convertExact`, `quantity.parseUnit`, `algebra.parseExpr` and `statistics.runningOf`.
+  
+  PATCH: before 1.0.0, a backward-compatible feature raises PATCH. A manifest with no codec loads as before.
+- 2988fba: A new wrap of kind 1, made from the types of its home, with no procedure written by hand:
+  
+  - `@procedures/rational`: 24 of 24 functions of `@mark1russell7/rational`, exact fractions over `bigint`. The codecs of the generator give each `bigint` as a decimal string, so a rational is `{ "n": "3", "d": "2" }` in JSON.
+  
+  The wrap is pure. `wraps.programs.json` has a new program across two libraries: the seconds of 0.1 h plus 0.2 h, with no rounding (rational and quantity). It gives 1080 exactly.
+  
+  `@procedures/quantity` uses `@mark1russell7/rational` 0.1.3, the version of the new wrap, in place of 0.1.2.
+  
+  PATCH: before 1.0.0, a backward-compatible feature raises PATCH. The new package adds procedures and changes no procedure of another package.
+- Updated dependencies [4ce6ac9]
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/compiler@0.62.1
+  - @procedures/client@0.62.1
+
 ## 0.62.0
 
 ### Patch Changes

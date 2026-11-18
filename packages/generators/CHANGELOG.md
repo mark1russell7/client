@@ -1,5 +1,15 @@
 # @procedures/generators
 
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [4ce6ac9]
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/compiler@0.62.1
+  - @procedures/client@0.62.1
+
 ## 0.62.0
 
 ### Patch Changes

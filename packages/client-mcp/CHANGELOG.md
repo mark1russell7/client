@@ -1,5 +1,22 @@
 # @procedures/mcp-server
 
+## 0.62.1
+
+### Patch Changes
+
+- 77d07c7: The quality gate of the tool search (direction 40). The new function `toolSearchDocuments` gives the search documents of the tools, as `search_tools` ranks them. The dev-tools server has a golden set of 48 task queries, and a test holds its measures: 39 queries find the expected tool first, 43 in the first 5, and the mean reciprocal rank is 0.849.
+- 365aad4: The tool search (direction 40, the tool surface). A server with thousands of tools now gives the model three tools in place of each tool.
+  
+  - `@procedures/client`: the new core procedure `procedure.search` finds the procedures by words. It searches only the procedures that the host exposes. The ranking is BM25 over the key, the tags and the description. The functions `searchDocuments` and `searchWords` give the same ranking to each catalog of tools.
+  - `@procedures/mcp-server`: the new option `listing: "search"` of the transport and of `createMcpHost()` lists three tools: `search_tools`, `describe_tool` and `call_tool`. The expose rule and the call policy do not change. The default `"each"` keeps the list of each tool.
+  - `@procedures/mcp-dev-tools` and `@procedures/mark`: `MCP_LISTING=search` and `mark mcp --listing search` start the dev-tools server with the search listing.
+  
+  A list of the three tools is 1410 bytes of JSON. The list of each tool costs about 386 tokens for each tool.
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/mcp@0.62.1
+
 ## 0.62.0
 
 ### Patch Changes

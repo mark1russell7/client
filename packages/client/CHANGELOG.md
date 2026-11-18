@@ -1,5 +1,24 @@
 # @procedures/client
 
+## 0.62.1
+
+### Patch Changes
+
+- 02582c5: The tool search finds synonyms. A thesaurus of the general words of tool operations gives each word of the query its synonyms at half weight. So `remove` finds `delete`, `download` finds `pull`, and the phrase `same time` finds `parallel`.
+  
+  - Each synonym has its own IDF, so a common synonym does not lower the weight of a rare word of the query.
+  - A document scores the best word of each term, so two synonyms in one document do not count two times.
+  - The golden set of the dev tools has 20 new held-out queries, written before the first run of the synonyms. On the 48 old queries, hit5 goes from 43 to 48 and hit1 from 39 to 43. On the 20 held-out queries, hit5 goes from 16 to 19 and hit1 from 7 to 15.
+  
+  PATCH: before 1.0.0, a backward-compatible feature raises PATCH. The API does not change: `searchDocuments` keeps its signature and only ranks better.
+- 365aad4: The tool search (direction 40, the tool surface). A server with thousands of tools now gives the model three tools in place of each tool.
+  
+  - `@procedures/client`: the new core procedure `procedure.search` finds the procedures by words. It searches only the procedures that the host exposes. The ranking is BM25 over the key, the tags and the description. The functions `searchDocuments` and `searchWords` give the same ranking to each catalog of tools.
+  - `@procedures/mcp-server`: the new option `listing: "search"` of the transport and of `createMcpHost()` lists three tools: `search_tools`, `describe_tool` and `call_tool`. The expose rule and the call policy do not change. The default `"each"` keeps the list of each tool.
+  - `@procedures/mcp-dev-tools` and `@procedures/mark`: `MCP_LISTING=search` and `mark mcp --listing search` start the dev-tools server with the search listing.
+  
+  A list of the three tools is 1410 bytes of JSON. The list of each tool costs about 386 tokens for each tool.
+
 ## 0.62.0
 
 ### Minor Changes
