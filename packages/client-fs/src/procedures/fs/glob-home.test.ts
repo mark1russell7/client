@@ -120,7 +120,8 @@ describe("the dot walk of fs.glob moves to findEntries of @mark1russell7/files (
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("gives the old matches for each pattern and ignore list", async () => {
+  // The test makes 297 pairs of walks of the folder. A Windows runner of the nightly run takes 5.0 to 5.1 s for them, over the default limit of 5 s.
+  it("gives the old matches for each pattern and ignore list", { timeout: 30_000 }, async () => {
     const ignores: string[][] = [[], ["**/.*"], ["a/**"], ["a/*"], ["**/node_modules/**"], [".git/**", "b/?"], ["a/b", "**/*.js"], ["a/[!b]"], ["a/q.ts"]];
     const literals = [".", "a", "a/q.ts", "a/b", ".git", "node_modules/m", "b/.d/t", "missing"];
     const differences: string[] = [];

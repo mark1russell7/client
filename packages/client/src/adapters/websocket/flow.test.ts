@@ -166,20 +166,28 @@ describe("the flow of the frames of a connection", () => {
     expect(String(error.mock.calls[0]?.[0])).toContain("more than maxBufferedBytes 262144");
   }, 15_000);
 
-  it("sends one frame larger than maxBufferedBytes, and ends the connection at the next frame", async () => {
+  it("sends each frame while its buffer holds at most maxBufferedBytes, a larger frame too, and ends the connection at the next frame", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const maxBufferedBytes = 64 * KIB;
     const server = await startServer({ highWaterMark: 16 * KIB, maxBufferedBytes, heartbeat: false });
     await deafClient(server.url);
     await waitFor(() => server.sockets.length === 1);
     const socket = server.sockets[0]!;
-    // One frame of 8 MiB: the buffer is empty before it, so the server sends it
-    server.transport.broadcast({ id: "large", type: "event", data: "x".repeat(8 * 1024 * KIB) });
-    await sleep(100);
-    expect(socket.readyState).toBe(WsClient.OPEN);
-    expect(error).not.toHaveBeenCalled();
-    // The peer does not read, so the frame stays in the buffer of the server
-    expect(socket.bufferedAmount).toBeGreaterThan(maxBufferedBytes);
+    // Each frame is larger than the limit. The kernel keeps a part of the bytes that the peer does
+    // not read, and the size of that part changes with the platform: on Windows, 8 MiB fit in it.
+    // The test sends frames until the buffer of the server holds more than the limit.
+    const data = "x".repeat(2 * 1024 * KIB);
+    let frames = 0;
+    while (socket.bufferedAmount <= maxBufferedBytes && frames < 32) {
+      server.transport.broadcast({ id: `large-${frames}`, type: "event", data });
+      frames += 1;
+      await sleep(50);
+      // The buffer held at most the limit before the frame, so the server sent the frame
+      expect(socket.readyState).toBe(WsClient.OPEN);
+      expect(error).not.toHaveBeenCalled();
+    }
+    // The peer does not read, so the frames stay in the buffer of the server
+    expect(socket.bufferedAmount, `the buffer after ${frames} frames of 2 MiB`).toBeGreaterThan(maxBufferedBytes);
     // The next frame finds a buffer over the limit: the connection ends before the frame
     server.transport.broadcast({ id: "next", type: "event", data: "small" });
     expect(socket.readyState).not.toBe(WsClient.OPEN);
