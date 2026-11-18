@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 67. **Procedures:** 585. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 67. **Procedures:** 593. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -24,7 +24,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/cli-run` | `packages/client-cli` | Run any mark CLI command as a procedure (cli.run) with a safe argv mapping: no shell, typed flags and captured output. | `cli.*` (1) | `client`, `shell` |
 | `@procedures/collections` | `packages/client-collections` | Collections for TypeScript: ArrayList, LinkedList, ArrayDeque, HashMap, LinkedHashMap, TreeMap (red-black), PriorityQueue, LRU and TTL maps, async queues, channels and collectors, tested with fast-check. | — | `@mark1russell7/collections` *(general)*, `@mark1russell7/rigor-generators` *(general)*, `client` |
 | `@procedures/cue` | `packages/client-cue` | cue-config as procedures: generate package.json, tsconfig.json and .gitignore from CUE feature presets, add and remove features, and validate projects. | `cue.*` (5) | `client`, `fs`, `shell`, `@mark1russell7/cue` *(general)* |
-| `@procedures/dag` | `packages/client-dag` | Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. The procedure dag.traverse visits workspace packages in dependency order. | `dag.*` (1) | `@mark1russell7/collections` *(general)*, `client` |
+| `@procedures/dag` | `packages/client-dag` | Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. The procedure dag.traverse visits workspace packages in dependency order. It also has a procedure for each function of @mark1russell7/collections/dag with JSON inputs. | `dag.*` (9) | `@mark1russell7/collections` *(general)*, `client`, `compiler` |
 | `@procedures/docker` | `packages/client-docker` | Docker and Docker Compose as typed procedures: ps, run, exec, logs (streaming), build, pull, push, tag, images, inspect, volumes, networks, prune, stop, rm, compose up, down, ps, logs, build and restart, run with argv and no shell injection. | `docker.*` (25) | `client`, `shell` |
 | `@procedures/fs` | `packages/client-fs` | File system procedures: read, write, copy, move, glob, exists, mkdir and JSON read and write, callable in process, over RPC or from Claude through MCP. | `fs.*` (15) | `@mark1russell7/collections` *(general)*, `@mark1russell7/files` *(general)*, `client` |
 | `@procedures/git` | `packages/client-git` | Git as 45 typed procedures: status, diff, log, show, blame, commit, push, pull, branch, tag, merge, rebase, worktree, stash and more, run with argv, async and abortable. | `git.*` (46) | `client`, `fs`, `shell` |

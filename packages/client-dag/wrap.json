@@ -1,0 +1,14 @@
+{
+  "home": "@mark1russell7/collections",
+  "entry": "./dag",
+  "namespace": [
+    "dag"
+  ],
+  "manifest": "src/manifest.ts",
+  "overlay": {
+    "effects": {
+      "reads": [],
+      "writes": []
+    }
+  }
+}
