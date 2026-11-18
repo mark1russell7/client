@@ -286,7 +286,7 @@ interface ReadInput {
 }
 ```
 
-A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. Without `maxBytes`, the first read over 16 MiB in a process writes a warning. Version 0.64.0 sets 16 MiB as the default.
+A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. Without `maxBytes`, the first read over 16 MiB in a process writes a warning. Version 0.65.0 sets 16 MiB as the default.
 
 **Output:**
 ```typescript
