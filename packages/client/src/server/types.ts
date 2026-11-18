@@ -6,6 +6,7 @@
  */
 
 import type { Elicit } from "../procedures/elicit.js";
+import type { HandleScope } from "../procedures/handles.js";
 import type { ReportProgress } from "../procedures/progress.js";
 import type { Metadata, Status, Method } from "../client/types.js";
 import type { CapabilityRequest, ProcedurePath } from "../procedures/types.js";
@@ -39,6 +40,12 @@ export interface ServerRequest<TReq = unknown> {
    * send it.
    */
   elicit?: Elicit | undefined;
+
+  /**
+   * The handle scope of the owner of the request (d40-handles): the face gives one scope to each
+   * MCP session or connection, and ends it at the end of its owner. The server gives it to `ctx.handles`.
+   */
+  handles?: HandleScope | undefined;
 
   /**
    * The function that tells the caller the progress of the call, when the caller asked for it

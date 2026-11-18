@@ -12,8 +12,11 @@ import { pathToKey, type AnyProcedure, type ProcedureContext, type ProcedureModu
 import type { JsonSchema, JsonSchemaSource, StandardSchemaV1 } from "./schema.js";
 import type { ProcedureEntry, ProcedureManifest } from "./manifest.js";
 
-/** The namespaces of each host: a forwarded module leaves them out, unless `namespaces` names them. */
-export const HOST_NAMESPACES: readonly string[] = Object.freeze(["client", "procedure"]);
+/**
+ * The namespaces of each host: a forwarded module leaves them out, unless `namespaces` names them.
+ * The handles of a host are its own (`handle`, d40-handles), so a peer does not forward them.
+ */
+export const HOST_NAMESPACES: readonly string[] = Object.freeze(["client", "procedure", "handle"]);
 
 /** The function that sends one call to the peer and gives its result: the last item of a stream. */
 export type ForwardCall = (path: ProcedurePath, input: unknown, signal: AbortSignal | undefined) => Promise<unknown>;

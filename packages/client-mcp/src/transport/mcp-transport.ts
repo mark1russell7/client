@@ -33,7 +33,7 @@ import type {
   ReportProgress,
   Logger,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, writeLog, type UntrustedText } from "@procedures/client";
+import { HandleScope, LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, writeLog, type UntrustedText } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -251,6 +251,8 @@ export class McpServerTransport implements ServerTransport {
   private http: McpHttpTransport | undefined;
   /** The MCP servers of the sessions of the Streamable HTTP transport */
   private readonly sessionServers = new Set<McpServer>();
+  /** The handle scope of each SDK server: the local face, and each session of Streamable HTTP (d40-handles). */
+  private readonly handleScopes = new Map<McpServer, HandleScope>();
   private httpUrl: string | undefined;
   /** A pending list_changed notification: a burst of registrations sends one */
   private listChangedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -502,6 +504,8 @@ export class McpServerTransport implements ServerTransport {
     const progress = this.callProgress(extra);
     const callRequest = {
       ...serverRequest,
+      // The objects with a state of this session: its end closes them (d40-handles)
+      handles: this.handleScopeFor(server),
       ...(elicit ? { elicit } : {}),
       ...(progress ? { progress: progress.report } : {}),
     };
@@ -676,6 +680,27 @@ export class McpServerTransport implements ServerTransport {
    * (it declares no elicitation). Each question goes with the tool call (`relatedRequestId`), so
    * the Streamable HTTP transport sends it on the stream of the call.
    */
+  /** The handle scope of an SDK server. The first call of its session makes it. */
+  private handleScopeFor(server: McpServer): HandleScope {
+    let scope = this.handleScopes.get(server);
+    if (scope === undefined) {
+      scope = new HandleScope(this.options.handles);
+      this.handleScopes.set(server, scope);
+    }
+    return scope;
+  }
+
+  /** This method ends the handle scope of an SDK server: each object of its session closes. */
+  private async endHandles(server: McpServer): Promise<void> {
+    const scope = this.handleScopes.get(server);
+    if (scope === undefined) return;
+    this.handleScopes.delete(server);
+    const report = await scope.end();
+    for (const failure of report.failed) {
+      this.log(`The handle ${failure.handle} (${failure.kind}) did not close: ${failure.error instanceof Error ? failure.error.message : String(failure.error)}`);
+    }
+  }
+
   private faceElicit(server: McpServer, extra: CallExtra): Elicit | undefined {
     const capability = server.getClientCapabilities()?.elicitation as { form?: unknown; url?: unknown } | undefined;
     if (!capability) return undefined;
@@ -875,6 +900,8 @@ export class McpServerTransport implements ServerTransport {
             this.sessionServers.add(sessionServer);
             sessionServer.onclose = () => {
               this.sessionServers.delete(sessionServer);
+              // The end of a session closes its objects with a state (d40-handles)
+              void this.endHandles(sessionServer);
               // The close of a session cancels its tasks: their work stops (CLI-35)
               if (taskStore && sessionTransport.sessionId) void taskStore.cancelSession(sessionTransport.sessionId);
             };
@@ -938,6 +965,8 @@ export class McpServerTransport implements ServerTransport {
     await this.http?.close();
     for (const sessionServer of this.sessionServers) await sessionServer.close().catch(() => undefined);
     this.sessionServers.clear();
+    // The objects with a state of each session and of the local face close (d40-handles)
+    for (const server of [...this.handleScopes.keys()]) await this.endHandles(server);
     // A store of this transport stops with it: its tasks are cancelled (CLI-35)
     if (this.ownsTaskStore) await this.taskStore?.close();
     this.http = undefined;

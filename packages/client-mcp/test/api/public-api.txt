@@ -480,6 +480,7 @@ export interface McpServerTransportOptions {
     instructions?: string | undefined;
     stdio?: StdioTransportOptions | undefined;
     elicitation?: ElicitationPolicy | undefined;
+    handles?: HandleScopeOptions | undefined;
     untrusted?: UntrustedContentOptions | undefined;
     content?: McpToolContentHook | undefined;
     json?: "pretty" | "compact" | undefined;

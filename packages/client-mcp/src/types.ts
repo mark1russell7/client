@@ -7,7 +7,7 @@
 import type { McpToolListing } from "./transport/search-listing.js";
 import type { Readable, Writable } from "node:stream";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { BrowserGuardOptions, ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
+import type { BrowserGuardOptions, ElicitationPolicy, HandleScopeOptions, ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
 import type { Duration, Logger } from "@procedures/client";
 import type { UntrustedContentOptions } from "./untrusted.js";
@@ -153,6 +153,12 @@ export interface McpServerTransportOptions {
    * operator gives no consent.
    */
   elicitation?: ElicitationPolicy | undefined;
+
+  /**
+   * The options of the handle scope of each session (d40-handles): the count limit and the idle
+   * time limit of its objects with a state. The end of a session closes its objects.
+   */
+  handles?: HandleScopeOptions | undefined;
 
   /**
    * The envelopes of the output fields with text from outside the host (`metadata.untrusted`).
