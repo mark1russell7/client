@@ -506,7 +506,7 @@ jobs:
     # The check deploys nothing. On a public repository, each read of the build works with read access.
     permissions:
       contents: read
-    uses: mark1russell7/template/.github/workflows/reusable-pages-check.yml@8e44f07b96860e61207d3955817276af52b2a148 # main
+    uses: mark1russell7/template/.github/workflows/reusable-pages-check.yml@94adcfe753a1ec7d03cc03f445f1f0559d5c205f # main
     with:
       timeout-minutes: 25
 
