@@ -256,11 +256,12 @@ const query = createProcedure()
 const registry = createRegistry({ name: "db", procedures: [open, query], requires: [handleModule] });
 ```
 
-- The face of the host gives one `HandleScope` to each owner. Each MCP session has its own scope. The end of the session closes each object of its scope.
+- The face of the host gives one `HandleScope` to each owner. Each MCP session and each WebSocket connection has its own scope. The end of the session or the close of the connection closes each object of its scope.
 - A handle resolves only in the scope that opened it. A caller of another session cannot use it. The ids have 128 random bits.
 - `handleModule` adds `handle.list` and `handle.close`. `handle.list` gives the open objects of the caller. `handle.close` closes one.
 - The scope closes an object with the `close` option of the open. Without it, the scope uses `Symbol.asyncDispose`, `Symbol.dispose` or a `close()` method.
-- The option `handles` of the MCP transport sets `maxHandles` (64 by default) and `idleMs`. An object that no call used for `idleMs` closes.
+- The option `handles` of the MCP transport and of `WebSocketServerTransport` sets `maxHandles` (64 by default) and `idleMs`. An object that no call used for `idleMs` closes.
+- The HTTP face keeps no handles: each request has no owner after its answer. A call of a procedure with handles over HTTP gets `NOT_ACCEPTABLE`.
 - `handleSchema(kind)` gives the JSON Schema of a handle. Its keyword `x-procedures-handle` gives the kind of the object.
 - The errors have the codes of the protocol. `VALIDATION_ERROR` is for a handle that is not open. `RATE_LIMITED` is for a full scope. `NOT_ACCEPTABLE` is for a face that keeps no handles.
 - A peer does not forward `handle.*`. The handles of a host stay in the host.
