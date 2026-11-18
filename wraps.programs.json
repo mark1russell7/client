@@ -373,6 +373,85 @@
         }
       },
       "result": "1080"
+    },
+    {
+      "name": "point-at-the-median-distance",
+      "description": "The point south-west of Boston at the median of the distances in kilometres from Boston to New York, Philadelphia and Washington. geo gives the distances and the point, and statistics gives the median.",
+      "program": {
+        "$proc": [
+          "geo",
+          "destinationKm"
+        ],
+        "input": {
+          "from": {
+            "lat": 42.3601,
+            "lon": -71.0589
+          },
+          "bearingDegrees": 225,
+          "distance": {
+            "$proc": [
+              "statistics",
+              "median"
+            ],
+            "input": {
+              "values": [
+                {
+                  "$proc": [
+                    "geo",
+                    "distanceKm"
+                  ],
+                  "input": {
+                    "a": {
+                      "lat": 42.3601,
+                      "lon": -71.0589
+                    },
+                    "b": {
+                      "lat": 40.7128,
+                      "lon": -74.006
+                    }
+                  }
+                },
+                {
+                  "$proc": [
+                    "geo",
+                    "distanceKm"
+                  ],
+                  "input": {
+                    "a": {
+                      "lat": 42.3601,
+                      "lon": -71.0589
+                    },
+                    "b": {
+                      "lat": 39.9526,
+                      "lon": -75.1652
+                    }
+                  }
+                },
+                {
+                  "$proc": [
+                    "geo",
+                    "distanceKm"
+                  ],
+                  "input": {
+                    "a": {
+                      "lat": 42.3601,
+                      "lon": -71.0589
+                    },
+                    "b": {
+                      "lat": 38.9072,
+                      "lon": -77.0369
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "result": {
+        "lat": 39.532415799556425,
+        "lon": -74.65024609466887
+      }
     }
   ]
 }
