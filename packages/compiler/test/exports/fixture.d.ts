@@ -111,8 +111,19 @@ export declare function each(values: readonly number[], fn: (value: number) => v
 export declare function twice(fn: <T>(value: T) => T): number;
 /** A callback with a map parameter: the sub-program gets the list of entries. */
 export declare function sizeOf(fn: (map: Map<string, number>) => number): number;
-/** A counter: the output is a class instance. */
+/** A counter: the output is a class instance, so a handle. */
 export declare function counter(): Counter;
+/**
+ * The count of a counter: the input is a handle.
+ * @param counter The counter.
+ */
+export declare function countOf(counter: Counter): number;
+/** Add to a counter: a handle input with a JSON input. */
+export declare function bump(counter: Counter, by: number): void;
+/** A counter or nothing: a handle or null. */
+export declare function maybeCounter(make: boolean): Counter | undefined;
+/** A counter in an object: a class instance below the top is not a handle. */
+export declare function boxed(): { readonly counter: Counter };
 /** Two signatures. */
 export declare function parse(text: string): number;
 export declare function parse(text: string, radix: number): number;
