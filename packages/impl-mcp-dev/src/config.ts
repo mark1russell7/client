@@ -48,7 +48,7 @@ export interface McpServerConfig {
  * Load configuration from environment variables.
  *
  * Environment variables:
- * - MCP_BUNDLES: Comma-separated list of bundles (default: "@procedures/bundle-mcp")
+ * - MCP_BUNDLES: Comma-separated list of bundles and module files (default: "@procedures/bundle-mcp")
  * - MCP_SERVER_NAME: Server name (default: "impl-mcp-dev")
  * - MCP_SERVER_VERSION: Server version (default: "1.0.0")
  * - MCP_DEBUG: Enable debug logging (default: "false")

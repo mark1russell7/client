@@ -36,7 +36,10 @@ import {
   type McpHostFaces,
 } from "@procedures/mcp-server";
 import { programCheckInterceptor } from "@procedures/compiler";
+import { errorMessage } from "@mark1russell7/text";
 import { createServer } from "node:http";
+import { isAbsolute, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { ephemeral, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
 import { httpTransport, type HttpKnobs, type HttpTransport } from "@mark1russell7/service/http";
 import { loadConfig, type McpServerConfig } from "./config.js";
@@ -63,20 +66,67 @@ export interface LoadedBundles {
   global: boolean;
 }
 
-/** This function loads the module entry of each bundle (it registers nothing). */
+/**
+ * This function tells if an entry of `MCP_BUNDLES` names a module file. A module file is a `file:`
+ * URL, an absolute path, or a path that starts with `./` or `../`. Each other entry names a bundle package.
+ */
+export function isModuleFile(bundle: string): boolean {
+  return bundle.startsWith("file:") || isAbsolute(bundle) || /^\.\.?[\\/]/.test(bundle);
+}
+
+/** This function gives the URL of a module file. A relative path starts from `cwd`. */
+export function moduleFileUrl(bundle: string, cwd: string = process.cwd()): string {
+  return bundle.startsWith("file:") ? bundle : pathToFileURL(resolve(cwd, bundle)).href;
+}
+
+/** The first segment of each path of the own procedures of a module, not of its `requires`. */
+function namespacesOf(module: ProcedureModule): string[] {
+  return [...new Set(module.procedures.map((procedure) => procedure.path[0]).filter((name): name is string => name !== undefined))].sort();
+}
+
+/**
+ * This function loads a module file of `MCP_BUNDLES`: a file outside this package, for example
+ * the module of the tools of another repository. Its default export is the module. Its
+ * `mcpNamespaces` give its tools. Without them, its tools are the namespaces of its own
+ * procedures, so the modules in its `requires` add no tool. A file that does not load stops the
+ * host: the global registry cannot serve a file.
+ */
+export async function loadModuleFile(bundle: string, cwd: string = process.cwd()): Promise<BundleModuleExports & { default: ProcedureModule }> {
+  let exports: BundleModuleExports;
+  try {
+    exports = (await import(moduleFileUrl(bundle, cwd))) as BundleModuleExports;
+  } catch (error) {
+    throw new Error(`MCP_BUNDLES: the module file ${bundle} did not load: ${errorMessage(error)}`, { cause: error });
+  }
+  const module = exports.default;
+  if (typeof module !== "object" || module === null || !Array.isArray(module.procedures)) {
+    throw new Error(`MCP_BUNDLES: the module file ${bundle} has no default export with a list of procedures`);
+  }
+  return { ...exports, default: module, mcpNamespaces: exports.mcpNamespaces ?? namespacesOf(module) };
+}
+
+/** This function loads the module entry of each bundle and each module file (it registers nothing). */
 export async function loadBundles(bundles: readonly string[]): Promise<LoadedBundles> {
   const modules: ProcedureModule[] = [];
   const hostModules: ProcedureModule[] = [];
   const surfaces: BundleSurfaceModule[] = [];
+  const files = bundles.filter(isModuleFile);
   for (const bundle of bundles) {
+    if (isModuleFile(bundle)) {
+      const exports = await loadModuleFile(bundle);
+      modules.push(exports.default);
+      hostModules.push(...(exports.mcpHostModules ?? []));
+      surfaces.push(exports);
+      continue;
+    }
     let exports: BundleModuleExports;
     try {
       // The import resolves from this package, which depends on its bundles
       exports = (await import(`${bundle}/module`)) as BundleModuleExports;
     } catch {
-      return loadBundlesGlobally(bundles);
+      return loadBundlesGlobally(bundles, files);
     }
-    if (!exports.default) return loadBundlesGlobally(bundles);
+    if (!exports.default) return loadBundlesGlobally(bundles, files);
     modules.push(exports.default);
     hostModules.push(...(exports.mcpHostModules ?? []));
     surfaces.push(exports);
@@ -87,7 +137,10 @@ export async function loadBundles(bundles: readonly string[]): Promise<LoadedBun
 }
 
 /** The old way, for a bundle without a module entry: import each `register.js`. */
-async function loadBundlesGlobally(bundles: readonly string[]): Promise<LoadedBundles> {
+async function loadBundlesGlobally(bundles: readonly string[], files: readonly string[]): Promise<LoadedBundles> {
+  if (files.length > 0) {
+    throw new Error(`MCP_BUNDLES: the module file ${files[0]} needs the module entry of each bundle, and a bundle has none`);
+  }
   // The global registry gets the control flow only from this call (ARCHITECTURE-PROPOSALS-2026-10, P9)
   registerClientProcedures();
   const surfaces: BundleSurfaceModule[] = [];
