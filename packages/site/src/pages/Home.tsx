@@ -1,14 +1,11 @@
 import { useState, type KeyboardEvent, type ReactElement, type ReactNode } from "react";
 import { LiveHero } from "../components/LiveHero";
-import { mcpTools, metrics, packages, procedures } from "../data";
+import { counts, examples, metrics } from "../data/site";
 import { href } from "../lib/router";
 import { newerVersion } from "../lib/versions";
 
-// The examples come from the data, so they stay true (deep dive SITE-13: the page said that MCP
-// gives git.status, but git.* is not a tool)
-const cliExample =
-  procedures.find((procedure) => procedure.key === "git.status" && procedure.cli) ?? procedures.find((procedure) => procedure.cli);
-const mcpExample = ["docker.ps", "cue.validate"].find((key) => mcpTools.includes(key)) ?? mcpTools[0] ?? "";
+// The examples come from the catalog, so they stay true (refer to `SiteExamples` in data/site.ts)
+const mcpExample = examples.mcp;
 
 /**
  * The install command: npm when the library is on the registry, else a clone of the repository.
@@ -34,10 +31,10 @@ const HOSTS: Array<{ name: string; how: string; detail: string }> = [
   { name: "Your code", how: 'client.exec(["math", "add"], { a: 2, b: 3 })', detail: "The registry runs in your process. No server." },
   {
     name: "CLI",
-    how: cliExample ? ["mark", ...cliExample.path].join(" ") : "mark",
+    how: examples.cli ? ["mark", ...examples.cli].join(" ") : "mark",
     detail: "Each procedure is a command. Its schema gives the flags and the help.",
   },
-  { name: "Claude Code", how: `${mcpExample} (MCP tool)`, detail: `The MCP server gives ${mcpTools.length} procedures to Claude as tools.` },
+  { name: "Claude Code", how: `${mcpExample} (MCP tool)`, detail: `The MCP server gives ${counts.mcpTools} procedures to Claude as tools.` },
   { name: "HTTP", how: "POST /api/math/add", detail: "A server exposes the registry, with a token and browser checks." },
   { name: "WebSocket", how: '{ "type": "request" }', detail: "Calls in both directions, streams with flow control." },
   { name: "Browser", how: "this site", detail: "The Composer and this page run the real client in your browser." },
@@ -161,7 +158,7 @@ function Stat({ value, label }: { value: number; label: string }): ReactElement 
 }
 
 export function Home(): ReactElement {
-  const lines = packages.reduce((total, pkg) => total + pkg.lines, 0);
+  const lines = counts.lines;
   return (
     <>
       <section className="hero">
@@ -180,7 +177,7 @@ export function Home(): ReactElement {
               Open the Composer
             </a>
             <a className="secondary" href={href("catalog")}>
-              Browse {procedures.length} procedures
+              Browse {counts.procedures} procedures
             </a>
             <a className="text-link" href="https://github.com/mark1russell7/client">
               Source on GitHub →
@@ -191,9 +188,9 @@ export function Home(): ReactElement {
       </section>
 
       <section className="stats" aria-label="The project in numbers">
-        <Stat value={packages.length} label="packages" />
-        <Stat value={procedures.length} label="procedures" />
-        <Stat value={mcpTools.length} label="tools for Claude" />
+        <Stat value={counts.packages} label="packages" />
+        <Stat value={counts.procedures} label="procedures" />
+        <Stat value={counts.mcpTools} label="tools for Claude" />
         <Stat value={metrics.tests} label="tests" />
         <Stat value={lines} label="lines of TypeScript" />
       </section>
