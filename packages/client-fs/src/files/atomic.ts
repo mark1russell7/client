@@ -81,6 +81,9 @@ type FileOp =
 /** The steps of a write. Each step yields one operation, and the runner gives back its result. */
 type Steps<T> = Generator<FileOp, T, unknown>;
 
+/** The default of `renameRetryMs` on Windows. A scan of a new file can lock it for a short time. */
+export const WINDOWS_RENAME_RETRY_MS = 2000;
+
 /** True on Windows. The function reads the platform at each call, so a test can change it. */
 function isWindows(): boolean {
   return process.platform === "win32";
@@ -215,7 +218,7 @@ function* writeSteps(path: string, data: string | Uint8Array, options: WriteFile
     if (flush) yield { op: "fsync", handle };
     yield { op: "close", handle };
     handle = undefined;
-    yield* renameWithRetry(temp, target, options.renameRetryMs ?? (isWindows() ? 2000 : 0));
+    yield* renameWithRetry(temp, target, options.renameRetryMs ?? (isWindows() ? WINDOWS_RENAME_RETRY_MS : 0));
   } catch (error) {
     if (handle !== undefined) {
       try {
