@@ -63,19 +63,20 @@ describe("the dev-tools host", () => {
   });
 
   it("gives the tool of a defined procedure a description with the effects of its body (roadmap R23)", async () => {
+    // procedure.define makes a procedure only at an exposed path: the namespace client is a tool namespace
     const response = await host.server.handle({
       id: "r23",
       method: { service: "procedure", operation: "define" },
-      payload: { path: ["r23", "names"], aggregation: { $proc: ["procedure", "list"], input: {} }, metadata: { description: "List the procedures" } },
+      payload: { path: ["client", "r23Names"], aggregation: { $proc: ["procedure", "list"], input: {} }, metadata: { description: "List the procedures" } },
       metadata: {},
     });
     expect(response.status).toMatchObject({ type: "success" });
-    const defined = host.registry.get(["r23", "names"]);
+    const defined = host.registry.get(["client", "r23Names"]);
     expect(defined).toBeDefined();
     const tool = procedureToMcpTool(defined!);
     expect(tool.description).toBe("List the procedures. It reads registry and changes nothing.");
     expect(tool.annotations).toMatchObject({ readOnlyHint: true });
-    host.registry.unregister(["r23", "names"]);
+    host.registry.unregister(["client", "r23Names"]);
   });
 });
 

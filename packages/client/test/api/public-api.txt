@@ -131,11 +131,14 @@ type ExposedError: dist/server/error-policy.d.ts#ExposedError
 type FaceRules: dist/server/face-rules.d.ts#FaceRules
 type FaceRulesOptions: dist/server/face-rules.d.ts#FaceRulesOptions
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
+type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
+type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
 type GuardedHeaders: dist/server/browser-guard.d.ts#GuardedHeaders
 type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
+HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -239,6 +242,9 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
+type PeerAddress: dist/client/peer-module.d.ts#PeerAddress
+type PeerModuleOptions: dist/client/peer-module.d.ts#PeerModuleOptions
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -268,6 +274,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
@@ -319,11 +328,17 @@ type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
 type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -499,6 +514,7 @@ faceRules: dist/server/face-rules.d.ts#faceRules
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+forwardedModule: dist/procedures/forward.d.ts#forwardedModule
 fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
@@ -568,6 +584,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
@@ -609,6 +626,7 @@ parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
+peerModule: dist/client/peer-module.d.ts#peerModule
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
@@ -639,6 +657,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 seconds: dist/duration.d.ts#seconds
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
@@ -666,6 +687,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateCalls: dist/procedures/policy.d.ts#validateCalls
@@ -809,8 +831,11 @@ type ExposedError: dist/server/error-policy.d.ts#ExposedError
 type FaceRules: dist/server/face-rules.d.ts#FaceRules
 type FaceRulesOptions: dist/server/face-rules.d.ts#FaceRulesOptions
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
+type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
+type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
+HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -914,6 +939,9 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
+type PeerAddress: dist/client/peer-module.d.ts#PeerAddress
+type PeerModuleOptions: dist/client/peer-module.d.ts#PeerModuleOptions
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -943,6 +971,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
@@ -993,11 +1024,17 @@ RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -1171,6 +1208,7 @@ faceRules: dist/server/face-rules.d.ts#faceRules
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+forwardedModule: dist/procedures/forward.d.ts#forwardedModule
 fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
@@ -1236,6 +1274,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
@@ -1277,6 +1316,7 @@ parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
+peerModule: dist/client/peer-module.d.ts#peerModule
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
@@ -1306,6 +1346,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 seconds: dist/duration.d.ts#seconds
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
@@ -1333,6 +1376,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateCalls: dist/procedures/policy.d.ts#validateCalls
@@ -1443,6 +1487,8 @@ type MockTransportOptions: dist/adapters/mock/client/types.d.ts#MockTransportOpt
 type PaginationOptions: dist/client/middleware/pagination.d.ts#PaginationOptions
 type PathInput: dist/client/typed.d.ts#PathInput
 type PathOutput: dist/client/typed.d.ts#PathOutput
+type PeerAddress: dist/client/peer-module.d.ts#PeerAddress
+type PeerModuleOptions: dist/client/peer-module.d.ts#PeerModuleOptions
 type ProcedureDef: dist/client/typed.d.ts#ProcedureDef
 type ProcedureNamespace: dist/client/typed.d.ts#ProcedureNamespace
 type ProcedurePaths: dist/client/typed.d.ts#ProcedurePaths
@@ -1517,6 +1563,7 @@ ms: dist/duration.d.ts#ms
 narrowDeadline: dist/client/deadline.d.ts#narrowDeadline
 normalizeCallOptions: dist/client/context.d.ts#normalizeCallOptions
 paginateAll: dist/client/middleware/pagination.d.ts#paginateAll
+peerModule: dist/client/peer-module.d.ts#peerModule
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 resilience: dist/client/middleware/resilience.d.ts#resilience
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
@@ -1670,7 +1717,10 @@ type EnvelopeLiteral: dist/procedures/envelope.d.ts#EnvelopeLiteral
 type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
 type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
 type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
+type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
+type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
+HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
 type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
 type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
@@ -1733,6 +1783,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
 type ProgramDocument: dist/procedures/program.d.ts#ProgramDocument
@@ -1758,8 +1811,14 @@ type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunOperandOptions: dist/procedures/program.d.ts#RunOperandOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type StepObserver: dist/procedures/program.d.ts#StepObserver
@@ -1863,6 +1922,7 @@ executeRef: dist/procedures/program.d.ts#executeRef
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+forwardedModule: dist/procedures/forward.d.ts#forwardedModule
 fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
@@ -1903,6 +1963,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
@@ -1950,6 +2011,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
@@ -1968,6 +2032,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateProcedure: dist/procedures/define.d.ts#validateProcedure
@@ -2007,6 +2072,7 @@ type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
 type ExposedError: dist/server/error-policy.d.ts#ExposedError
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -2364,7 +2430,6 @@ export interface LocalTransportOptions {
     interceptors?: readonly Interceptor[] | undefined;
     capability?: Capability | undefined;
     clearanceOrder?: ClearanceOrder | undefined;
-    maxDepth?: number | undefined;
     events?: EventPublisher | undefined;
 }
 
@@ -2626,6 +2691,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
     maxPayload?: number;
     clientTracking?: boolean;
     highWaterMark?: number;
+    maxBufferedBytes?: number;
     heartbeat?: {
         interval?: Duration;
         misses?: number;
@@ -3233,6 +3299,22 @@ export declare function extractTracingInfo(metadata: Record<string, unknown>): {
     parentSpanId?: string;
 } | null;
 
+### dist/client/peer-module.d.ts#PeerAddress
+export interface PeerAddress {
+    readonly url: string;
+    readonly token?: string | undefined;
+}
+
+### dist/client/peer-module.d.ts#PeerModuleOptions
+export interface PeerModuleOptions extends ForwardOptions {
+    readonly address: PeerAddress | (() => PeerAddress | Promise<PeerAddress>);
+    readonly fetch?: typeof fetch | undefined;
+    readonly signal?: AbortSignal | undefined;
+}
+
+### dist/client/peer-module.d.ts#peerModule
+export declare function peerModule(options: PeerModuleOptions): Promise<ProcedureModule>;
+
 ### dist/client/route-resolver.d.ts#ResolvedRoute
 export interface ResolvedRoute {
     path: ProcedurePath;
@@ -3346,7 +3428,6 @@ export interface ClientOptions {
     interceptors?: readonly Interceptor[];
     capability?: Capability;
     clearanceOrder?: ClearanceOrder;
-    maxDepth?: number;
 }
 
 ### dist/client/types.d.ts#ClientRunner
@@ -4312,6 +4393,7 @@ export declare function withHintImages<T extends object>(event: T, images: HintI
 export interface CollectionPartitions<T = unknown> {
     storageOf(partition: string): CollectionStorage<T>;
     resolve: PartitionResolver;
+    close?(): Promise<void> | void;
 }
 
 ### dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
@@ -4758,6 +4840,28 @@ export interface DefineProcedureOutput {
     replaced: boolean;
 }
 
+### dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+export interface ProcedureSearchHit {
+    path: ProcedurePath;
+    key: string;
+    description: string | undefined;
+    score: number;
+}
+
+### dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+export interface ProcedureSearchInput {
+    query: string;
+    limit?: number | undefined;
+    namespace?: string | undefined;
+}
+
+### dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
+export interface ProcedureSearchOutput {
+    hits: ProcedureSearchHit[];
+    matched: number;
+    total: number;
+}
+
 ### dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 export declare function clearRuntimeProcedures(registry?: RegistryOf): void;
 
@@ -4807,6 +4911,9 @@ export declare const metaProcedures: AnyProcedure[];
 export declare function runtimeProgramOf(procedure: {
     handler?: unknown;
 }): AggregationDefinition | undefined;
+
+### dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+export declare const searchProceduresProcedure: Procedure<ProcedureSearchInput, ProcedureSearchOutput, ProcedureMetadata>;
 
 ### dist/procedures/define.d.ts#ProcedureBuilder
 export declare class ProcedureBuilder<TInput = unknown, TOutput = unknown, TMeta extends ProcedureMetadata = ProcedureMetadata> {
@@ -5051,6 +5158,22 @@ export declare function isEnvelopeProgram(value: unknown): value is EnvelopeProg
 ### dist/procedures/envelope.d.ts#toEnvelopeProgram
 export declare function toEnvelopeProgram(program: AnyProcedureRef): EnvelopeProgram;
 
+### dist/procedures/forward.d.ts#ForwardCall
+export type ForwardCall = (path: ProcedurePath, input: unknown, signal: AbortSignal | undefined) => Promise<unknown>;
+
+### dist/procedures/forward.d.ts#ForwardOptions
+export interface ForwardOptions {
+    readonly name: string;
+    readonly namespaces?: readonly string[] | undefined;
+    readonly prefix?: ProcedurePath | undefined;
+}
+
+### dist/procedures/forward.d.ts#HOST_NAMESPACES
+export declare const HOST_NAMESPACES: readonly string[];
+
+### dist/procedures/forward.d.ts#forwardedModule
+export declare function forwardedModule(manifest: ProcedureManifest, call: ForwardCall, options: ForwardOptions): ProcedureModule;
+
 ### dist/procedures/hints.d.ts#ToolHintOverride
 export interface ToolHintOverride {
     readonly readOnlyHint?: false | undefined;
@@ -5241,7 +5364,7 @@ export interface InvokeOptions {
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
-    admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
+    admitNested?: ((invocation: Invocation) => Promise<(() => Promise<void> | void) | void> | (() => Promise<void> | void) | void) | undefined;
     principal?: Principal | undefined;
 }
 
@@ -5962,6 +6085,45 @@ export declare function validateSchema<T>(schema: ProcedureSchema<T>, value: unk
 ### dist/procedures/schema.d.ts#validateSchemaAsync
 export declare function validateSchemaAsync<T>(schema: ProcedureSchema<T>, value: unknown): Promise<SchemaResult<T>>;
 
+### dist/procedures/search.d.ts#SEARCH_LIMIT
+export declare const SEARCH_LIMIT = 10;
+
+### dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
+export declare const SEARCH_MAX_LIMIT = 100;
+
+### dist/procedures/search.d.ts#SearchDocument
+export interface SearchDocument {
+    readonly name: string;
+    readonly words?: readonly string[] | undefined;
+    readonly description?: string | undefined;
+    readonly tags?: readonly string[] | undefined;
+}
+
+### dist/procedures/search.d.ts#SearchHit
+export interface SearchHit {
+    readonly name: string;
+    readonly description: string | undefined;
+    readonly score: number;
+}
+
+### dist/procedures/search.d.ts#SearchOptions
+export interface SearchOptions {
+    readonly limit?: number | undefined;
+}
+
+### dist/procedures/search.d.ts#SearchResult
+export interface SearchResult {
+    readonly hits: SearchHit[];
+    readonly matched: number;
+    readonly total: number;
+}
+
+### dist/procedures/search.d.ts#searchDocuments
+export declare function searchDocuments(documents: readonly SearchDocument[], query: string, options?: SearchOptions): SearchResult;
+
+### dist/procedures/search.d.ts#searchWords
+export declare function searchWords(text: string): string[];
+
 ### dist/procedures/segments.d.ts#decodeSegment
 export declare function decodeSegment(segment: string): string;
 
@@ -6187,8 +6349,14 @@ export interface UntrustedText {
 ### dist/procedures/untrusted.d.ts#UntrustedValue
 export type UntrustedValue = string | UntrustedText | readonly (string | UntrustedText)[];
 
+### dist/procedures/untrusted.d.ts#markUntrusted
+export declare function markUntrusted<T>(value: T, fields: readonly string[]): T;
+
 ### dist/procedures/untrusted.d.ts#untrustedFieldsOf
 export declare function untrustedFieldsOf(procedure: AnyProcedure): readonly string[];
+
+### dist/procedures/untrusted.d.ts#untrustedMarkOf
+export declare function untrustedMarkOf(value: unknown): readonly string[];
 
 ### dist/procedures/untrusted.d.ts#untrustedText
 export declare function untrustedText(text: string, source?: UntrustedSource): UntrustedText;
@@ -6453,6 +6621,15 @@ export declare function methodToPath(method: Pick<Method, "service" | "operation
 ### dist/server/method.d.ts#pathToMethod
 export declare function pathToMethod(path: readonly string[]): Method;
 
+### dist/server/procedure-server.d.ts#PartitionsHandle
+export interface PartitionsHandle {
+    readonly name: string;
+    readonly collections: readonly string[];
+    readonly partitions: CollectionPartitions<unknown>;
+    connect(signal: AbortSignal): Promise<void> | void;
+    close(): Promise<void>;
+}
+
 ### dist/server/procedure-server.d.ts#ProcedureServer
 export declare class ProcedureServer extends Server implements RepositoryProvider, StopParts {
     readonly publisher: EventPublisher | undefined;
@@ -6490,6 +6667,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     storageHandles(): StorageHandle[];
+    partitionHandles(): PartitionsHandle[];
     start(): Promise<void>;
     stopIntake(): void;
     drain(deadline: number, signal: AbortSignal): Promise<void>;

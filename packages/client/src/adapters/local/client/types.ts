@@ -70,12 +70,6 @@ export interface LocalTransportOptions {
   clearanceOrder?: ClearanceOrder | undefined;
 
   /**
-   * The highest depth of a nested call: a whole number of 0 or more. The default is 64. A deeper
-   * call gets `FORBIDDEN` with the reason `depth`.
-   */
-  maxDepth?: number | undefined;
-
-  /**
    * The publisher of the remote events (`documentation/EVENTS.md`). The transport serves its
    * procedure `events.subscribe`, and its procedures get its bus as `ctx.bus`.
    */

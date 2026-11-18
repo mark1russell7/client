@@ -91,7 +91,6 @@ export class LocalTransport implements Transport {
   private readonly interceptors: readonly Interceptor[] | undefined;
   private readonly capability: Capability | undefined;
   private readonly clearanceOrder: ClearanceOrder | undefined;
-  private readonly maxDepth: number | undefined;
   private readonly events: EventPublisher | undefined;
 
   constructor(options: LocalTransportOptions = {}) {
@@ -100,7 +99,6 @@ export class LocalTransport implements Transport {
     this.interceptors = options.interceptors;
     this.capability = options.capability;
     this.clearanceOrder = options.clearanceOrder;
-    this.maxDepth = options.maxDepth;
     this.events = options.events;
 
     // Register pre-configured handlers. A key without a version ("users.get") gets the
@@ -206,7 +204,6 @@ export class LocalTransport implements Transport {
           ...(this.interceptors ? { interceptors: this.interceptors } : {}),
           ...(capability ? { capability } : {}),
           ...(this.clearanceOrder ? { clearanceOrder: this.clearanceOrder } : {}),
-          ...(this.maxDepth !== undefined ? { maxDepth: this.maxDepth } : {}),
           ...(this.events ? { bus: this.events.bus } : {}),
         }), message.signal);
         if (output === ABORTED) {

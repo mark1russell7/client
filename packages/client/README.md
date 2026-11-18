@@ -133,7 +133,6 @@ A host controls which procedures its callers reach, also through nested calls. S
 - `expose`: the procedures that the callers of a server can reach.
 - A data-driven procedure (`client.chain`) calls only exposed procedures.
 - A procedure of code declares its nested calls in `metadata.calls`. With `strictCalls`, a procedure that declares nothing calls only exposed procedures.
-- `maxDepth`: the highest depth of a nested call. The default is 64. A deeper call gets `FORBIDDEN` with the reason `depth`.
 - Interceptors run around each invocation and its nested calls: `timeoutInterceptor`, `tracingInterceptor`, `metricsInterceptor`.
 
 #### Traces with OpenTelemetry
@@ -204,6 +203,35 @@ import { ghModule } from "@procedures/gh";
 const gh = callerOf(ghModule);
 const runs = await gh<RunList>(["gh", "run", "list"], { repo: "owner/name" });
 ```
+
+### Procedures of a running peer
+
+A peer with a state, for example a daemon, keeps its procedures in its own process. `peerModule` reads the manifest of the peer through `procedure.manifest`. It gives a module with a stub for each entry. The handler of each stub sends the call to the peer over HTTP.
+
+```typescript
+import { readFileSync } from "node:fs";
+import { createRegistry, peerModule } from "@procedures/client";
+
+const jobs = await peerModule({
+  name: "jobs",
+  namespaces: ["jobs"],
+  // The module reads the address at each call: a peer gets a new port or token when it starts again
+  address: () => {
+    const { url, token } = JSON.parse(readFileSync("/run/jobs/discovery.json", "utf8"));
+    return { url, token };
+  },
+});
+const registry = createRegistry(jobs);
+```
+
+- The stub of an entry has the description, the JSON Schemas, the effects and the command-line metadata of the entry. A tool list shows them, and the policy of the host reads the effects.
+- The peer examines each input with its own schemas and applies its own policy. A validation error of the peer comes back with its code.
+- Without `namespaces`, the module forwards each namespace except `client` and `procedure` (`HOST_NAMESPACES`), because each host has them.
+- `prefix` puts a path in front of each local path. With `["jobs"]`, the entry `queue.add` becomes `jobs.queue.add`.
+- The module leaves out each stream without an end. A stub gives the last item of a stream.
+- `signal` stops the read of the manifest, for example `AbortSignal.timeout(5000)` for a peer that does not answer. Each call of a stub takes the signal of its own context.
+- The peer must expose `procedure.manifest`. A host that has the client module (`createRegistry()`) has it. Another registry can register `manifestProcedure`.
+- `forwardedModule(manifest, call, options)` makes the same stubs with another transport.
 
 ## API Reference
 
@@ -639,6 +667,10 @@ interface HttpServerTransportOptions {
   clock?: Clock;                 // the clock of the keep-alive timers
 }
 ```
+
+With `cors: true`, the transport sends the CORS headers of `corsOptions`. The default of `credentials` is false for the origin `"*"`, and true for each other origin.
+
+The transport applies CORS only to `basePath` and the paths under it. Another route of the app gets no CORS header from the transport, and its `OPTIONS` request goes to the route. An app that needs CORS on its own routes adds its own CORS function, for example `credentialedCors()`.
 
 A URL strategy gets a `UrlStrategyRequest`: the method, the path, the URL, the headers, the query and the body. The type is structural. A `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`.
 

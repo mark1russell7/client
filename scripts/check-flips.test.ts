@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { gzipSync } from "node:zlib";
-import { MARGIN, budgetsOf, cannotFail, fillerOf, flipOf, overBudget, scriptCannotFailAlone, sizesOf } from "./check-flips.ts";
+import { MARGIN, budgetsOf, cannotFail, fillerOf, flipOf, jobOf, overBudget, scriptCannotFailAlone, sizesOf } from "./check-flips.ts";
 
 const passed = { status: 0, log: "" };
 const budgets = { page: 256 * 1024, script: 180 * 1024, worker: 128 * 1024 };
@@ -75,6 +75,39 @@ describe("cannotFail", () => {
   });
   it("gives a reason for a job that the required check does not need", () => {
     assert.match(cannotFail(workflow("ci"), "checks", "node scripts/coverage.ts") ?? "", /does not need/);
+  });
+  it("gives a reason for a job that the workflow does not have", () => {
+    assert.match(cannotFail(workflow("checks"), "site", "node scripts/coverage.ts") ?? "", /has no job site/);
+  });
+  it("gives a reason when the command is in another job", () => {
+    const other = `jobs:\n  checks:\n    steps:\n      - run: echo\n  other:\n    steps:\n      - run: node scripts/coverage.ts\n  ci-ok:\n    needs: [checks, other]\n`;
+    assert.match(cannotFail(other, "checks", "node scripts/coverage.ts") ?? "", /the job checks does not start/);
+  });
+
+  const pages = (uses: string): string => `jobs:\n  site:\n    name: Site\n    uses: ${uses}\n    with:\n      timeout-minutes: 25\n  ci-ok:\n    needs: [site]\n`;
+  const shared = "mark1russell7/template/.github/workflows/reusable-pages-check.yml@94adcfe # main";
+  it("finds the command in the build of the site config when the job uses the shared Pages check", () => {
+    assert.equal(cannotFail(pages(shared), "site", "@procedures/site test:e2e", "pnpm build\npnpm --filter @procedures/site test:e2e\n"), undefined);
+  });
+  it("gives a reason when the build of the site config does not start the command", () => {
+    assert.match(cannotFail(pages(shared), "site", "@procedures/site test:e2e", "pnpm build\n") ?? "", /the job site does not start/);
+  });
+  it("does not read the site config for a job that uses another workflow", () => {
+    const other = "mark1russell7/template/.github/workflows/reusable-other.yml@94adcfe";
+    assert.match(cannotFail(pages(other), "site", "@procedures/site test:e2e", "pnpm --filter @procedures/site test:e2e\n") ?? "", /does not start/);
+  });
+});
+
+describe("jobOf", () => {
+  const text = "on:\n  site:\n    x: 1\njobs:\n  site:\n    name: Site\n\n    with:\n      a: 1\n  # A comment of the next job\n  next:\n    name: Next\n";
+  it("gives the lines of the job under jobs, up to the next job", () => {
+    assert.equal(jobOf(text, "site"), "  site:\n    name: Site\n\n    with:\n      a: 1");
+  });
+  it("reads a file with CRLF line ends", () => {
+    assert.equal(jobOf(text.replaceAll("\n", "\r\n"), "next"), "  next:\n    name: Next\n");
+  });
+  it("gives undefined for a job that the workflow does not have", () => {
+    assert.equal(jobOf(text, "other"), undefined);
   });
 });
 

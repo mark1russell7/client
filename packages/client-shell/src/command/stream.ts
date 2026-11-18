@@ -8,8 +8,7 @@
  */
 
 import { StringDecoder } from "node:string_decoder";
-import { killTree } from "./tree-kill.js";
-import { startChild, type SpawnOptions } from "./spawn.js";
+import { endCommand, startChild, type SpawnOptions } from "./spawn.js";
 import { unknownEncoding } from "./run.js";
 
 /** One item of a stream: an output line, or the exit of the program (the last item). */
@@ -132,12 +131,12 @@ export async function* streamCommand(
   const timer = options.timeout !== undefined
     ? setTimeout(() => {
         timedOut = true;
-        killTree(child);
+        endCommand(child);
       }, options.timeout)
     : undefined;
   const onAbort = (): void => {
     aborted = true;
-    killTree(child);
+    endCommand(child);
   };
   options.signal?.addEventListener("abort", onAbort, { once: true });
 
@@ -183,7 +182,7 @@ export async function* streamCommand(
     // they can close.
     if (!ended) {
       resume();
-      killTree(child);
+      endCommand(child);
     }
   }
 }

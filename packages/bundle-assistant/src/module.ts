@@ -5,7 +5,8 @@
  * The bundle has the procedures of `ics`, `mail`, `geo`, `weather` and `exif`. The tools are only
  * the procedures that are pure, or that read a fixed public service:
  *
- * - `ics.parse`, `ics.occurrences`, `ics.write`, `mail.parse`, `geo.distance`, `geo.geohash`: pure.
+ * - `ics.parse`, `ics.occurrences`, `ics.write`, `mail.parse`, `geo.distance`, `geo.distanceKm`,
+ *   `geo.geohash`: pure. `geo.distance` is deprecated, and `geo.distanceKm` replaces it.
  * - `geo.geocode`, `geo.route`, `weather.forecast`: they read one public service each.
  * - `exif.read`: it reads a file of the host.
  *
@@ -13,6 +14,8 @@
  *
  * - `ics.fetch` fetches any URL, so a tool call can carry data out in the URL.
  * - `mail.headers` reads a private mailbox.
+ * - The other generated procedures of `geo` (`geoManifest`). Each one is pure, but each tool costs
+ *   approximately 386 tokens in the tool list of each session. The tool search of the direction 40 decides them.
  * - `notify.send` (not in the bundle) posts to any topic of a public server.
  * - `restic.run` and `tailscale.run` (not in the bundle) run destructive commands.
  *
@@ -24,11 +27,11 @@
  * `register.ts` registers the same modules in the global registry.
  */
 
-import { definePackage, type ProcedureModule, type PackageDefinition } from "@procedures/client";
+import { definePackage, pathToKey, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import { createHostFetch } from "@procedures/http";
 import icsModule, { createIcsModule } from "@procedures/ics/module";
 import mailModule from "@procedures/mail/module";
-import geoModule, { createGeoModule } from "@procedures/geo/module";
+import geoModule, { createGeoModule, geoManifest } from "@procedures/geo/module";
 import weatherModule from "@procedures/weather/module";
 import exifModule from "@procedures/exif/module";
 
@@ -58,8 +61,21 @@ export default bundleAssistantModule;
 /** The namespaces whose procedures the MCP server gives to Claude as tools. */
 export const mcpNamespaces: readonly string[] = ["exif", "geo", "ics", "mail", "weather"];
 
-/** The procedures of those namespaces that are not tools (see the comment of this file). */
-export const mcpExclude: readonly string[] = ["ics.fetch", "mail.headers"];
+/**
+ * The generated procedures of `geo` that are tools. `geo.distanceKm` replaces the deprecated
+ * `geo.distance`, so a host can move to it before the removal.
+ */
+const geoGeneratedTools: ReadonlySet<string> = new Set(["geo.distanceKm"]);
+
+/**
+ * The procedures of those namespaces that are not tools (see the comment of this file). The other
+ * generated procedures of `geo` come from `geoManifest`, so a new function of the home is not a tool.
+ */
+export const mcpExclude: readonly string[] = [
+  "ics.fetch",
+  "mail.headers",
+  ...geoManifest.procedures.map((procedure) => pathToKey(procedure.path)).filter((key) => !geoGeneratedTools.has(key)),
+];
 
 /**
  * This function registers the procedures of @procedures/bundle-assistant, and of the modules that

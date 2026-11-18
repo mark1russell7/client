@@ -61,13 +61,18 @@ DownloadsPeriod: dist/measures/downloads.d.ts#DownloadsPeriod
 DownloadsRow: dist/measures/downloads.d.ts#DownloadsRow
 type Extracted: dist/measures/shared.d.ts#Extracted
 type Extractor: dist/measures/shared.d.ts#Extractor
+INTEGRITY_ALGORITHMS: dist/measures/integrity.d.ts#INTEGRITY_ALGORITHMS
+IntegrityAlgorithm: dist/measures/integrity.d.ts#IntegrityAlgorithm
+IntegrityCheck: dist/measures/integrity.d.ts#IntegrityCheck
 JsdelivrHits: dist/measures/jsdelivr.d.ts#JsdelivrHits
 JsdelivrPeriod: dist/measures/jsdelivr.d.ts#JsdelivrPeriod
 type MeasureFetch: dist/measures/shared.d.ts#MeasureFetch
 type MeasureRequest: dist/measures/shared.d.ts#MeasureRequest
+RegistryDist: dist/measures/registry.d.ts#RegistryDist
 RegistryDocument: dist/measures/registry.d.ts#RegistryDocument
 RegistryVersion: dist/measures/registry.d.ts#RegistryVersion
 assertExistingPackageName: dist/measures/shared.d.ts#assertExistingPackageName
+checkIntegrity: dist/measures/integrity.d.ts#checkIntegrity
 depsDevDependentsRequest: dist/measures/deps-dev.d.ts#depsDevDependentsRequest
 depsDevPackageRequest: dist/measures/deps-dev.d.ts#depsDevPackageRequest
 downloadsRequests: dist/measures/downloads.d.ts#downloadsRequests
@@ -75,12 +80,14 @@ extractDepsDevDependents: dist/measures/deps-dev.d.ts#extractDepsDevDependents
 extractDepsDevPackage: dist/measures/deps-dev.d.ts#extractDepsDevPackage
 extractDownloads: dist/measures/downloads.d.ts#extractDownloads
 extractJsdelivrHits: dist/measures/jsdelivr.d.ts#extractJsdelivrHits
+extractRegistryDist: dist/measures/registry.d.ts#extractRegistryDist
 extractRegistryDocument: dist/measures/registry.d.ts#extractRegistryDocument
 extractRegistryVersion: dist/measures/registry.d.ts#extractRegistryVersion
 jsdelivrHitsRequest: dist/measures/jsdelivr.d.ts#jsdelivrHitsRequest
 measure: dist/measures/shared.d.ts#measure
 registryDocumentRequest: dist/measures/registry.d.ts#registryDocumentRequest
 registryVersionRequest: dist/measures/registry.d.ts#registryVersionRequest
+tarballIntegrity: dist/measures/integrity.d.ts#tarballIntegrity
 
 ## ./module (dist/module.d.ts): names
 
@@ -151,6 +158,25 @@ export declare function downloadsRequests(packages: readonly string[], period?: 
 ### dist/measures/downloads.d.ts#extractDownloads
 export declare function extractDownloads(text: string, url: string): Extracted<DownloadsRow>;
 
+### dist/measures/integrity.d.ts#INTEGRITY_ALGORITHMS
+export declare const INTEGRITY_ALGORITHMS: readonly ["sha1", "sha256", "sha384", "sha512"];
+
+### dist/measures/integrity.d.ts#IntegrityAlgorithm
+export type IntegrityAlgorithm = (typeof INTEGRITY_ALGORITHMS)[number];
+
+### dist/measures/integrity.d.ts#IntegrityCheck
+export interface IntegrityCheck {
+    readonly ok: boolean;
+    readonly algorithm: IntegrityAlgorithm | null;
+    readonly actual: string | null;
+}
+
+### dist/measures/integrity.d.ts#checkIntegrity
+export declare function checkIntegrity(bytes: Uint8Array | ArrayBuffer, integrity: string): Promise<IntegrityCheck>;
+
+### dist/measures/integrity.d.ts#tarballIntegrity
+export declare function tarballIntegrity(dist: Pick<RegistryDist, "integrity" | "shasum">): string | null;
+
 ### dist/measures/jsdelivr.d.ts#JsdelivrHits
 export interface JsdelivrHits {
     readonly package: string;
@@ -175,6 +201,17 @@ export declare function jsdelivrHitsRequest(name: string, period?: JsdelivrPerio
 ### dist/measures/registry.d.ts#ACCEPT_ABBREVIATED
 export declare const ACCEPT_ABBREVIATED = "application/vnd.npm.install-v1+json";
 
+### dist/measures/registry.d.ts#RegistryDist
+export interface RegistryDist {
+    readonly package: string;
+    readonly version: string;
+    readonly tarball: string;
+    readonly integrity: string | null;
+    readonly shasum: string | null;
+    readonly fileCount: number | null;
+    readonly unpackedSize: number | null;
+}
+
 ### dist/measures/registry.d.ts#RegistryDocument
 export interface RegistryDocument {
     readonly package: string;
@@ -193,6 +230,9 @@ export interface RegistryVersion {
     readonly repositoryDirectory: string | null;
     readonly license: string | null;
 }
+
+### dist/measures/registry.d.ts#extractRegistryDist
+export declare function extractRegistryDist(text: string, url: string): Extracted<RegistryDist>;
 
 ### dist/measures/registry.d.ts#extractRegistryDocument
 export declare function extractRegistryDocument(text: string, url: string): Extracted<RegistryDocument>;

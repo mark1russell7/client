@@ -78,7 +78,10 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
   basePath?: string;
 
   /**
-   * Enable CORS.
+   * Enable CORS for the requests of the procedures: the base path and the paths under it. Another
+   * route of the app gets no CORS header from the transport, and its `OPTIONS` request goes to the
+   * route. For CORS on a route of the app, the app adds its own CORS function, for example
+   * `credentialedCors()`.
    * @default false
    */
   cors?: boolean;
@@ -124,7 +127,8 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
    * Custom CORS options. `origin` is "*", one origin or a list: the response names the
    * request's origin when it is in the list. A response for another origin, or for a request
    * without an origin, gets no `Access-Control-*` header (CLI-59). Each response gets
-   * `Vary: Origin` when `origin` is not "*".
+   * `Vary: Origin` when `origin` is not "*". The default of `credentials` is false when `origin`
+   * is "*", and true for each other origin.
    */
   corsOptions?: {
     origin?: string | string[];

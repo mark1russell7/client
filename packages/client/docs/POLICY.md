@@ -17,7 +17,9 @@ const server = new ProcedureServer({
 ```
 
 - The server serves only the exposed procedures.
-- The introspection procedures (`procedure.get`, `procedure.list`, `procedure.manifest`) do not show a hidden procedure. `procedure.delete` does not find one, and `procedure.define` refuses to replace one with `NOT_EXPOSED`. Thus a caller cannot remove or replace a hidden procedure.
+- The introspection procedures (`procedure.get`, `procedure.list`, `procedure.manifest`) do not show a hidden procedure. `procedure.delete` does not find one. `procedure.define` refuses each hidden path with `NOT_EXPOSED`, also a free path. Thus a caller cannot remove, replace or add a hidden procedure.
+- These procedures examine the path before the lookup. A free hidden path and a used hidden path get the same answer.
+- The rule applies also to a nested `procedure.define`. Under an expose rule, `procedure.load` loads only the programs at exposed paths. It gives each other program as a conflict.
 - The MCP server lists only the exposed procedures as tools. `client-mcp` makes the rule from a tool surface: `exposeRule({ namespaces, exclude })`. A bundle exports its surface as `mcpNamespaces` and `mcpExclude`.
 
 ## Nested calls
@@ -31,13 +33,6 @@ The rule for a nested call depends on the immediate caller. A host without `expo
 | A procedure of code without `calls` | Any procedure. With `strictCalls: true`, only exposed procedures (`NOT_EXPOSED`). |
 
 The check runs before the lookup and before the input validation. So a refused call tells nothing about the procedure.
-
-### The depth of the nested calls
-
-The call of a caller has the depth 0, and each nested call adds 1. The option `maxDepth` of `invokeProcedure()`, `ProcedureServer` and `hostPolicy()` is the highest depth. The default is 64.
-
-- A deeper call gets `FORBIDDEN` with the reason `depth`, and its handler does not start. Thus a recursion with no end stops at the limit.
-- A host with deeper call trees sets `maxDepth` to its own limit.
 
 ### `metadata.calls`
 
@@ -99,7 +94,7 @@ The client middlewares (retry, cache, auth, circuit breaker, rate limit) wrap `t
 
 ## The policy of a host
 
-`hostPolicy()` (`server/host-policy.ts`) builds the policy of a host from one set of options: `expose` (patterns, a tool surface or a function), `exclude`, `strictCalls`, `timeoutMs`, more `interceptors`, and the `token` and `browser` checks of the network transports. `procedureServerOptions(policy, registry)` gives it to a `ProcedureServer`, and `createPeer({ policy })` of `client-server` gives it to a peer.
+`hostPolicy()` (`server/host-policy.ts`) builds the policy of a host from one set of options. The options are `expose`, `exclude`, `strictCalls`, `timeoutMs`, more `interceptors`, and the `token` and `browser` checks of the network transports. `expose` takes patterns, a tool surface or a function. `exclude` takes the patterns of `expose`. `procedureServerOptions(policy, registry)` gives it to a `ProcedureServer`, and `createPeer({ policy })` of `client-server` gives it to a peer.
 
 ```ts
 import { ProcedureServer, createRegistry, hostPolicy, procedureServerOptions } from "@procedures/client";

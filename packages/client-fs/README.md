@@ -282,11 +282,11 @@ interface ReadInput {
   encoding?: string;         // Default: "utf8"
   offset?: number;           // The first byte of the part. Default: 0
   length?: number;           // The bytes of the part. Default: to the end of the file
-  maxBytes?: number;         // The largest count of bytes to load. Default: 16 MiB
+  maxBytes?: number;         // The largest count of bytes to load
 }
 ```
 
-A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. The default of `maxBytes` is 16 MiB. To read a larger file, give a larger `maxBytes`.
+A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. Without `maxBytes`, the first read over 16 MiB in a process writes a warning. Version 0.65.0 sets 16 MiB as the default.
 
 **Output:**
 ```typescript
@@ -600,6 +600,10 @@ interface MoveOutput {
 
 Find files matching a glob pattern using the Node.js `fs.glob` API (`node:fs/promises`, requires Node >= 22).
 
+With `dot: true`, the walk uses the glob matcher of `@mark1russell7/files`. Each wildcard matches a name that starts with `.`, and a brace group can hold a dot name, for example `{.github,docs}/**`. The matcher knows `*`, `**`, `?`, sets and brace groups.
+
+A pattern `x/**` also gives the folder `x`, as without `dot`. An ignore pattern keeps the walk out of a folder only when it matches the folder or each entry in it. A pattern can start with `./`.
+
 ```typescript
 const result = await client.exec(
   ["fs", "glob"],
@@ -669,11 +673,9 @@ console.log(result.data);  // Parsed JSON object
 ```typescript
 interface ReadJsonInput {
   path: string;
-  maxBytes?: number;         // The largest count of bytes to load. Default: 16 MiB
+  maxBytes?: number;         // The largest count of bytes to load
 }
 ```
-
-A file larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`.
 
 **Output:**
 ```typescript
@@ -719,7 +721,7 @@ const { hash, size } = await client.exec(["fs", "hash"], { path: "./archive.tgz"
 
 #### `fs.temp`
 
-The procedure makes a new folder in the temporary folder of the system, and gives its path. With a root, the folder is in the folder `.tmp` of the root. The `prefix` has letters, digits, dots, underscores and hyphens only.
+The procedure makes a new folder in the temporary folder of the system, and gives its path. With a root, the folder is in the folder `.tmp` of the root. The `prefix` has letters, digits, dots, underscores and hyphens only. The prefix is only the start of the name, so a prefix of `..` makes a folder in the same place.
 
 #### `fs.watch`
 

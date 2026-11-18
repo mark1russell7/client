@@ -47,7 +47,7 @@ jobs:
       statuses: read
       pages: write
       id-token: write
-    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@8e44f07b96860e61207d3955817276af52b2a148 # main
+    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@94adcfe753a1ec7d03cc03f445f1f0559d5c205f # main
     with:
       # The site values (the build command, the folder, the environment, the token, the site check,
       # the data stamps and the IndexNow key) are in .github/site.json. The job site of ci.yml reads

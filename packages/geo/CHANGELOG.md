@@ -1,5 +1,72 @@
 # @procedures/geo
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- 89f52d5: The procedures `geo.distance` and `geo.geohash` use `@mark1russell7/geo`, the home of the plain functions of geography. Their outputs do not change.
+  
+  - `geo.distance` gives `distanceKm(from, to, EARTH_RADIUS_KM)` of `@mark1russell7/geo`. The formula, the radius of 6371 km and the rounding are the same, so each value is the same.
+  - `geo.geohash` gives `geohash` and `decodeGeohash` of `@mark1russell7/geo`. Its input schema accepts only points on the map, so each output is the same.
+  - The plain functions `greatCircleKm`, `geohash` and `decodeGeohash`, the type `GeohashCell` and the geohash constants of this package are deprecated. Use the exports of `@mark1russell7/geo`.
+  - The deprecated functions keep their old checks. `geohash` throws a `RangeError` for a longitude out of -180 to 180. `decodeGeohash` reads the KELVIN SIGN (U+212A) as a `k`.
+  - The functions of `@mark1russell7/geo` are different. `geohash` puts a longitude out of -180 to 180 into that range. `decodeGeohash` refuses each character that is not ASCII. `distanceKm` throws a `RangeError` for a latitude off the map or a value that is not finite.
+  - The deprecated exports go at the next MINOR of the client group. That change is the break.
+  
+  To prepare, import `distanceKm`, `geohash`, `decodeGeohash` and `GeohashCell` from `@mark1russell7/geo`. For the old radius, give `EARTH_RADIUS_KM` of this package as the third argument of `distanceKm`.
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

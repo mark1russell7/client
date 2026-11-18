@@ -212,6 +212,119 @@ The converter of the schemas knows a part of JSON Schema:
 
 A test writes the SDK of the core procedures to a temporary folder. It type-checks the SDK with the TypeScript and the strict options of this package.
 
+## The procedures of a package from its types
+
+The generator reads the declaration files of a package. It gives a procedure for each public function whose inputs and output are JSON. Nobody writes the wrapper, so the wrapper cannot drift from its package.
+
+```typescript
+import { generateExportsManifest } from "@procedures/compiler/generate";
+import { exportsModule } from "@procedures/compiler";
+import * as statistics from "@mark1russell7/rigor-statistics";
+
+// At build time, in Node: the manifest is data
+const manifest = generateExportsManifest({
+  declarations: "node_modules/@mark1russell7/rigor-statistics/build/index.d.ts",
+  package: "@mark1russell7/rigor-statistics",
+  namespace: ["statistics"],
+  overlay: { effects: { reads: [], writes: [] } },
+});
+
+// At run time, also in a browser: the procedures
+const registry = createRegistry(exportsModule(manifest, statistics));
+await client.exec(["statistics", "median"], { values: [3, 1, 2, 10] }); // 2.5
+```
+
+- The input is an object with one property for each parameter. The handler gives the properties to the function in the order of the parameters. A rest parameter is an array.
+- The schemas come from the types. A named interface or type alias goes into `$defs` one time, so a recursive type is a reference to itself. A named union also goes into `$defs`. Its definition has no `undefined` member, as an input of a union with no name. For an output with an `undefined` member, the schema is the definition or `null`.
+- A schema has at most 64 levels. A deeper type, for example a type that grows at each level, fails closed: its function gets an exemption.
+- The description comes from the first paragraph of the doc comment. The description of a parameter or a property comes from its own doc comment.
+- An output of `undefined` or `void` is `null`, as in JSON. For a function that gives a promise, the output is the value of the promise.
+- A call in process gives the output that a call over HTTP gives. An `undefined` item of an array becomes `null`, and a property with an `undefined` value is absent.
+- A type parameter is any JSON value, or the schema of its constraint.
+- The type `{}` is each JSON value but `null`, as in TypeScript. So `NonNullable<T>`, which is `T & {}`, is the schema of `T` without `null`.
+- The description of a parameter has no hyphen of TSDoc: `@param name - text` gives `text`.
+- The overlay is the data that the types cannot tell. It has the effects of the package and of single functions. It also names the functions with no procedure, each with its reason.
+- The field `constructors` of the overlay names the factory of a type, when more than one function gives the type.
+
+Each other function gets an exemption with its reason and the part of the signature that decided:
+
+| Reason | The cause | The plan |
+|---|---|---|
+| `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
+| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
+| `output-not-json` | The output is not JSON, for example a class instance or an `Iterable`. | The handle of the instance. |
+| `overload` | The function has more than one signature. | One procedure for each signature. |
+| `overlay` | The overlay exempts the function. | No change. |
+| `unresolved` | A re-export does not resolve, for example because its module is not installed. | Install the module. |
+
+A type that does not resolve fails closed: it gives an exemption, not a schema that accepts each value. The generator reads the real path of the declaration file, as Node.js does, so a link of pnpm resolves the imports of the package. TypeScript 7 has no compiler API in JavaScript, so the entry `./generate` reads the API of TypeScript 5. Add `"typescript-api": "npm:typescript@^5.9.3"` to the `devDependencies` of the package that starts the generator.
+
+
+### A function parameter is a sub-program
+
+A function parameter, for example the statistic of a bootstrap, gets a sub-program. A sub-program is one call of a pure procedure, as data. It reads each parameter of the function as `{ "$ref": "<name>" }`:
+
+```json
+{
+  "$proc": ["statistics", "bootstrap"],
+  "input": {
+    "data": [3, 1, 4, 1, 5],
+    "statistic": { "$proc": ["statistics", "mean"], "input": { "values": { "$ref": "sample" } }, "$when": "$never" },
+    "options": { "runs": 200, "seed": 7 }
+  }
+}
+```
+
+- In a program, `"$when": "$never"` keeps the call as data. A tool input of MCP or a direct call can omit `$when`.
+- The schema of the position has the keyword `x-procedures-program`. It gives the names and the schemas of the parameters, and the schema of the result.
+- The loader compiles the call into a function. The function gives its value at once, as the package needs it.
+- A sub-program uses only operators. An operator is a pure procedure of an exports manifest. It gives no promise and takes no sub-program.
+- The loader finds each operator in the registry of the caller, before the function of the package starts. It obeys the `expose` rule of the caller.
+- The loader examines the input of each operator and the result of the function with their schemas.
+- An array of calls is a chain, so a sub-program refuses it. Only the root call has a `$when`.
+- A function that a sub-program cannot give stays exempt with the reason `function-parameter`. A function in an output gives the reason `output-not-json`.
+- A sub-program gives JSON. So a function whose result is a function stays exempt with the reason `function-parameter`.
+
+Thus a sub-program changes nothing, and it gives the same value for the same input.
+
+### A codec
+
+Some values have no JSON type, but they have a JSON form. Their schema has the keyword `x-procedures-codec`, with the name of the codec:
+
+| Codec | The type | The JSON form |
+|---|---|---|
+| `bigint` | `bigint` or a bigint literal | A decimal string, for example `"-42"`. It has no plus sign, no point and no leading zero. |
+| `map` | `Map` or `ReadonlyMap` | A list of entries. Each entry is a list of a key and a value. |
+| `set` | `Set` or `ReadonlySet` | A list of the values. |
+| `iterable` | `Iterable`, only in an input | A list of the values. |
+
+```json
+{ "$proc": ["quantity", "convertExact"], "input": { "value": { "n": "3", "d": "2" }, "from": "h", "to": "s" } }
+```
+
+- Before the call, the loader decodes the input with its schema. The function gets a `bigint`, a `Map` or a `Set`.
+- In a union, the value goes to the first member whose schema accepts it.
+- The loader encodes the output from the value: a `bigint`, a `Map` and a `Set` get their JSON form at each depth.
+- A sub-program gets the JSON form of each argument. The function of the package gets the decoded result.
+- The codec of a constructed input is decoded before its factory makes the value.
+- An `Iterable` in an output is not JSON, because an iterable can have no end. Thus a sub-program cannot take an `Iterable`.
+
+### A constructed input
+
+A parameter that is not JSON, for example a `Random` with methods, gets a constructed input. A pure function of the package, the factory, makes the value from JSON:
+
+```json
+{ "$proc": ["generators", "latinHypercube"], "input": { "n": 5, "d": 3, "r": { "seed": 7 } } }
+```
+
+- The input value is the input of the factory: one property for each parameter. Here the factory is `random(seed)`.
+- The schema of the parameter has the keyword `x-procedures-construct`. It gives the name of the factory and the names of its parameters.
+- A factory is an export with one signature and no type parameter. Its effects are pure, and it gives an object, not a promise.
+- The input of a factory stops at a rest parameter, or at its first optional parameter that is not JSON. A parameter that is not JSON and not optional refuses the factory.
+- When more than one factory gives the type, the field `constructors` of the overlay names one. Without it, the function stays exempt, and the detail names the factories.
+- Only a parameter of the function gets a constructed input, not a property of a parameter.
+- Before each call, the loader makes a new value with the factory. Thus a call does not change the next call.
+
 ## The procedures
 
 ```typescript

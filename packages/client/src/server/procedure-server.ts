@@ -24,7 +24,7 @@ import type {
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
-import { InvocationError, closableUnread, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
+import { InvocationError, closableUnread, invokeProcedure, releasedAtEnd, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ProcedureContext, ResourcesOf } from "../procedures/types.js";
 import type { CollectionPartitions } from "../procedures/collection/partition.js";
 import { TIMEOUT_METADATA_KEY, effectsOf, joinNarrowing, narrowCapability } from "../procedures/capability.js";
@@ -40,7 +40,7 @@ import type { CollectionProceduresOptions } from "../procedures/collection/proce
 import type { NarrowingNote } from "../procedures/narrowing.js";
 import type { ServerDebugReport } from "./types.js";
 import type { KeyedLimiter, LimiterStore } from "@mark1russell7/service/limiter";
-import { CallLimitError, callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter, type CallLimitRefusal } from "./limits.js";
+import { CallLimitError, callLimiter, limitedCall, rateLimitedResponse, type CallEntry, type CallLimit, type CallLimiter, type CallLimitRelease } from "./limits.js";
 import { writeLog } from "../logger.js";
 import { meetExpose } from "./face-rules.js";
 
@@ -118,8 +118,8 @@ export interface ProcedureServerOptions extends ServerOptions {
   strictCalls?: boolean | undefined;
 
   /**
-   * The highest depth of a nested call, a whole number of 0 or more. The default is 64. A call at
-   * a larger depth gets `FORBIDDEN` with the reason `depth` (`InvokeOptions.maxDepth`).
+   * The highest depth of a nested call, a whole number of 0 or more. A call at a larger depth gets
+   * `FORBIDDEN` with the reason `depth`. Without a value, the depth has no limit (`InvokeOptions.maxDepth`).
    */
   maxDepth?: number | undefined;
 
@@ -321,19 +321,31 @@ export interface StorageHandle {
 }
 
 /**
- * The items of a stream. At the end of the stream, or when its reader stops, `release` runs one
- * time. A reader that stops before the first item also releases it (audit s21).
+ * The partitions of one or more collections as a dependency of the runner (`DependencyHandle` of
+ * `@mark1russell7/service`). The runner closes it after the transports close, as a `StorageHandle`.
  */
-function releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void): AsyncGenerator<T, void, undefined> {
-  const released = (async function* () {
-    try {
-      yield* items;
-    } finally {
-      release();
-    }
-  })();
-  return closableUnread(released, items, release);
+export interface PartitionsHandle {
+  /** The name of the dependency: `partitions.` and the names of the collections, joined with `+`. */
+  readonly name: string;
+  /** The collections that use the partitions, in the sequence of their configuration. */
+  readonly collections: readonly string[];
+  readonly partitions: CollectionPartitions<unknown>;
+  /** The partitions are open from their configuration, so this method does nothing. */
+  connect(signal: AbortSignal): Promise<void> | void;
+  /**
+   * This method removes the collections from the server, and then closes the partitions with
+   * their `close()`. Partitions without `close()` stay on the server: the host closes their storages.
+   */
+  close(): Promise<void>;
 }
+
+/**
+ * The admission of a call by the limits: the refusal, or the call goes in. A call that holds units
+ * of an in-flight bound also gets their release (CLI-132).
+ */
+type LimitAdmission =
+  | { readonly refusal: ServerResponse<unknown>; readonly release?: undefined }
+  | { readonly refusal?: undefined; readonly release?: CallLimitRelease | undefined };
 
 /**
  * The items of the stream of a keyed call. When the stream ends with a retryable error, `forget`
@@ -551,7 +563,21 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
               )
           : undefined;
     // The limits of the calls: one keyed limiter for each limit, on the clock of the server (CLI-40)
-    this.callLimits = options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores }) : undefined;
+    // A failed release of an in-flight bound goes to the logger: its units count until their lease ends (CLI-132)
+    const onReleaseFailure = (limit: string, error: unknown): void => {
+      const message = `The limit ${limit} cannot release the units of a call: ${error instanceof Error ? error.message : String(error)}. The units count until their lease ends.`;
+      writeLog(options.logger, "warn", message, { limit }, `[ProcedureServer] ${message}`);
+    };
+    this.callLimits =
+      options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores, onReleaseFailure }) : undefined;
+    // A limit without the field nested keeps the old rule for one more version: the server tells it
+    for (const limit of options.limits ?? []) {
+      if (limit.nested !== undefined) continue;
+      const message =
+        `The limit ${limit.name} counts the calls of a caller only, not their nested calls. @procedures/client 0.65.0 counts the nested calls too. ` +
+        `Set nested: true to count them, or nested: false to keep this rule.`;
+      writeLog(options.logger, "warn", message, { limit: limit.name }, `[ProcedureServer] ${message}`);
+    }
     // The remote events: the server pins events.subscribe, as a host pins host.health (EVENTS.md).
     // The topic rule is its expose rule, so the pin is always on (CLI-47). The publisher that the
     // server makes gets the clock of the server for its re-checks (CLI-44).
@@ -639,6 +665,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * each call from its context (the tenant of `ctx.principal`) and the partition that the call asks
    * for: the collection procedures and the subscriptions of `EventPublisher` use it. `storageOf`
    * gives the storage of a partition: give the same storage for the same partition each time.
+   * With `close()`, the server closes the storages of the partitions at its stop (`closeStorages()`
+   * and `partitionHandles()`). Without `close()`, the host closes them.
    *
    * The name is the raw name, and it can have a dot (roadmap CLI-42 and CLI-75). Each topic
    * encodes the name, so the name and the partition of a topic stay apart
@@ -882,7 +910,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     const handler = super.findHandler(method);
     if (handler) {
       const target = { path: methodToPath(method) };
-      return async (request) => (await this.admitCall(target, request)) ?? (await this.tracked(() => handler(request)));
+      return async (request) => {
+        const admission = await this.admitCall(target, request);
+        return admission.refusal ?? (await this.tracked(() => handler(request), admission.release));
+      };
     }
     const procedure = this.resolveProcedure(method);
     return procedure ? (request) => this.invoke(procedure, request) : null;
@@ -916,8 +947,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * time for its key (R1).
    */
   private async invoke(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> {
-    const refusal = await this.admitCall(procedure, request);
-    if (refusal) return refusal;
+    const admission = await this.admitCall(procedure, request);
+    if (admission.refusal) return admission.refusal;
     return this.tracked(() => {
       const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
       // The key of the cache has the principal: another caller with the same key does not get the
@@ -926,44 +957,58 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       return key === undefined || isRepeatable(effectsOf(procedure))
         ? this.run(procedure, request, joinSignals(request.signal, this.lifetime.signal))
         : this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${principal}\u0000${key}`);
-    });
+    }, admission.release);
   }
 
   /**
    * The checks of a call at the door of the server, for a procedure and for a handler of
    * `register()`: the refusal while the server stops, `admit()` and the limits. The function gives
-   * the refusal, or undefined when the call passes.
+   * the refusal, or the admission of the call with the release of its units (CLI-132).
    */
-  private async admitCall(target: LimitTarget, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+  private async admitCall(target: LimitTarget, request: ServerRequest<unknown>): Promise<LimitAdmission> {
     if (this.draining) {
       // The server stops: a client can send the call to another server, or again later (R14)
       return {
-        id: request.id,
-        status: { type: "error", code: "UNAVAILABLE", message: "The server is stopping", retryable: true },
-        metadata: {},
+        refusal: {
+          id: request.id,
+          status: { type: "error", code: "UNAVAILABLE", message: "The server is stopping", retryable: true },
+          metadata: {},
+        },
       };
     }
     const refusal = await this.admit(request);
-    if (refusal) return refusal;
+    if (refusal) return { refusal };
     // The limits come after the authentication, so a key can read the principal (CLI-40)
     return this.limit(target, request);
   }
 
   /**
    * This method counts a call in flight until its response, or until the end of its stream. So
-   * `drain()` waits for the call.
+   * `drain()` waits for the call. At that end, the call gives back the units that it holds in the
+   * in-flight bounds (CLI-132), before the response goes to the face. Thus `drain()` also waits for the release.
    */
-  private async tracked(run: () => Promise<ServerResponse<unknown>> | ServerResponse<unknown>): Promise<ServerResponse<unknown>> {
+  private async tracked(run: () => Promise<ServerResponse<unknown>> | ServerResponse<unknown>, release?: CallLimitRelease): Promise<ServerResponse<unknown>> {
     this.calls++;
+    // Without a release, the end of the call is synchronous, as before CLI-132
+    const ended = (): Promise<void> | undefined => {
+      if (!release) {
+        this.callEnded();
+        return undefined;
+      }
+      return release().finally(() => this.callEnded());
+    };
     let response: ServerResponse<unknown> | undefined;
     try {
       response = await run();
     } finally {
       // A stream is in flight until its end; another response is done now
-      if (!response?.stream) this.callEnded();
+      if (!response?.stream) {
+        const releasing = ended();
+        if (releasing) await releasing;
+      }
     }
     // A stream that its reader closes before the first item ends the call too (audit s21)
-    if (response.stream) response = { ...response, stream: releasedAtEnd(response.stream, () => this.callEnded()) };
+    if (response.stream) response = { ...response, stream: releasedAtEnd(response.stream, ended) };
     return response;
   }
 
@@ -1053,36 +1098,40 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
 
   /**
    * The limits of a call (CLI-40): one unit of each limit that covers it. The function gives a
-   * `RATE_LIMITED` response, or undefined when the call passes. A key or a cover function that
-   * throws gives `INTERNAL_ERROR`, so a defect of a limit does not let a call in.
+   * `RATE_LIMITED` refusal, or the admission with the release of the units of the in-flight bounds
+   * (CLI-132). A key or a cover function that throws gives `INTERNAL_ERROR`, so a defect of a limit
+   * does not let a call in.
    */
-  private async limit(target: LimitTarget, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
-    if (!this.callLimits) return undefined;
+  private async limit(target: LimitTarget, request: ServerRequest<unknown>): Promise<LimitAdmission> {
+    if (!this.callLimits) return {};
     try {
-      const refused = await this.callLimits.admit(limitedCall(target, request));
-      return refused ? rateLimitedResponse(request.id, refused) : undefined;
+      const entry = await this.callLimits.enter(limitedCall(target, request));
+      return entry.refused ? { refusal: rateLimitedResponse(request.id, entry.refused) } : { release: entry.release };
     } catch (error) {
       const message = `The limits of the server cannot admit the call: ${error instanceof Error ? error.message : String(error)}`;
-      return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }), request);
+      return { refusal: errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }), request) };
     }
   }
 
   /**
-   * The limits of a nested call: the units of each limit without `nested: false` that covers it. The
+   * The limits of a nested call: the units of each limit with `nested: true` that covers it. The
    * method throws a refusal as a `CallLimitError`, so the error has the code, the wait and the
    * metadata of a refusal at the door. A key or a cover function that throws gives `INTERNAL_ERROR`.
+   * The method gives the release of the units of the in-flight bounds, and the invocation calls it
+   * at the end of the nested call (CLI-132).
    */
-  private async limitNested(invocation: Invocation, request: ServerRequest<unknown>): Promise<void> {
+  private async limitNested(invocation: Invocation, request: ServerRequest<unknown>): Promise<CallLimitRelease | undefined> {
     const limits = this.callLimits;
-    if (!limits) return;
-    let refused: CallLimitRefusal | undefined;
+    if (!limits) return undefined;
+    let entry: CallEntry;
     try {
-      refused = await limits.admit(limitedCall(invocation.procedure, request, { depth: invocation.depth, input: invocation.input }));
+      entry = await limits.enter(limitedCall(invocation.procedure, request, { depth: invocation.depth, input: invocation.input }));
     } catch (error) {
       const message = `The limits of the server cannot admit the nested call of ${pathToKey(invocation.path)}: ${error instanceof Error ? error.message : String(error)}`;
       throw Object.assign(new Error(message), { code: "INTERNAL_ERROR" });
     }
-    if (refused) throw new CallLimitError(rateLimitedResponse(request.id, refused, `the nested call of ${pathToKey(invocation.path)}`));
+    if (entry.refused) throw new CallLimitError(rateLimitedResponse(request.id, entry.refused, `the nested call of ${pathToKey(invocation.path)}`));
+    return entry.release;
   }
 
   /** One call in flight ended: `drain()` can end when it was the last one. */
@@ -1282,7 +1331,7 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         clearanceOrder,
         resources,
         admitItem,
-        // The limits without nested: false take the units of each nested call too
+        // The limits with nested: true take the units of each nested call too
         ...(this.callLimits?.coversNested ? { admitNested: (invocation: Invocation) => this.limitNested(invocation, request) } : {}),
         // The parts of the narrowing key without effect go to the debug reports (CLI-30)
         onNarrowingNotes: this.narrowingReports(request),
@@ -1426,15 +1475,32 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
 
   /**
    * This method closes each storage one time, also a storage of two collections, and removes the
-   * storages from the server. A closed storage rejects each operation, so the server does not keep
-   * it. Before a new `start()`, give the storages again with `useStorage()`.
+   * storages from the server. It also closes each partitions object one time with its `close()`,
+   * and removes its collections. A closed storage rejects each operation, so the server does not keep
+   * it. Before a new `start()`, give the storages again with `useStorage()` and `usePartitions()`.
+   * Partitions without `close()` stay on the server.
    */
   async closeStorages(): Promise<void> {
     const storages = new Set(this.storages.values());
     this.storages.clear();
-    const results = await Promise.allSettled(Array.from(storages, (storage) => storage.close()));
+    const partitions = this.takeClosablePartitions();
+    const results = await Promise.allSettled([
+      ...Array.from(storages, (storage) => storage.close()),
+      ...Array.from(partitions, async (each) => each.close?.()),
+    ]);
     const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
     if (failed) throw failed.reason;
+  }
+
+  /** The partitions objects with `close()`, one time each. Their collections leave the server. */
+  private takeClosablePartitions(): Set<CollectionPartitions<unknown>> {
+    const closable = new Set<CollectionPartitions<unknown>>();
+    for (const [name, partitions] of [...this.partitions]) {
+      if (!partitions.close) continue;
+      this.partitions.delete(name);
+      closable.add(partitions);
+    }
+    return closable;
   }
 
   // ===========================================================================
@@ -1463,6 +1529,32 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         // The collections of this storage leave the server first, so no new call takes it
         for (const [name, current] of [...this.storages]) if (current === storage) this.storages.delete(name);
         await storage.close();
+      },
+    }));
+  }
+
+  /**
+   * This method gives each partitions object of the server as a dependency handle, one handle for
+   * each object, also for an object of two collections. The handles are in the sequence of the
+   * collections. The runner closes them after the transports close, with the storage handles.
+   */
+  partitionHandles(): PartitionsHandle[] {
+    const byPartitions = new Map<CollectionPartitions<unknown>, string[]>();
+    for (const [name, partitions] of this.partitions) {
+      const names = byPartitions.get(partitions);
+      if (names) names.push(name);
+      else byPartitions.set(partitions, [name]);
+    }
+    return Array.from(byPartitions, ([partitions, collections]) => ({
+      name: `partitions.${collections.join("+")}`,
+      collections,
+      partitions,
+      connect: (): void => undefined,
+      close: async (): Promise<void> => {
+        if (!partitions.close) return;
+        // The collections of these partitions leave the server first, so no new call takes a closed storage
+        for (const [name, current] of [...this.partitions]) if (current === partitions) this.partitions.delete(name);
+        await partitions.close();
       },
     }));
   }
@@ -1540,8 +1632,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   /**
    * This method stops the server with the stop parts, in the sequence of the stages of the runner:
    * `stopIntake()`, `drain()` for the grace time, `close()`, and then the close of each storage
-   * (`closeStorages()`). The server can start again, with new storages from `useStorage()`. A
-   * service under `run()` declares the parts and the storage handles in place of this method.
+   * (`closeStorages()`). The intake stays stopped until the next `start()`: a call after the stop
+   * gets the retryable `UNAVAILABLE`. The server can start again, with new storages from
+   * `useStorage()`. A service under `run()` declares the parts and the storage handles in place of
+   * this method.
    */
   override async stop(options: StopOptions = {}): Promise<void> {
     const graceMs = optionalMs(options.grace, "grace") ?? TIMER_DEFAULTS.server.stopGraceMs;
@@ -1550,12 +1644,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     this.stopIntake();
     await this.drain(this.clock.now() + graceMs, new AbortController().signal);
     await this.close();
-    try {
-      await this.closeStorages();
-    } finally {
-      // A server can start again: its next calls get a new signal
-      this.reopen();
-    }
+    // The intake stays stopped: start() opens it again, with a new signal
+    await this.closeStorages();
   }
 }
 

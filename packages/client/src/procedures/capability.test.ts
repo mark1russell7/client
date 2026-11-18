@@ -553,3 +553,33 @@ describe("a Client with a capability", () => {
     expect(sent?.[TIMEOUT_METADATA_KEY]).toBeLessThanOrEqual(5000);
   });
 });
+
+describe("the lookup and the admission", () => {
+  it("finds the procedure before the admission compares its effects", async () => {
+    const log: string[] = [];
+    const registry = makeRegistry(log);
+    registry.register(
+      defineProcedure({ path: ["files", "stub"], input: outputSchema<unknown>(), output: outputSchema<unknown>(), metadata: { effects: WRITES_FS } }) as AnyProcedure
+    );
+    expect((await refusal(run(registry, ["files", "nope"], {}, { capability: READ_ONLY }))).code).toBe("NOT_FOUND");
+    expect((await refusal(run(registry, ["files", "stub"], {}, { capability: READ_ONLY }))).code).toBe("NO_HANDLER");
+    expect((await refusal(run(registry, ["files", "write"], {}, { capability: READ_ONLY }))).code).toBe("FORBIDDEN");
+    expect(log).toEqual([]);
+  });
+
+  it("refuses a nested call by its path under an expose rule, so a hidden procedure and a free path get the same answer", async () => {
+    const log: string[] = [];
+    const registry = makeRegistry(log);
+    const exposed = new Set(["client.chain", "files.read"]);
+    const expose = (path: string[]): boolean => exposed.has(path.join("."));
+    const answers: string[] = [];
+    for (const target of [["files", "nope"], ["files", "write"]]) {
+      const chain = { steps: [{ $proc: target, input: {} }] };
+      const error = await refusal(run(registry, ["client", "chain"], chain, { capability: READ_ONLY, expose }));
+      expect(error.code).toBe("NOT_EXPOSED");
+      answers.push(error.message.replace(target.join("."), "<path>"));
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(log).toEqual([]);
+  });
+});

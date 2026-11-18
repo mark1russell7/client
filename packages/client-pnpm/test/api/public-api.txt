@@ -30,6 +30,7 @@ type PnpmUpdateInput: dist/types.d.ts#PnpmUpdateInput
 PnpmUpdateInputSchema: dist/types.d.ts#PnpmUpdateInputSchema
 type PnpmWhyInput: dist/types.d.ts#PnpmWhyInput
 PnpmWhyInputSchema: dist/types.d.ts#PnpmWhyInputSchema
+installedPnpmVersion: dist/procedures/pnpm/shared.d.ts#installedPnpmVersion
 pnpmAdd: dist/procedures/pnpm/add.d.ts#pnpmAdd
 pnpmExec: dist/procedures/pnpm/exec.d.ts#pnpmExec
 pnpmInstall: dist/procedures/pnpm/install.d.ts#pnpmInstall
@@ -94,6 +95,9 @@ export declare function pnpmRemove(input: PnpmRemoveInput, ctx: ProcedureContext
 
 ### dist/procedures/pnpm/run.d.ts#pnpmRun
 export declare function pnpmRun(input: PnpmRunInput, ctx: ProcedureContext): Promise<PnpmCommandOutput>;
+
+### dist/procedures/pnpm/shared.d.ts#installedPnpmVersion
+export declare function installedPnpmVersion(): string | undefined;
 
 ### dist/procedures/pnpm/shared.d.ts#resolvePnpm
 export declare function resolvePnpm(): {

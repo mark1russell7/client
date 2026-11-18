@@ -17,6 +17,12 @@ const VERSION = new URL(PUSHOVER_API).pathname;
 /** The state that each read of a receipt gives. */
 export type PushoverReceiptState = "pending" | "acknowledged" | "expired";
 
+/** The reply to one read of a receipt: its state, and the time of the acknowledgment in milliseconds since the epoch. */
+export interface PushoverReceiptReply {
+  readonly state: PushoverReceiptState;
+  readonly acknowledgedAt?: number;
+}
+
 /** The options of the fake of the Pushover API. Each time is in milliseconds since the epoch. */
 export interface PushoverApiOptions {
   /** The count of receipts. Send `n` gets the receipt `pushoverReceiptOf(n)`. A send after the last receipt gets the last receipt again. The default is 12. */
@@ -25,6 +31,11 @@ export interface PushoverApiOptions {
   readonly state?: PushoverReceiptState;
   /** The time of the acknowledgment. With no time, the body has `0`, which Pushover gives for a time that did not occur. */
   readonly acknowledgedAt?: number;
+  /**
+   * The replies of receipt `pushoverReceiptOf(index)`, one at each read, in order. After the end, each read gives the last entry again.
+   * Without this option, each read gives `state` and `acknowledgedAt`. An empty list throws a `RangeError`.
+   */
+  readonly receiptStates?: (index: number) => readonly PushoverReceiptReply[];
   /** The time at which the repeats stop. The default is 2100-01-01. */
   readonly expiresAt?: number;
   /** The tags that a cancel by tag stops. With `any`, each request that no route matches gets the success of a cancel. */
@@ -52,14 +63,17 @@ export function pushoverReceiptOf(index: number): string {
  * `@mark1russell7/rigor-testkit/http`. The fake has a route for the request of each builder of `./pushover`.
  *
  * - Each send gets the next receipt, also a send with a priority below 2. The headers of each send give the monthly limit.
- * - Each read of a receipt gives the same state.
+ * - Each read of a receipt gives the same state, unless `receiptStates` gives the replies of that receipt.
  * - Each cancel of a receipt succeeds. A cancel by tag succeeds for each tag of `tags`.
  * - Each other request gets HTTP 404 with the body of an error of Pushover, unless `tags` is `any`.
  */
 export function pushoverApi(options: PushoverApiOptions = {}): ScriptedServerOptions {
   const receipts = options.receipts ?? 12;
   if (!Number.isInteger(receipts) || receipts < 1) throw new RangeError(`The count of receipts (${String(receipts)}) is not an integer of 1 or more.`);
-  const state = options.state ?? "acknowledged";
+  const fixed: PushoverReceiptReply = {
+    state: options.state ?? "acknowledged",
+    ...(options.acknowledgedAt === undefined ? {} : { acknowledgedAt: options.acknowledgedAt }),
+  };
   const expiresAt = options.expiresAt ?? YEAR_2100;
   const limit = options.limit ?? { messages: 10_000, resetAt: YEAR_2100 };
   const ids = Array.from({ length: receipts }, (_, index) => pushoverReceiptOf(index));
@@ -68,18 +82,27 @@ export function pushoverApi(options: PushoverApiOptions = {}): ScriptedServerOpt
     "x-limit-app-remaining": String(Math.max(0, remaining)),
     "x-limit-app-reset": String(seconds(limit.resetAt)),
   });
-  const receiptBody = (receipt: string): object => ({
-    status: 1,
-    request: `read-${receipt}`,
-    acknowledged: state === "acknowledged" ? 1 : 0,
-    acknowledged_at: state === "acknowledged" && options.acknowledgedAt !== undefined ? seconds(options.acknowledgedAt) : 0,
-    ...(state === "acknowledged" ? { acknowledged_by: "fakeuser", acknowledged_by_device: "phone" } : {}),
-    last_delivered_at: 0,
-    expired: state === "expired" ? 1 : 0,
-    expires_at: seconds(expiresAt),
-    called_back: 0,
-    called_back_at: 0,
-  });
+  const receiptBody = (receipt: string, reply: PushoverReceiptReply): object => {
+    const acknowledged = reply.state === "acknowledged";
+    return {
+      status: 1,
+      request: `read-${receipt}`,
+      acknowledged: acknowledged ? 1 : 0,
+      acknowledged_at: acknowledged && reply.acknowledgedAt !== undefined ? seconds(reply.acknowledgedAt) : 0,
+      ...(acknowledged ? { acknowledged_by: "fakeuser", acknowledged_by_device: "phone" } : {}),
+      last_delivered_at: 0,
+      expired: reply.state === "expired" ? 1 : 0,
+      expires_at: seconds(expiresAt),
+      called_back: 0,
+      called_back_at: 0,
+    };
+  };
+  // The scripted server gives the last reply of a route again after the end of its replies.
+  const readReplies = (receipt: string, index: number): ScriptedReply[] => {
+    const replies = options.receiptStates?.(index) ?? [fixed];
+    if (replies.length === 0) throw new RangeError(`The replies of receipt ${String(index)} are an empty list. Give one reply or more.`);
+    return replies.map((reply) => json(receiptBody(receipt, reply)));
+  };
   const tags = options.tags === "any" ? [] : (options.tags ?? []);
   const routes: ScriptedRoute[] = [
     {
@@ -87,8 +110,8 @@ export function pushoverApi(options: PushoverApiOptions = {}): ScriptedServerOpt
       path: `${VERSION}/messages.json`,
       replies: ids.map((receipt, index) => json({ status: 1, request: `send-${String(index)}`, receipt }, limits(limit.messages - index - 1))),
     },
-    ...ids.flatMap((receipt): ScriptedRoute[] => [
-      { method: "GET", path: `${VERSION}/receipts/${receipt}.json`, replies: [json(receiptBody(receipt))] },
+    ...ids.flatMap((receipt, index): ScriptedRoute[] => [
+      { method: "GET", path: `${VERSION}/receipts/${receipt}.json`, replies: readReplies(receipt, index) },
       { method: "POST", path: `${VERSION}/receipts/${receipt}/cancel.json`, replies: [json({ status: 1, request: `cancel-${receipt}` })] },
     ]),
     ...tags.map((tag): ScriptedRoute => ({ method: "POST", path: `${VERSION}/receipts/cancel_by_tag/${encodeURIComponent(tag)}.json`, replies: [json({ status: 1, request: `cancel-tag-${tag}` })] })),

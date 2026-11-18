@@ -98,7 +98,10 @@ describe("ProcedureServer.stop({ grace }) (R14)", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     await server.stop();
     expect((await inFlight).status.type).toBe("error");
-    expect((await handler(request("2", 1))).payload).toBe("done");
+    // The intake stays stopped until the next start
+    expect((await handler(request("2", 1))).status).toMatchObject({ type: "error", code: "UNAVAILABLE", retryable: true });
+    await server.start();
+    expect((await handler(request("3", 1))).payload).toBe("done");
   });
 });
 

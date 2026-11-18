@@ -6,16 +6,18 @@
  * signal (`git`, `cue`), and `spawn` calls that killed only the direct child.
  */
 
-import { killTree } from "./tree-kill.js";
 import { DEFAULT_MAX_OUTPUT_BYTES, OutputCollector } from "./output.js";
-import { startChild, startError, type SpawnOptions } from "./spawn.js";
+import { endCommand, startChild, startError, type SpawnOptions } from "./spawn.js";
 
 export interface CommandOptions extends SpawnOptions {
   /** Text or bytes to write to stdin. Without it, stdin is empty (the program reads its end at once). */
   input?: string | Buffer | undefined;
-  /** After this many milliseconds, the process tree is killed. */
+  /**
+   * After this many milliseconds, the process tree is killed, and the command ends. A descendant
+   * that keeps the output pipes does not hold the command.
+   */
   timeout?: number | undefined;
-  /** When the signal aborts, the process tree is killed. An aborted signal starts nothing. */
+  /** When the signal aborts, the process tree is killed, and the command ends. An aborted signal starts nothing. */
   signal?: AbortSignal | undefined;
   /** The most bytes kept of each output stream (default: 64 MiB). */
   maxOutputBytes?: number | undefined;
@@ -77,12 +79,12 @@ export function runCommand(command: string, options: CommandOptions = {}): Promi
     const timer = options.timeout !== undefined
       ? setTimeout(() => {
           timedOut = true;
-          killTree(child);
+          endCommand(child);
         }, options.timeout)
       : undefined;
     const onAbort = (): void => {
       aborted = true;
-      killTree(child);
+      endCommand(child);
     };
     options.signal?.addEventListener("abort", onAbort, { once: true });
 

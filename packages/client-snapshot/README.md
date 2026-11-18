@@ -478,7 +478,7 @@ interface SnapshotMetadata {
   environment: {
     os: string;              // win32, darwin, linux
     nodeVersion: string;
-    pnpmVersion: string;
+    pnpmVersion: string;       // From the package.json of pnpm, or "unknown"
     username: string;
     hostname: string;
   };

@@ -390,10 +390,4 @@ export interface ClientOptions {
 
   /** The order of the clearance values of the capability. */
   clearanceOrder?: ClearanceOrder;
-
-  /**
-   * The highest depth of a nested call of a local invocation: a whole number of 0 or more. The
-   * default is 64. A deeper call gets `FORBIDDEN` with the reason `depth`.
-   */
-  maxDepth?: number;
 }

@@ -1,5 +1,91 @@
 # @procedures/fs
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- fdb89bc: The path, glob and walk functions of three packages move to their home, `@mark1russell7/files` (roadmap CLI-125).
+  
+  - `@procedures/fs`: `isInside` is a re-export of `@mark1russell7/files`. With `dot: true`, `fs.glob` uses `findEntriesAsync` of `@mark1russell7/files`, and its walk does not block the event loop.
+  - `@procedures/fs`: with `dot: true`, an absolute pattern under `cwd` matches. Before, it matched nothing. The other matches do not change.
+  - `@procedures/lib`: `expandHome` is a re-export of `@mark1russell7/files`. `findWorkspaceRoot` uses `findUp`.
+  - `@procedures/archive`: the walk of `archive.create` uses `walk` of `@mark1russell7/files`. `portableLinkTarget` uses `toPosix`. The limits and the error codes do not change.
+  - `@procedures/peer`: the range of `@mark1russell7/files` is `^0.0.4`, as in the other packages. The code does not change.
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- 84d9551: The CHANGELOG of 0.60.1 names only the brace groups of `fs.glob` with `dot: true`. Version 0.60.1 also changed three results of `fs.glob` with `dot: true`. Tests hold these results.
+  
+  - A pattern `x/**` also gives the folder `x`, as `fs.glob` without `dot` does.
+  - An ignore pattern keeps the walk out of a folder only when it matches the folder or each entry in it. Before 0.60.1, `**/.*` stopped the walk at each folder, and `a/?` stopped it at the folder `a`.
+  - A pattern that starts with `./` matches. Before 0.60.1, it matched nothing.
+  
+  Migration for the site and each app: examine each call of `fs.glob` with `dot: true` and a pattern that ends in `/**`. To get the matches of 0.60.0, remove the match that is equal to the folder.
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- 264e6a1: With `dot: true`, `fs.glob` uses the glob matcher of `@mark1russell7/files` for the pattern and each `ignore` entry. A brace group can hold a dot name, for example `{.git,node_modules}`. The matcher knows `*`, `**`, `?`, sets and brace groups.
+- 11fcffb: `fs.temp` makes its folder in the base folder for each prefix. The prefix is only the start of the folder name, so the prefixes `.` and `..` also make a folder in the base folder. With a root, the base folder is `.tmp` of the root.
+- e8e88ac: On Windows, the root check refuses a network or device path of another share before it opens the path.
+  
+  - A path that starts with two slashes (`\\host\share\name`, `//host/share/name`, `\\?\UNC\host\share\name` or `\\.\pipe\name`) is outside the root, unless the root is on the same share. The check gets `FORBIDDEN` with the reason `outside-root` and does not open the path.
+  - `realPathIsInside()` gives false for such a path, and the root check of the git procedures does the same.
+  - The new function `isOtherShare()` of the entry `@procedures/fs/root` gives this decision.
+  - On other systems, nothing changes.
+- a6fd4f3: `fs.read` and `fs.read.json` get the input `maxBytes`, the largest count of bytes that the read loads. `fs.read` also gets `offset` and `length` for a part of a file.
+  
+  - A part larger than `maxBytes` gives a `RangeError` with the code `ERR_FS_FILE_TOO_LARGE`. For a regular file, the error comes before the read.
+  - The read loads pieces of 1 MiB from one open file. Thus the limit holds also for a pipe or a file of the system with no size.
+  - Without `maxBytes`, the read loads the whole file, as before. The first read over 16 MiB in a process writes one warning.
+  
+  Migration before 0.64.0: version 0.64.0 sets 16 MiB as the default of `maxBytes`. A caller that reads larger files sets `maxBytes` to its own limit.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

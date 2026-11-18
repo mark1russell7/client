@@ -72,6 +72,23 @@ describe("exposePatterns and surfaceRule", () => {
     // Another procedure of the collection stays
     expect(hostPolicy({ exclude: ["collections.e2e.tabs.delete"] }).expose?.(["collections", "e2e.tabs", "find"])).toBe(true);
   });
+
+  it("hide each procedure of an exclude pattern: a prefix or *", () => {
+    const rule = hostPolicy({ expose: ["*"], exclude: ["shell.*", "fs.write"] }).expose!;
+    expect(rule(["shell", "run"])).toBe(false);
+    expect(rule(["shell", "exec"])).toBe(false);
+    expect(rule(["fs", "write"])).toBe(false);
+    expect(rule(["fs", "read"])).toBe(true);
+    expect(rule(["shellx", "run"])).toBe(true);
+    expect(hostPolicy({ exclude: ["*"] }).expose?.(["git", "status"])).toBe(false);
+    const surface = surfaceRule({ namespaces: ["docker", "git"], exclude: ["docker.*"] });
+    expect(surface(["docker", "prune"])).toBe(false);
+    expect(surface(["git", "status"])).toBe(true);
+    // A prefix in each form hides a path with a dot in a segment
+    for (const entry of ["collections.e2e.tabs.*", "collections.e2e%2Etabs.*"]) {
+      expect(hostPolicy({ exclude: [entry] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
+    }
+  });
 });
 
 describe("hostPolicy", () => {

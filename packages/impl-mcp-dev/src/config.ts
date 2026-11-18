@@ -37,13 +37,32 @@ export interface McpServerConfig {
    * refused tool, give `FORBIDDEN` with the reason `outside-root`. No value: no root.
    */
   fsRoot?: string | undefined;
+  /**
+   * How the server lists its tools (direction 40). `"each"` (the default) lists each tool.
+   * `"search"` lists three tools: `search_tools`, `describe_tool` and `call_tool`.
+   */
+  listing?: "each" | "search" | undefined;
+  /**
+   * The running peers (d40-tool-surface, step 2). The host reads the manifest of each peer, and each
+   * tool of a peer sends its call to the peer. A peer that does not answer at the start gives no tools.
+   */
+  peers?: readonly PeerConfig[] | undefined;
 }
+
+/** One entry of `MCP_PEERS`: the name of the peer, and its URL or its discovery file. */
+export interface PeerConfig {
+  /** The name of the peer: a lowercase letter, then lowercase letters, digits and hyphens. */
+  readonly name: string;
+  /** The base URL of the procedures of the peer, or the path or `file:` URL of its discovery file. */
+  readonly source: string;
+}
+
 
 /**
  * Load configuration from environment variables.
  *
  * Environment variables:
- * - MCP_BUNDLES: Comma-separated list of bundles (default: "@procedures/bundle-mcp")
+ * - MCP_BUNDLES: Comma-separated list of bundles and module files (default: "@procedures/bundle-mcp")
  * - MCP_SERVER_NAME: Server name (default: "impl-mcp-dev")
  * - MCP_SERVER_VERSION: Server version (default: "1.0.0")
  * - MCP_DEBUG: Enable debug logging (default: "false")
@@ -53,9 +72,22 @@ export interface McpServerConfig {
  * - MCP_HTTP_MAX_SESSIONS: the most sessions of the HTTP face (default: 256; "Infinity": no limit)
  * - MCP_PROGRAM_CHECK: "false" or "0" starts a program without the check before the run
  * - MCP_FS_ROOT: the root of the files: each tool keeps its paths in it, or it is refused (default: no root)
+ * - MCP_LISTING: "search" lists the three search tools in place of each tool (default: "each")
+ * - MCP_PEERS: the running peers, as `name=source` entries with commas (default: no peer)
  */
 /** The default time limit of a tool call: a build or a test run can take minutes. */
 export const DEFAULT_TOOL_TIMEOUT_MS = 600_000;
+
+/**
+ * The listing from its environment variable. A value that is not a listing is an error: without
+ * this check, a mistake gives each tool to the context of the model.
+ */
+export function parseListing(value: string | undefined): "each" | "search" | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  const listing = value.trim();
+  if (listing !== "each" && listing !== "search") throw new Error(`MCP_LISTING is "each" or "search", not "${listing}"`);
+  return listing;
+}
 
 /** The time limit from its environment variable. A value that is not a number gives the default. */
 export function parseTimeout(value: string | undefined): number {
@@ -83,10 +115,35 @@ export function parseHttpToken(value: string | undefined): string | undefined {
   return value;
 }
 
+const PEER_NAME = /^[a-z][a-z0-9-]*$/;
+
+/**
+ * This function reads `MCP_PEERS`. The value has entries `name=source`, with commas between them. A
+ * source is an `http://` or `https://` URL, or a discovery file. An entry that is not of this form is
+ * an error. Without this check, a mistake removes the tools of a peer with no message.
+ */
+export function parsePeers(value: string | undefined): PeerConfig[] {
+  const peers: PeerConfig[] = [];
+  if (value === undefined) return peers;
+  for (const entry of value.split(",").map((part) => part.trim()).filter(Boolean)) {
+    const eq = entry.indexOf("=");
+    const name = eq === -1 ? "" : entry.slice(0, eq).trim();
+    const source = eq === -1 ? "" : entry.slice(eq + 1).trim();
+    if (!PEER_NAME.test(name) || source === "") {
+      throw new Error(`MCP_PEERS: the entry "${entry}" is not name=source, with a lowercase name and a URL or a discovery file`);
+    }
+    if (peers.some((peer) => peer.name === name)) throw new Error(`MCP_PEERS: two entries have the name ${name}`);
+    peers.push({ name, source });
+  }
+  return peers;
+}
+
 export function loadConfig(): McpServerConfig {
   const bundlesEnv = process.env["MCP_BUNDLES"] ?? "@procedures/bundle-mcp";
   const bundles = bundlesEnv.split(",").map((b) => b.trim()).filter(Boolean);
   const fsRoot = process.env["MCP_FS_ROOT"]?.trim();
+  const listing = parseListing(process.env["MCP_LISTING"]);
+  const peers = parsePeers(process.env["MCP_PEERS"]);
   const maxSessions = parseMaxSessions(process.env["MCP_HTTP_MAX_SESSIONS"]);
   const httpToken = process.env["MCP_HTTP_PORT"] ? parseHttpToken(process.env["MCP_HTTP_TOKEN"]) : undefined;
 
@@ -99,6 +156,8 @@ export function loadConfig(): McpServerConfig {
     readOnly: process.env["MCP_READ_ONLY"] === "true" || process.env["MCP_READ_ONLY"] === "1",
     programCheck: !(process.env["MCP_PROGRAM_CHECK"] === "false" || process.env["MCP_PROGRAM_CHECK"] === "0"),
     ...(fsRoot ? { fsRoot } : {}),
+    ...(listing ? { listing } : {}),
+    ...(peers.length > 0 ? { peers } : {}),
     ...(process.env["MCP_HTTP_PORT"]
       ? {
           http: {
