@@ -61,6 +61,7 @@ import { isDeepStrictEqual } from "node:util";
 import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 import { BSON, ObjectId, type AnyBulkWriteOperation, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { semaphore, type Semaphore } from "@mark1russell7/collections";
+import { canonicalJson } from "@mark1russell7/rigor-generators";
 import { collectionChangeTopic, ms, optionalMs, realClock, writeLog, type Cancel, type Clock, type CollectionChangeEvent, type Duration, type LogFields, type Logger } from "@procedures/client";
 import { DEFAULT_STORED_FORM, DOCUMENT_STORAGE_FIELDS, MongoDocumentStorage, TOMBSTONE_FIELD, storageWriteTarget, type StorageWriteTarget, type StoredForm } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
@@ -348,12 +349,18 @@ export function defaultStorageRowId(id: unknown): string {
   return BSON.EJSON.stringify(id as Document, { relaxed: true });
 }
 
+/**
+ * The hash of the content of a row of a target (CLI-126). A plain target keeps it in `_viewHash`.
+ * A target in a stored form gets it from each stored document at each run.
+ */
+export function rowHash(content: Document): string {
+  return createHash("sha1").update(hashText(content)).digest("hex");
+}
+
 /** The hash of a stored document without its numbers (`_seq` and `_ord`): two documents with the same content give the same hash. */
-function contentHash(doc: Document): string {
+export function contentHash(doc: Document): string {
   const { _seq: _number, _ord: _place, ...rest } = doc;
-  return createHash("sha1")
-    .update(canonical(BSON.EJSON.serialize(rest, { relaxed: false })))
-    .digest("hex");
+  return rowHash(rest);
 }
 
 /** The values of a target in a stored form that make its storage. */
@@ -457,15 +464,33 @@ function idKey(id: unknown): string {
   return BSON.EJSON.stringify({ id }, { relaxed: false });
 }
 
-/** A text of a value with sorted keys: two objects with the same fields give the same text. */
-function canonical(value: unknown): string {
-  if (value === null || value === undefined || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+/**
+ * The text that the hash of a row reads (CLI-126): the canonical JSON text of the JSON form of the
+ * row (`canonicalJson` of `@mark1russell7/rigor-generators`, CLI-128). Two rows with the same
+ * fields in another order give the same text.
+ */
+export function hashText(value: unknown): string {
+  return canonicalJson(jsonForm(value), { form: "json", tags: "typed" });
+}
+
+/**
+ * The JSON form of a value for a hash. A JSON value stays the same, so a row of JSON values keeps
+ * its text. Each other value becomes its canonical Extended JSON form: a Date, a BSON value, a
+ * bigint, NaN, an infinity and -0. A RegExp becomes the same form, with its flags in order.
+ * `undefined` becomes null, as in Extended JSON.
+ */
+function jsonForm(value: unknown): unknown {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value) && !Object.is(value, -0)) return value;
+  if (Array.isArray(value)) return value.map(jsonForm);
+  // Extended JSON refuses the flags of JavaScript that BSON does not have, for example "g"
+  if (value instanceof RegExp) return { $regularExpression: { pattern: value.source, options: [...value.flags].sort().join("") } };
+  if (typeof value !== "object" || value instanceof Date || typeof (value as { _bsontype?: unknown })._bsontype === "string") {
+    return (BSON.EJSON.serialize({ value } as Document, { relaxed: false }) as { value?: unknown }).value ?? null;
+  }
   const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
-    .join(",")}}`;
+  return Object.fromEntries(Object.keys(record).map((key) => [key, jsonForm(record[key])]));
 }
 
 /**
@@ -1374,7 +1399,7 @@ export class ViewMaterializer {
         // read them (roadmap CLI-77). The other fields, for example _json and _key, are the content of the row.
         for (const name of ROW_DROPPED_FIELDS) delete content[name];
         const stored = this.targetId(_id, partition, generation);
-        const hash = createHash("sha1").update(canonical(content)).digest("hex");
+        const hash = rowHash(content);
         group.push({
           id: _id,
           key: idKey(stored),

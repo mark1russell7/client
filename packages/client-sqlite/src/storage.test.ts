@@ -2,8 +2,7 @@
  * SqliteStorage (roadmap R45).
  *
  * The first block runs the contract suite of `CollectionStorage` from
- * `@procedures/collections/testing`, for each engine (`node` and `sqljs`), for a database in
- * memory and for a file. The other blocks test what is particular to SQLite: the file, the
+ * `@procedures/collections/testing` on `node:sqlite`, for a database in memory and for a file. The other blocks test what is particular to SQLite: the file, the
  * versions after a restart, the transactions, the shared database of a file and the table names.
  * `engines.test.ts` tests the engine choice.
  */
@@ -13,6 +12,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
+import { openDatabase } from "@mark1russell7/sqlite";
 import type { EngineDatabase, SqliteEngineName } from "./engines.js";
 import { MEMORY_PATH, SqliteStorage, checkTableName, isNodeSqliteAvailable, type SqliteStorageOptions } from "./storage.js";
 
@@ -46,15 +46,11 @@ async function databaseOf(storage: SqliteStorage<unknown>): Promise<EngineDataba
   return shared.open.db;
 }
 
-/** The engines of this Node.js: `node` needs Node.js 22.13 or later. */
-const nodeAvailable = await isNodeSqliteAvailable();
-const engines: SqliteEngineName[] = nodeAvailable ? ["node", "sqljs"] : ["sqljs"];
+/** The engines of the storage. Version 0.61.0 removed the engine `sqljs`. */
+const engines: SqliteEngineName[] = ["node"];
 
-it("this Node.js has node:sqlite: CI runs the engine node on each Node.js version of the matrix", () => {
-  // The engines field of the repository allows Node.js 22.0. Node.js 22.13 and later have node:sqlite
-  // without a flag, and CI uses the newest 22.x.
-  const [major, minor] = process.versions.node.split(".").map(Number) as [number, number];
-  expect(nodeAvailable).toBe(major > 22 || (major === 22 && minor >= 13));
+it("this Node.js has node:sqlite: the engines field of the package needs Node.js 22.13 or later", async () => {
+  expect(await isNodeSqliteAvailable()).toBe(true);
 });
 
 const places: Array<[string, () => string]> = [
@@ -282,52 +278,7 @@ for (const engine of engines) {
   });
 }
 
-describe("SqliteStorage (sqljs): the whole-file writes", () => {
-  it("writes the file one time for several writes that wait, and keeps each write", async () => {
-    const path = tempDb();
-    const storage = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    await Promise.all(Array.from({ length: 50 }, (_, n) => storage.set(`k${n}`, { n })));
-    await storage.close();
-
-    const again = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    expect(await again.size()).toBe(50);
-  });
-
-  it("writes and reads after each file write: an export of sql.js frees each statement", async () => {
-    const path = tempDb();
-    const storage = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    await storage.set("a", { n: 1 });
-    expect(await storage.get("a")).toEqual({ n: 1 });
-    await storage.set("b", { n: 2 });
-    expect(await storage.get("b")).toEqual({ n: 2 });
-    expect(await storage.size()).toBe(2);
-    await storage.close();
-
-    const again = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    expect(await again.size()).toBe(2);
-    await again.close();
-  });
-
-  it("a failed file write fails the write, and flush() writes the change later", async () => {
-    const dir = tempDir();
-    const path = join(dir, "blocked", "items.db");
-    const storage = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    expect(await storage.size()).toBe(0);
-    // A file in the place of the folder: the file write cannot make the folder
-    writeFileSync(join(dir, "blocked"), "not a folder");
-    await expect(storage.set("a", { n: 1 })).rejects.toThrow();
-    // The change stays in the database of the process
-    expect(await storage.get("a")).toEqual({ n: 1 });
-
-    rmSync(join(dir, "blocked"));
-    await storage.flush();
-    await storage.close();
-    const again = storageOf<{ n: number }>({ path, table: "items", engine: "sqljs" });
-    expect(await again.get("a")).toEqual({ n: 1 });
-  });
-});
-
-describe.runIf(nodeAvailable)("SqliteStorage (node): the file", () => {
+describe("SqliteStorage (node): the file", () => {
   it("a write that cannot make the file fails and changes nothing, and the next write makes it", async () => {
     const dir = tempDir();
     const path = join(dir, "blocked", "items.db");
@@ -360,13 +311,11 @@ describe.runIf(nodeAvailable)("SqliteStorage (node): the file", () => {
     const path = tempDb();
     const reader = storageOf<{ n: number }>({ path, table: "items", engine: "node" });
     expect(await reader.size()).toBe(0);
-    // The sql.js engine of docker-sqlite stands for another process: it does not share the database of this process
-    const { createConnection } = await import("@mark1russell7/docker-sqlite");
-    const other = await createConnection({ dbPath: path });
-    other.db.run(`CREATE TABLE "items" (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-    other.db.run(`INSERT INTO "items" VALUES ('x', '{"n":9}')`);
-    await other.save();
-    other.db.close();
+    // A second connection stands for another process: it does not share the database of the storage
+    const other = openDatabase(path, { wal: false, makeFolder: true });
+    other.exec(`CREATE TABLE "items" (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+    other.exec(`INSERT INTO "items" VALUES ('x', '{"n":9}')`);
+    other.close();
     expect(await reader.get("x")).toEqual({ n: 9 });
     await reader.set("a", { n: 1 });
     expect(await reader.getIds()).toEqual(["x", "a"]);
@@ -376,11 +325,9 @@ describe.runIf(nodeAvailable)("SqliteStorage (node): the file", () => {
     const path = tempDb();
     const reader = storageOf<{ n: number }>({ path, table: "items", engine: "node" });
     expect(await reader.size()).toBe(0);
-    const { createConnection } = await import("@mark1russell7/docker-sqlite");
-    const other = await createConnection({ dbPath: path });
-    other.db.run(`CREATE TABLE "items" (name TEXT)`);
-    await other.save();
-    other.db.close();
+    const other = openDatabase(path, { wal: false, makeFolder: true });
+    other.exec(`CREATE TABLE "items" (name TEXT)`);
+    other.close();
     await expect(reader.get("x")).rejects.toThrow(/does not have the columns id and value/);
     await expect(reader.set("a", { n: 1 })).rejects.toThrow(/does not have the columns id and value/);
     await reader.close();

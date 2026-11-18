@@ -79,6 +79,7 @@ procedure.get
 procedure.list
 procedure.manifest
 procedure.new
+procedure.search
 program.check
 program.compile
 program.diagram

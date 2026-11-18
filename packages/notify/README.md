@@ -7,6 +7,7 @@ Push notifications through ntfy (the public server or your own) and through Push
 - With ntfy, each phone that subscribes to the topic gets the message.
 - With Pushover, each device of the user gets the message. An emergency message repeats until the user acknowledges it.
 - With Twilio, a phone gets a text message or a voice call. A call can tell a person from an answering machine.
+- With a webhook, a server of your choice gets a signed JSON request in the form of Standard Webhooks.
 
 ## Install
 
@@ -122,7 +123,9 @@ await server.close();
 - `twilioGatherTwiml` says a text in a `<Gather>` and sends the key of the person to an address. With no key, it says the text `after`.
 - Each TwiML builder takes a `voice` and a `language` for each `<Say>`.
 - `twilioBalanceRequest` reads the balance of the account.
-- `extractTwilioText`, `extractTwilioCall` and `extractTwilioBalance` read a response. `callTwilio` sends one request through the fetch that the caller gives.
+- `twilioMessageListRequest` reads one page of the texts, with the filters `to`, `from`, `dateSentAfter` and `pageSize`. `twilioNextPageRequest` reads the next page.
+- `twilioOptOutKeyword` gives the keyword of a received text: `stop`, `start` or `help`.
+- `extractTwilioText`, `extractTwilioCall`, `extractTwilioBalance` and `extractTwilioMessages` read a response. `callTwilio` sends one request through the fetch that the caller gives.
 
 ```ts
 import { callTwilio, extractTwilioCall, twilioCallRequest, twilioSayTwiml } from "@procedures/notify/twilio";
@@ -149,8 +152,127 @@ A request holds the credentials in its `authorization` header. Do not log a requ
 - A call is `pending`, `connected`, `answered`, `machine`, `unanswered` or `failed`. `ended` is true when the status cannot change again.
 - Only a call with `machineDetection` tells `answered` (a person) from `machine`. Without it, an answered call is `connected`.
 
+### The replies of the recipients
+
+A recipient can reply `STOP` to stop the texts of a Twilio number, and `START` to start them again. Twilio blocks the texts to a person who replied `STOP`. To keep a list of the recipients that agree to get texts, read the received texts and their keywords:
+
+```ts
+import { callTwilio, extractTwilioMessages, twilioMessageListRequest, twilioNextPageRequest, twilioOptOutKeyword, type TwilioRequest } from "@procedures/notify/twilio";
+
+let request: TwilioRequest | undefined = twilioMessageListRequest(credentials, { to: twilioNumber, dateSentAfter: lastRead, pageSize: 100 });
+while (request !== undefined) {
+  const page = await callTwilio(fetch, request, extractTwilioMessages, { timeoutMs: 20_000 });
+  if (!page.ok) break; // a TwilioFailure
+  for (const text of page.messages) {
+    if (text.direction === "inbound") record(text.from, twilioOptOutKeyword(text.body), text.dateSent);
+  }
+  request = page.nextPageUri === undefined ? undefined : twilioNextPageRequest(credentials, page.nextPageUri);
+}
+```
+
+- Twilio gives the texts of a page by `dateSent`, the newest first.
+- `dateSentAfter` is the filter `DateSent>`. It includes the time or the day that it names.
+- `TWILIO_OPT_OUT_KEYWORDS`, `TWILIO_OPT_IN_KEYWORDS` and `TWILIO_HELP_KEYWORDS` are the default keywords of Twilio.
+- A keyword is the full body of a text. The case of the letters and the white space around the keyword have no effect. `stop please` is not a keyword.
+- A toll-free number of the US accepts only `START` and `UNSTOP` to start the texts again.
+- An Advanced Opt-Out of a messaging service can add keywords. `twilioOptOutKeyword` knows only the default keywords.
+
 ### Failures of Twilio
 
 - The kinds and the waits are the same as the kinds of Pushover. `code` holds the error code of Twilio.
 - `rate-limited` tells that the account has too many requests at the same time. Wait `retryAfterMs`, then send the same request again.
 - After `refused`, do not send the same request again. For example, the code `21211` tells that the number is not valid.
+
+## Twilio Serverless
+
+`@procedures/notify/twilio-serverless` has pure functions for the Twilio Serverless API. They put functions and assets on a domain of Twilio. Examples are the TwiML of a call and the address that gets the key of a person. A browser can also use them. The entry has no procedures.
+
+- `twilioServerlessServiceRequest` makes a service. `twilioServerlessServiceFetchRequest` reads a service by its SID or its unique name.
+- `twilioServerlessFunctionRequest` and `twilioServerlessAssetRequest` make a function and an asset. The list requests read them, one page at a time.
+- `twilioServerlessFunctionVersionRequest` and `twilioServerlessAssetVersionRequest` upload the text of a file as a new version. The body is multipart, and the same input gives the same body.
+- `twilioServerlessBuildRequest` starts a build of versions, with the npm packages and the runtime of the functions.
+- `twilioServerlessBuildStep` gives the next step of the poll of a build. It has no timer: the caller waits, sends the request and gives the read to the next step.
+- `twilioServerlessEnvironmentRequest` makes an environment. Its domain name is in the read of the environment.
+- `twilioServerlessVariableRequest` and `twilioServerlessVariableUpdateRequest` set a variable of an environment.
+- `twilioServerlessDeploymentRequest` deploys a complete build to an environment.
+- `twilioServerlessNextPageRequest` reads the next page of a list. It refuses an address of another host.
+- Each `extractTwilioServerless...` function reads a response into a typed result or a `TwilioFailure`. It does not throw.
+
+The credentials, `TwilioRequest`, `TwilioResponse`, `TwilioFailure` and `callTwilio` are the same as in `./twilio`. A builder throws an error when the input breaks a rule of the API, for example a path without a slash at the start.
+
+```ts
+import { callTwilio } from "@procedures/notify/twilio";
+import {
+  extractTwilioServerlessBuild,
+  twilioServerlessBuildRequest,
+  twilioServerlessBuildStep,
+} from "@procedures/notify/twilio-serverless";
+
+const started = await callTwilio(fetch, twilioServerlessBuildRequest(credentials, serviceSid, { functionVersions, runtime: "node22" }), extractTwilioServerlessBuild, { timeoutMs: 20_000 });
+if (!started.ok) throw new Error(started.errors.join(" "));
+const poll = { serviceSid, buildSid: started.sid, startedAt: Date.now() };
+let step = twilioServerlessBuildStep(credentials, poll, Date.now(), started);
+while (step.step === "poll") {
+  const { waitMs, request } = step;
+  await new Promise((resolve) => setTimeout(resolve, waitMs));
+  const read = await callTwilio(fetch, request, extractTwilioServerlessBuild, { timeoutMs: 20_000 });
+  step = twilioServerlessBuildStep(credentials, poll, Date.now(), read);
+}
+```
+
+After `done`, `twilioServerlessDeploymentRequest` deploys the build. After `failed` or `timed-out`, `last` holds the last read.
+
+`twilioServerlessDeploy` deploys a plan with these functions: the service, the environment, the files, the build and the variables. Its ports hold the fetch, the clock and the wait.
+
+- A second deploy of the same plan reads three lists and changes nothing.
+- A change of a variable alone deploys the build of the environment again.
+- A new `version` of the plan uploads the files again. The variable `DEPLOY_VERSION` holds the version of the last deployment.
+- Each step can go again. After a failure, start the deploy again.
+
+```ts
+import { twilioServerlessDeploy } from "@procedures/notify/twilio-serverless";
+
+const result = await twilioServerlessDeploy({ fetch, now: Date.now, sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }, credentials, {
+  service: { uniqueName: "my-app", friendlyName: "My app" },
+  environment: { uniqueName: "production", domainSuffix: "prod" },
+  functions: [{ path: "/start", visibility: "public", content: code }],
+  build: { runtime: "node22", dependencies: { twilio: "5.0.0" } },
+  variables: { FROM: from },
+  version: contentHash,
+});
+if (result.ok) console.log(`https://${result.domainName}/start`);
+```
+
+A variable can hold a secret. Do not log a variable request, a variable read or its value.
+
+## Webhooks
+
+`@procedures/notify/webhook` has pure functions for webhooks in the form of [Standard Webhooks](https://www.standardwebhooks.com). A browser can also use them. The entry has no procedures.
+
+- A sender signs the text `id.timestamp.body` with HMAC-SHA256. The headers are `webhook-id`, `webhook-timestamp` and `webhook-signature`.
+- A secret is `whsec_` and the base64 of 24 to 64 random bytes. A request can have one signature for each secret, thus a receiver can change its secret.
+- A receiver checks the signature and the time, in a tolerance of 5 minutes.
+
+```ts
+import { parseWebhookSecret, sendWebhook, verifyWebhook, webhookBody } from "@procedures/notify/webhook";
+
+const parsed = parseWebhookSecret(process.env.WEBHOOK_SECRET ?? "");
+if (!parsed.ok) throw new Error(parsed.problem);
+const body = webhookBody("alert.sent", Date.now(), { title: "Tornado warning" });
+const sent = await sendWebhook(fetch, { url, id: crypto.randomUUID(), timestampMs: Date.now(), body }, [parsed.secret]);
+
+// The receiver reads the body as text, before a parse.
+const check = await verifyWebhook({ headers: request.headers, body: text }, [parsed.secret], Date.now());
+```
+
+### Failures of a webhook
+
+`extractWebhookSent` sorts a response by the rules of the spec. The extractor does not throw.
+
+- `throttled` (429, 502, 504) and `server` (other 5xx) get a wait from `Retry-After`, and 5 seconds at least.
+- `gone` (410) tells the sender to stop each send to the endpoint.
+- `redirect` (3xx) is a failure. Change the address. The send does not follow a redirect.
+- `refused` (other statuses) fails again with the same message.
+- `network` and `timeout` have no answer. The time limit is 15 seconds.
+
+Each send of one message keeps its id, thus the receiver drops a second copy. A secret is a key: do not log it.

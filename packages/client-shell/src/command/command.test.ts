@@ -3,11 +3,11 @@
  * The tests start small Node scripts, so they run the same on Windows and elsewhere.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCommand, streamCommand, type CommandStreamItem } from "./index.js";
+import { ProcessRegistry, runCommand, streamCommand, type CommandStreamItem } from "./index.js";
 
 function alive(pid: number): boolean {
   try {
@@ -38,6 +38,90 @@ const PARENT_OF_SLEEPER = [
   "console.log(child.pid);",
   "setInterval(() => {}, 1000);",
 ].join("");
+
+/**
+ * A script whose child keeps the output pipes after the script ends. The script prints the pid of
+ * the child and ends at once. With `leave`, the child starts outside the group of the script (and
+ * outside its job object on Windows), so no signal to the tree reaches it. The child ends after 60 s.
+ */
+function parentThatLeavesPipes(leave: boolean): string {
+  return [
+    "const { spawn } = require('node:child_process');",
+    `const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: ['ignore', 'inherit', 'inherit'], detached: ${String(leave)} });`,
+    "console.log(child.pid);",
+    "child.unref();",
+  ].join("");
+}
+
+describe("a descendant that keeps the output pipes after the first process ends", () => {
+  const holders: number[] = [];
+  /** This function records the pid in the first line of the output, so the test end kills it. */
+  const holder = (output: string): number => {
+    const pid = Number(output.trim().split(/\r?\n/)[0]);
+    if (pid > 0) holders.push(pid);
+    return pid;
+  };
+  afterEach(() => {
+    for (const pid of holders.splice(0)) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {
+        // The process ended
+      }
+    }
+  });
+
+  it("does not hold runCommand after its timeout", async () => {
+    const started = Date.now();
+    const result = await runCommand(process.execPath, { args: ["-e", parentThatLeavesPipes(true)], timeout: 2000 });
+    expect(holder(result.stdout)).toBeGreaterThan(0);
+    expect(result).toMatchObject({ timedOut: true, success: false, exitCode: 0, signal: "SIGTERM" });
+    expect(Date.now() - started).toBeLessThan(10_000);
+  }, 15_000);
+
+  it("does not hold runCommand after the abort of its signal", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 2000);
+    const started = Date.now();
+    const result = await runCommand(process.execPath, { args: ["-e", parentThatLeavesPipes(true)], signal: controller.signal });
+    expect(holder(result.stdout)).toBeGreaterThan(0);
+    expect(result).toMatchObject({ aborted: true, success: false });
+    expect(Date.now() - started).toBeLessThan(10_000);
+  }, 15_000);
+
+  it("does not hold streamCommand after its timeout", async () => {
+    const items: CommandStreamItem[] = [];
+    const started = Date.now();
+    for await (const item of streamCommand(process.execPath, { args: ["-e", parentThatLeavesPipes(true)], timeout: 2000 })) items.push(item);
+    const first = items[0];
+    expect(first?.type).toBe("stdout");
+    holder(first?.type === "stdout" ? first.line : "");
+    expect(items.at(-1)).toMatchObject({ type: "exit", timedOut: true });
+    expect(Date.now() - started).toBeLessThan(10_000);
+  }, 15_000);
+
+  it("ends the record at the stop of the registry", async () => {
+    const registry = new ProcessRegistry();
+    const started = registry.start(process.execPath, { args: ["-e", parentThatLeavesPipes(true)] });
+    const ready = await registry.waitFor(started.id, /(\d+)/, 10_000);
+    holder(ready[1] ?? "");
+    // The first process ends at once, so the stop finds a record whose pipes a descendant keeps
+    const pid = started.pid;
+    expect(pid).toBeGreaterThan(0);
+    expect(await until(() => !alive(pid))).toBe(true);
+    const stopped = await registry.stop(started.id);
+    expect(stopped.stopped).toBe(true);
+    expect(registry.get(started.id)?.status).toBe("exited");
+  }, 20_000);
+
+  it.skipIf(process.platform === "win32")("signals the group of a first process that ended, so a descendant in the group ends", async () => {
+    const result = await runCommand(process.execPath, { args: ["-e", parentThatLeavesPipes(false)], timeout: 2000 });
+    const pid = holder(result.stdout);
+    expect(pid).toBeGreaterThan(0);
+    expect(result.timedOut).toBe(true);
+    expect(await until(() => !alive(pid))).toBe(true);
+  }, 15_000);
+});
 
 describe("runCommand", () => {
   it("gives stdout, stderr, the exit code and the duration", async () => {

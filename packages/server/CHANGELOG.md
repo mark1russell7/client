@@ -1,5 +1,83 @@
 # @procedures/server
 
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+- Updated dependencies [fdb89bc]
+  - @procedures/client@0.62.0
+  - @procedures/fs@0.62.0
+  - @procedures/peer@0.62.0
+  - @procedures/shell@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [84d9551]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/fs@0.61.0
+  - @procedures/peer@0.61.0
+  - @procedures/shell@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- ce78260: `server.start`, `mark --server`, `mark serve`, `procedure-server` and `runProcedureHost()` accept the port 0. The server listens on a free port, and its lockfile gives the port that the listener got.
+  
+  - `mark --server --port 0` starts each listener on a free port. With `--transport both`, the WebSocket listener gets a free port of its own.
+  - `procedure-server --port 0` and `mark serve --port 0` start the first transport on a free port. The endpoint lines of the output give the port that the listener got. `--probe-port 0` gives the probe server a free port.
+  - `runProcedureHost()` with a lockfile on the port 0 writes the lockfile at the end of the startup. The lockfile takes the port of the listener with the scheme and the path of its endpoint. When no listener matches, the host stops with the code 1.
+  - `server.start` with `{ port: 0 }` finds the lockfile of the new server by the PID of its child process. Its result gives the port. At the timeout, the result gives the port when the lockfile has one.
+  - The other ports work as before.
+  - The default ports do not change. This change adds an accepted value, so it is a feature, and before 1.0.0 a feature is a PATCH.
+  - A test that starts a server in a child process gives it the port 0 and reads the port from the lockfile or from the output of the child. Then no other process can take the port between a pick and the listen.
+- Updated dependencies [beca782]
+- Updated dependencies [d472a8b]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/shell@0.60.1
+  - @procedures/fs@0.60.1
+  - @procedures/peer@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- 7250ac5: Only the shell package starts a program. On Windows, each start finds a program name with no folder only in the folders of `PATH`, not in the working folder.
+  
+  - `@procedures/shell/command` has two new helpers. `spawnProgram(command, args, options)` starts a program that the caller keeps, for example a detached process. `spawnProgramSync(command, args, options)` starts a program and waits for its end. They take the options of `spawn` and `spawnSync` of Node, without `shell`: the option `shell` is always `false`. The default of `windowsHide` is `true`. The error of a failed start names the command.
+  - `@procedures/server`: the background `mark --server` starts with `spawnProgram`. Before, on Windows, a start of `mark` by its name looked first in the working folder of the call.
+  - `@procedures/claude-cli`: `startTurn()` starts `claude` with `spawnProgram`. Before, on Windows, a start of a name with no folder (from the option `executable` or from the environment variable) looked first in the working folder.
+  - `@procedures/node`: the fresh bundle starts its build with `spawnProgramSync`. It starts `process.execPath`, so its behavior does not change.
+  - A Windows caller that put a program in the working folder, and not in a folder of `PATH`, gets ENOENT after this change. Such a caller gives the path of the program, for example `.\mark.exe`.
+- Updated dependencies [7250ac5]
+- Updated dependencies [3075d86]
+  - @procedures/shell@0.60.0
+  - @procedures/client@0.60.0
+  - @procedures/fs@0.60.0
+  - @procedures/peer@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

@@ -16,8 +16,8 @@ import type {
 import { pathToKey } from "./types.js";
 import { validateCalls } from "./policy.js";
 import { toolHintOverrideRefusal } from "./hints.js";
-import { metadataFieldProblems } from "./metadata-fields.js";
-import { CONSOLE_LOGGER, type Logger } from "../logger.js";
+import { metadataFieldRefusal } from "./metadata-fields.js";
+import { writeLog, type Logger } from "../logger.js";
 
 // =============================================================================
 // Registry Errors
@@ -104,8 +104,8 @@ export interface ProcedureRegistryOptions {
    */
   resolver?: RegistryResolver | undefined;
   /**
-   * The logger of the warnings of the registry, for example a typed metadata field with a wrong
-   * type. The default writes to the console.
+   * The logger of the errors of the registry, for example a listener that throws. The default
+   * writes to the console.
    */
   logger?: Logger | undefined;
 }
@@ -177,11 +177,8 @@ export class ProcedureRegistry {
   /** The resolver of a lazy registry, or undefined for an eager registry (roadmap O93) */
   private readonly resolver: RegistryResolver | undefined;
 
-  /** The logger of the warnings of the registry. */
-  private readonly logger: Logger;
-
-  /** The pairs of a procedure key and a metadata field that got their warning. */
-  private readonly warnedFields = new Set<string>();
+  /** The logger of the errors of the registry. Without it, the errors go to the console. */
+  private readonly logger: Logger | undefined;
 
   /**
    * This constructor makes an eager registry. With `options.resolver`, the registry is lazy: a
@@ -189,7 +186,7 @@ export class ProcedureRegistry {
    */
   constructor(options: ProcedureRegistryOptions = {}) {
     this.resolver = options.resolver;
-    this.logger = options.logger ?? CONSOLE_LOGGER;
+    this.logger = options.logger;
   }
 
   // ---------------------------------------------------------------------------
@@ -216,6 +213,9 @@ export class ProcedureRegistry {
     } catch (error) {
       throw new RegistryError((error as Error).message, path);
     }
+    // A typed field of the metadata with a wrong type stops here, before a reader gets it
+    const fieldRefusal = metadataFieldRefusal(procedure.metadata);
+    if (fieldRefusal) throw new RegistryError(`${fieldRefusal} (${key})`, path);
     // An override of the tool hints can only make the tool look more dangerous than its effects
     const hintRefusal = toolHintOverrideRefusal(procedure);
     if (hintRefusal) throw new RegistryError(`${hintRefusal} (${key})`, path);
@@ -233,19 +233,6 @@ export class ProcedureRegistry {
       throw new RegistryError(
         `Procedure already registered at path: ${key}`,
         path
-      );
-    }
-
-    // A typed metadata field with a wrong type gets one warning for each field and procedure.
-    // Version 0.60.0 of @procedures/client refuses such a field
-    for (const problem of metadataFieldProblems(procedure.metadata)) {
-      const once = JSON.stringify([key, problem.field]);
-      if (this.warnedFields.has(once)) continue;
-      this.warnedFields.add(once);
-      this.logger.log(
-        "warn",
-        `The procedure ${key} has the field ${problem.field} with a wrong type: ${problem.message}. The field ${problem.typedField} needs ${problem.needs}. @procedures/client 0.60.0 refuses this.`,
-        { procedure: key, field: problem.field, needs: problem.needs },
       );
     }
 
@@ -534,7 +521,8 @@ export class ProcedureRegistry {
         try {
           listener(procedure);
         } catch (error) {
-          console.error(`Registry listener error for ${event}:`, error);
+          const message = `Registry listener error for ${event}: ${error instanceof Error ? error.message : String(error)}`;
+          writeLog(this.logger, "error", message, { event, error }, `Registry listener error for ${event}:`, error);
         }
       }
     }

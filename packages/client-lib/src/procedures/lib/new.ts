@@ -17,6 +17,72 @@ import type { ProcedureContext } from "@procedures/client";
 import type { LibNewInput, LibNewOutput } from "../../types.js";
 import { packagesDir, resolveWorkspaceRoot } from "../../workspace.js";
 
+interface FsGlobOutput {
+  pattern: string;
+  matches: string[];
+}
+
+/** A new package joins the fixed group of changesets that holds this package. */
+const GROUP_PACKAGE = "@procedures/client";
+
+/** The fixed groups of a changeset config, with the new package in the group of `GROUP_PACKAGE`. */
+export interface JoinedGroups {
+  readonly fixed: string[][];
+  /** This value is true when the group of `GROUP_PACKAGE` did not hold the new package before. */
+  readonly changed: boolean;
+}
+
+/**
+ * This function adds a package to the fixed group that holds `GROUP_PACKAGE`. It gives undefined
+ * when the value is not a list of groups of names, or when no group holds `GROUP_PACKAGE`.
+ */
+export function joinGroup(fixed: unknown, packageName: string): JoinedGroups | undefined {
+  if (!Array.isArray(fixed)) return undefined;
+  const groups: string[][] = [];
+  for (const group of fixed) {
+    if (!Array.isArray(group) || !group.every((name) => typeof name === "string")) return undefined;
+    groups.push([...(group as string[])]);
+  }
+  const group = groups.find((names) => names.includes(GROUP_PACKAGE));
+  if (group === undefined) return undefined;
+  const changed = !group.includes(packageName);
+  if (changed) group.push(packageName);
+  return { fixed: groups, changed };
+}
+
+/** The changeset config with the new package in the group of the client, and the version of the group. */
+interface Group {
+  readonly configPath: string;
+  readonly config: Record<string, unknown>;
+  readonly joined: JoinedGroups;
+  readonly version: string;
+}
+
+/**
+ * This function reads the fixed group of the client. The packages of a fixed group share one
+ * version, so the version of `GROUP_PACKAGE` is the version of the group. A release can change
+ * the version after the start of a package, so the merge of the package checks it again.
+ */
+async function groupOf(rootPath: string, packageName: string, ctx: ProcedureContext): Promise<Group | undefined> {
+  const configPath = join(rootPath, ".changeset", "config.json");
+  const { exists } = await ctx.client.call<{ path: string }, { exists: boolean }>(["fs", "exists"], { path: configPath });
+  if (!exists) return undefined;
+  const { data } = await ctx.client.call<{ path: string }, { data: unknown }>(["fs", "read", "json"], { path: configPath });
+  const config = (data ?? {}) as Record<string, unknown>;
+  const joined = joinGroup(config["fixed"], packageName);
+  if (joined === undefined) return undefined;
+  const { matches } = await ctx.client.call<{ pattern: string; cwd: string; absolute: boolean }, FsGlobOutput>(
+    ["fs", "glob"],
+    { pattern: "packages/*/package.json", cwd: rootPath, absolute: true }
+  );
+  for (const path of matches) {
+    const { data: manifest } = await ctx.client.call<{ path: string }, { data: unknown }>(["fs", "read", "json"], { path });
+    const { name, version } = (manifest ?? {}) as { name?: unknown; version?: unknown };
+    if (name === GROUP_PACKAGE && typeof version === "string") return { configPath, config, joined, version };
+  }
+  return undefined;
+}
+
 interface ShellRunOutput {
   exitCode: number;
   stdout: string;
@@ -188,6 +254,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
         `Would run cue-config init --preset ${input.preset}`,
         "Would run cue-config generate",
         `Would set the package name to ${packageName}, the exports, the files without the build info of tsc, client.procedures and the client dependency`,
+        `Would add ${packageName} to the fixed group of ${GROUP_PACKAGE} in .changeset/config.json, at the version of the group`,
         "Then run pnpm install and pnpm build in the workspace root",
       ],
       errors: [],
@@ -249,10 +316,25 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
       "@procedures/client": "workspace:*",
       zod: "^4.6.5",
     };
+
+    // Step 4: the new package joins the fixed group of the client, at the version of the group.
+    // Before, it kept the version of cue (0.1.0), and the package check failed on two versions.
+    const group = await groupOf(rootPath, packageName, ctx);
+    if (group !== undefined) {
+      pkgJson["version"] = group.version;
+      operations.push(`Setting the version to ${group.version}, the version of the fixed group of ${GROUP_PACKAGE}`);
+    }
     await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
       ["fs", "write"],
       { path: pkgJsonPath, content: JSON.stringify(pkgJson, null, 2) + "\n" }
     );
+    if (group?.joined.changed === true) {
+      operations.push(`Adding ${packageName} to the fixed group of ${GROUP_PACKAGE} in .changeset/config.json`);
+      await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
+        ["fs", "write"],
+        { path: group.configPath, content: JSON.stringify({ ...group.config, fixed: group.joined.fixed }, null, 2) + "\n" }
+      );
+    }
     operations.push(`Created ${packageName}. Next: run pnpm install and pnpm build in ${rootPath}`);
   } catch (error) {
     errors.push(error instanceof Error ? error.message : String(error));
