@@ -411,14 +411,14 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   /**
    * This function gives the members of a union in a canonical sequence. TypeScript keeps the members
-   * in the sequence of its type ids, and an id comes from the sequence in which the checker made
-   * the types. Thus a change in a different part of the generator can change the sequence. The
-   * sequence is important: the decoder of the codecs takes the first member that accepts a value,
-   * and the names of the definitions come in the sequence of the walk.
+   * in the sequence of its type ids. An id comes from the sequence in which the checker made the
+   * types. Thus a change in a different part of the generator can change the sequence. The sequence
+   * is important. The decoder of the codecs takes the first member that accepts a value. The names
+   * of the definitions come in the sequence of the walk.
    *
-   * The sequence: first the primitive types in the sequence of `PRIMITIVES`, then the number
-   * literals by value, the bigint literals by value, the string literals by code unit, and then the
-   * other types by the code units of their text. Members with the same key keep their sequence.
+   * The primitive types come first, in the sequence of `PRIMITIVES`. The number literals and the
+   * bigint literals follow by value. Then come the string literals by code unit. The other types
+   * come last, by the code units of their text. Members with the same key keep their sequence.
    */
   function canonicalMembers(members: readonly TS.Type[]): TS.Type[] {
     const keyed = members.map((member, index) => ({ member, index, ...memberKey(member) }));
