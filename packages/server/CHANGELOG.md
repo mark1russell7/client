@@ -1,5 +1,26 @@
 # @procedures/server
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/fs@0.63.0
+  - @procedures/peer@0.63.0
+  - @procedures/shell@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/fs@0.62.1
+  - @procedures/peer@0.62.1
+  - @procedures/shell@0.62.1
+
 ## 0.62.0
 
 ### Patch Changes

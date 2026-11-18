@@ -8,7 +8,8 @@ import { availableParallelism } from "node:os";
 import path from "node:path";
 import type { Browser } from "@playwright/test";
 import type { Plugin, ResolvedConfig } from "vite";
-import { build } from "../data";
+import { packages, procedures } from "../data";
+import { build } from "../data/site";
 import { docs } from "../data/docs";
 import { LIBRARY_NAME, REPOSITORY_URL, SITE_NAME, SITE_TAGLINE, SITE_URL, registerDocDescriptions, staticPages } from "../lib/seo";
 import { headTags, ogImageFile, type SiteFacts } from "./head-tags";
@@ -100,7 +101,7 @@ export function spaFallbackPlugin(): Plugin {
       const site = await siteFacts(root);
       // The head tags of the docs pages get their real descriptions (the main bundle has none)
       registerDocDescriptions(docs.map((doc) => [doc.slug, doc.description] as const));
-      const routes = staticPages();
+      const routes = staticPages({ procedures, packages });
       const tokens = colorTokens(await readFile(path.join(root, "src", "styles", "tokens.css"), "utf8"));
 
       let snapshots = new Map<string, Snapshot>();

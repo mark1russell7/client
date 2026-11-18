@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 67. **Procedures:** 543. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 67. **Procedures:** 593. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -24,7 +24,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/cli-run` | `packages/client-cli` | Run any mark CLI command as a procedure (cli.run) with a safe argv mapping: no shell, typed flags and captured output. | `cli.*` (1) | `client`, `shell` |
 | `@procedures/collections` | `packages/client-collections` | Collections for TypeScript: ArrayList, LinkedList, ArrayDeque, HashMap, LinkedHashMap, TreeMap (red-black), PriorityQueue, LRU and TTL maps, async queues, channels and collectors, tested with fast-check. | — | `@mark1russell7/collections` *(general)*, `@mark1russell7/rigor-generators` *(general)*, `client` |
 | `@procedures/cue` | `packages/client-cue` | cue-config as procedures: generate package.json, tsconfig.json and .gitignore from CUE feature presets, add and remove features, and validate projects. | `cue.*` (5) | `client`, `fs`, `shell`, `@mark1russell7/cue` *(general)* |
-| `@procedures/dag` | `packages/client-dag` | Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. The procedure dag.traverse visits workspace packages in dependency order. | `dag.*` (1) | `@mark1russell7/collections` *(general)*, `client` |
+| `@procedures/dag` | `packages/client-dag` | Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. The procedure dag.traverse visits workspace packages in dependency order. It also has a procedure for each function of @mark1russell7/collections/dag with JSON inputs. | `dag.*` (9) | `@mark1russell7/collections` *(general)*, `client`, `compiler` |
 | `@procedures/docker` | `packages/client-docker` | Docker and Docker Compose as typed procedures: ps, run, exec, logs (streaming), build, pull, push, tag, images, inspect, volumes, networks, prune, stop, rm, compose up, down, ps, logs, build and restart, run with argv and no shell injection. | `docker.*` (25) | `client`, `shell` |
 | `@procedures/fs` | `packages/client-fs` | File system procedures: read, write, copy, move, glob, exists, mkdir and JSON read and write, callable in process, over RPC or from Claude through MCP. | `fs.*` (15) | `@mark1russell7/collections` *(general)*, `@mark1russell7/files` *(general)*, `client` |
 | `@procedures/git` | `packages/client-git` | Git as 45 typed procedures: status, diff, log, show, blame, commit, push, pull, branch, tag, merge, rebase, worktree, stash and more, run with argv, async and abortable. | `git.*` (46) | `client`, `fs`, `shell` |
@@ -49,7 +49,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/env` | `packages/env` | Environment variables as procedures: one variable, the names, and the check of the required ones, with the secrets masked. | `env.*` (3) | `client` |
 | `@procedures/exif` | `packages/exif` | When and where a JPEG photo was taken, from its EXIF block (time, offset, GPS), without a dependency. | `exif.*` (1) | `client` |
 | `@procedures/generators` | `packages/generators` | The functions of @mark1russell7/rigor-generators as procedures, made from its types: seeds, hashes, canonical JSON, draws and designs as typed calls, MCP tools and CLI commands. | `generators.*` (23) | `@mark1russell7/rigor-generators` *(general)*, `client`, `compiler` |
-| `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim), the time and distance of a drive (OSRM), the great-circle distance and the geohash. | `geo.*` (4) | `@mark1russell7/geo` *(general)*, `client` |
+| `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim) and the time and distance of a drive (OSRM). It also has a procedure for each function of @mark1russell7/geo: distances, bearings, boxes, polygons and geohashes. | `geo.*` (46) | `@mark1russell7/geo` *(general)*, `client`, `compiler` |
 | `@procedures/gh` | `packages/gh` | The GitHub CLI as procedures: pull requests, workflow runs and artifacts, releases, issues and the GitHub API, with an argument list and no shell. Also a REST client with conditional requests and the limits of the rate. | `gh.*` (16) | `@mark1russell7/service` *(general)*, `client`, `http`, `shell` |
 | `@procedures/http` | `packages/http` | HTTP as procedures: request, JSON, NDJSON and server-sent events, with a host allowlist that refuses private addresses, size limits and the deadline of the call. | `http.*` (4) | `client` |
 | `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader and writer without dependencies: the events of a calendar, their occurrences in a time window with the recurrences, and a calendar from events. | `ics.*` (4) | `client` |

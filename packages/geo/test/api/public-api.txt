@@ -38,6 +38,8 @@ fitZoom: dist/mercator.d.ts#fitZoom
 geoDistanceProcedure: dist/procedures.d.ts#geoDistanceProcedure
 geoGeocodeProcedure: dist/procedures.d.ts#geoGeocodeProcedure
 geoGeohashProcedure: dist/procedures.d.ts#geoGeohashProcedure
+geoHomeProcedures: dist/module.d.ts#geoHomeProcedures
+geoManifest: dist/manifest.d.ts#manifest
 geoModule: dist/module.d.ts#geoModule
 geoProcedures: dist/procedures.d.ts#geoProcedures
 geoRouteProcedure: dist/procedures.d.ts#geoRouteProcedure
@@ -53,12 +55,16 @@ tilesFor: dist/mercator.d.ts#tilesFor
 
 createGeoModule: dist/module.d.ts#createGeoModule
 default: dist/module.d.ts#geoModule
+geoHomeProcedures: dist/module.d.ts#geoHomeProcedures
+geoManifest: dist/manifest.d.ts#manifest
 geoModule: dist/module.d.ts#geoModule
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 
 ## ./register (dist/register.d.ts): names
 
 createGeoModule: dist/module.d.ts#createGeoModule
+geoHomeProcedures: dist/module.d.ts#geoHomeProcedures
+geoManifest: dist/manifest.d.ts#manifest
 geoModule: dist/module.d.ts#geoModule
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 
@@ -157,6 +163,9 @@ export declare const decodeGeohash: (hash: string) => GeohashCell;
 ### dist/geohash.d.ts#geohash
 export declare const geohash: (point: Point, precision?: number) => string;
 
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
 ### dist/mercator.d.ts#FitZoomOptions
 export interface FitZoomOptions {
     readonly deepest?: number;
@@ -195,6 +204,9 @@ export declare const tilesFor: (topLeft: Pixel, width: number, height: number, z
 
 ### dist/module.d.ts#createGeoModule
 export declare function createGeoModule(options?: GeoProceduresOptions): ProcedureModule;
+
+### dist/module.d.ts#geoHomeProcedures
+export declare const geoHomeProcedures: readonly AnyProcedure[];
 
 ### dist/module.d.ts#geoModule
 export declare const geoModule: ProcedureModule;
