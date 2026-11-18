@@ -54,8 +54,8 @@
     },
     "MaybeSide": {
       "enum": [
-        "less",
         "greater",
+        "less",
         "two-sided"
       ]
     },
@@ -93,8 +93,8 @@
       "properties": {
         "side": {
           "enum": [
-            "less",
             "greater",
+            "less",
             "two-sided"
           ]
         },
@@ -930,11 +930,11 @@
           "value": {
             "anyOf": [
               {
-                "const": "7",
+                "const": "-7",
                 "x-procedures-codec": "bigint"
               },
               {
-                "const": "-7",
+                "const": "7",
                 "x-procedures-codec": "bigint"
               }
             ]
@@ -1075,8 +1075,8 @@
           "side": {
             "enum": [
               null,
-              "less",
               "greater",
+              "less",
               "two-sided"
             ]
           }
@@ -1089,8 +1089,8 @@
       "output": {
         "enum": [
           null,
-          "less",
           "greater",
+          "less",
           "two-sided"
         ]
       },
@@ -2344,8 +2344,8 @@
           },
           "mode": {
             "enum": [
-              2,
-              1
+              1,
+              2
             ]
           }
         },

@@ -154,7 +154,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("gives null for the undefined member of a named union in an output, and keeps it out of the definition", async () => {
-    expect(manifest.$defs["MaybeSide"]).toEqual({ enum: ["less", "greater", "two-sided"] });
+    expect(manifest.$defs["MaybeSide"]).toEqual({ enum: ["greater", "less", "two-sided"] });
     expect(manifest.procedures.find((procedure) => procedure.name === "sideOf")!.output).toEqual({ anyOf: [{ $ref: "#/$defs/MaybeSide" }, { type: "null" }] });
     const client = clientOf(manifest);
     expect(await client.exec(["fixture", "sideOf"], { sign: -2 })).toBe("less");
