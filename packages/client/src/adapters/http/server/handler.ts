@@ -175,8 +175,6 @@ export interface HandlerCompat {
   readonly methodOf?: ((req: IncomingMessage) => Method | null) | undefined;
   /** The JSON response of the framework (`res.status(status).json(body)` of Express). */
   readonly sendJson?: ((res: NodeResponse, status: number, body: unknown) => void) | undefined;
-  /** True: the shim applies CORS to each request of its app, so the handler does not. */
-  readonly corsOutside?: boolean | undefined;
   /** True: the framework matched the path already, so the handler takes each request that it gets. */
   readonly matchAll?: boolean | undefined;
   /** The name of the face and of its CORS origin option, for the error of `assertNamedOrigins`. */
@@ -313,7 +311,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   // A list of origins or a function: the default sends the credentials. "*" with credentials is invalid.
   // An origin that is not permitted gets no CORS header, and each response still varies by the origin (CLI-56)
   const cors: CorsPolicy | undefined =
-    corsOptions === undefined || compat.corsOutside ? undefined : { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true };
+    corsOptions === undefined ? undefined : { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true };
   const guard: BrowserGuardOptions = {
     allowedOrigins: options.allowedOrigins ?? corsOrigins(corsOptions),
     allowedHosts: options.allowedHosts,
