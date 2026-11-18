@@ -16,8 +16,9 @@
 // the packages that did not load.
 //
 // Usage: node scripts/gen-data.ts (from packages/site). Build the workspace first (`pnpm build`).
-// Output: src/data/generated/*.js with .d.ts files. Git ignores that folder. catalog.js has the
-// procedures without their schemas, and schemas/<package>.js has the schemas of each package.
+// Output: src/data/generated/*.js with .d.ts files. Git ignores that folder. site.js has the facts
+// of the build for each page, catalog.js has the procedures without their schemas, and
+// schemas/<package>.js has the schemas of each package.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -350,11 +351,31 @@ const npm = { name: "@procedures/client", version: await npmVersion("@procedures
 const newest = releases.releases[0];
 const metrics = { tests: tests.tests, testFiles: tests.files, npm, release: newest ? { version: newest.version, date: newest.date } : null };
 
-// Each page loads the catalog, so it has the procedures without their schemas. The schemas were
-// 57 kB of gzip in each page. Now each package has a module of its schemas, and the page of a
-// procedure loads only the module of its package (src/data/schemas.ts).
+// The catalog has the procedures without their schemas. The schemas were 57 kB of gzip in each
+// page. Now each package has a module of its schemas, and the page of a procedure loads only the
+// module of its package (src/data/schemas.ts).
 const summaries = procedures.map(({ input: _input, output: _output, ...summary }) => summary);
-write("catalog", { procedures: summaries, failed, mcpTools: [...mcpTools].sort(), build, metrics });
+const tools = [...mcpTools].sort();
+write("catalog", { procedures: summaries, mcpTools: tools });
+// Each page loads site.js, and only the pages that show procedures or packages load the catalog.
+// The catalog grows with each library that becomes procedures (direction 40). site.js has the
+// facts of the build, the counts and the examples of the home page (src/data/site.ts).
+const cliExample = summaries.find((procedure) => procedure.key === "git.status" && procedure.cli) ?? summaries.find((procedure) => procedure.cli);
+write("site", {
+  build,
+  failed,
+  metrics,
+  counts: {
+    procedures: summaries.length,
+    packages: packages.length,
+    mcpTools: tools.length,
+    lines: packages.reduce((total, pkg) => total + pkg.lines, 0),
+  },
+  examples: {
+    cli: cliExample ? cliExample.path : null,
+    mcp: ["docker.ps", "cue.validate"].find((key) => mcpTools.has(key)) ?? tools[0] ?? "",
+  },
+});
 const schemasByPackage = new Map<string, { key: string; input: JsonSchema; output: JsonSchema }[]>();
 for (const { key, package: dir, input, output } of procedures) {
   const entries = schemasByPackage.get(dir) ?? [];

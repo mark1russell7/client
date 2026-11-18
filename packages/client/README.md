@@ -639,6 +639,10 @@ interface HttpServerTransportOptions {
 }
 ```
 
+With `cors: true`, the transport sends the CORS headers of `corsOptions`. The default of `credentials` is false for the origin `"*"`, and true for each other origin.
+
+The transport applies CORS only to `basePath` and the paths under it. Another route of the app gets no CORS header from the transport, and its `OPTIONS` request goes to the route. An app that needs CORS on its own routes adds its own CORS function, for example `credentialedCors()`.
+
 A URL strategy gets a `UrlStrategyRequest`: the method, the path, the URL, the headers, the query and the body. The type is structural. A `Request` of Express agrees with it, and so does the `UrlRequest` of `procedureHandler`.
 
 A client that accepts `application/x-ndjson` gets a stream as NDJSON lines ([WIRE-PROTOCOL.md](../documentation/WIRE-PROTOCOL.md)).

@@ -1,5 +1,125 @@
 # @procedures/mcp-server
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/mcp@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- 77d07c7: The quality gate of the tool search (direction 40). The new function `toolSearchDocuments` gives the search documents of the tools, as `search_tools` ranks them. The dev-tools server has a golden set of 48 task queries, and a test holds its measures: 39 queries find the expected tool first, 43 in the first 5, and the mean reciprocal rank is 0.849.
+- 365aad4: The tool search (direction 40, the tool surface). A server with thousands of tools now gives the model three tools in place of each tool.
+  
+  - `@procedures/client`: the new core procedure `procedure.search` finds the procedures by words. It searches only the procedures that the host exposes. The ranking is BM25 over the key, the tags and the description. The functions `searchDocuments` and `searchWords` give the same ranking to each catalog of tools.
+  - `@procedures/mcp-server`: the new option `listing: "search"` of the transport and of `createMcpHost()` lists three tools: `search_tools`, `describe_tool` and `call_tool`. The expose rule and the call policy do not change. The default `"each"` keeps the list of each tool.
+  - `@procedures/mcp-dev-tools` and `@procedures/mark`: `MCP_LISTING=search` and `mark mcp --listing search` start the dev-tools server with the search listing.
+  
+  A list of the three tools is 1410 bytes of JSON. The list of each tool costs about 386 tokens for each tool.
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/mcp@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+  - @procedures/mcp@0.62.0
+
+## 0.61.0
+
+### Minor Changes
+
+- f9a78f9: The MCP face puts the untrusted text of an output in envelopes at each depth of the output, also when the text comes from a nested call.
+  
+  - The invocation marks each output object of a procedure with `metadata.untrusted`. The mark goes with the object and does not change its value. The HTTP and WebSocket faces give the same output as before.
+  - The output check of a caller keeps the marks: each object of the checked output gets the mark of the object at the same path.
+  - The new exports `markUntrusted()` and `untrustedMarkOf()` of `@procedures/client` set and read the mark.
+  - The MCP face finds the marked fields in the output of `client.chain`, of a procedure of `procedure.define` and of a procedure of code that gives the output of another procedure.
+  - The first block of the answer has the data without these fields. The second block has their texts in envelopes. The attribute `field` of each envelope gives the path of its field, for example `pages.0.web_content`.
+  - In the structured content, each text of a nested field is in its envelope, and the shape of the field does not change. Thus the structured content agrees with the output schema of the tool.
+  - A field that the tool declares keeps its old form.
+  
+  ## Break
+  
+  A code caller of an MCP tool gets each nested untrusted string of the structured content in its envelope, not as the raw text.
+  
+  Migration for the site and each app:
+  
+  1. Find each MCP client that reads a nested field of the structured content, where a nested procedure declares that field untrusted.
+  2. Read the text inside the envelope, or read the output of the procedure over HTTP or WebSocket, which has the raw text.
+  
+  ```typescript
+  // Before: the raw text
+  const text = result.structuredContent.pages[0].web_content[0].text;
+  // After: the text is in its envelope
+  const sealed = result.structuredContent.pages[0].web_content[0].text; // "<untrusted-content ...>...</untrusted-content>"
+  ```
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/mcp@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- a87cdda: Deprecated: the raw text of a nested untrusted field in the structured content of an MCP tool. From 0.61.0, the structured content puts each nested untrusted string in its envelope. A code caller that reads the raw nested text must read the envelope.
+- a87cdda: The storages of a partitioned collection close at the stop of the server.
+  
+  - `CollectionPartitions` gets an optional `close()`. `closeStorages()` and `stop()` of `ProcedureServer` close each partitions object one time with it.
+  - `ProcedureServer.partitionHandles()` gives one dependency handle for each partitions object, with the name `partitions.<collections>`. The handle closes the partitions after the transports close.
+  - The procedures host and the MCP host declare these handles next to the storage handles. The new type `McpRunnerPartitions` of `@procedures/mcp-server` is the partitions handle, and `McpServiceBuilder.dependency` takes it next to `McpRunnerDependency`. `host.dependencies` of the procedures host also gives the storages and partitions that the app adds after the construction.
+  - Partitions without `close()` stay on the server, and the host closes their storages.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/mcp@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/mcp@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/mcp@0.59.1
+
 ## 0.59.0
 
 ### Minor Changes

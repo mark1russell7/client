@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { decodeGeohash as homeDecodeGeohash, geohash as homeGeohash } from "@mark1russell7/geo";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { EARTH_RADIUS_KM, greatCircleKm } from "./distance.js";
 import { decodeGeohash, geohash } from "./geohash.js";
@@ -14,21 +15,22 @@ const BRANDENBURG = { lat: 52.5163, lon: 13.3777 };
 const OPERA = { lat: -33.8568, lon: 151.2153 };
 const LIBERTY = { lat: 40.6892, lon: -74.0445 };
 
+const FIXED: Array<[{ lat: number; lon: number }, { lat: number; lon: number }, number]> = [
+  [EIFFEL, BRANDENBURG, 879.0864603595937],
+  [{ lat: 0, lon: 0 }, { lat: 0, lon: 1 }, 111.19492664455873],
+  [{ lat: 0, lon: 0 }, { lat: 1, lon: 0 }, 111.19492664455873],
+  [OPERA, LIBERTY, 15984.279726609057],
+  [{ lat: 10, lon: 179.5 }, { lat: 10, lon: -179.5 }, 109.50558394369477],
+  [EIFFEL, { lat: 48.8606, lon: 2.3376 }, 3.16249928500955],
+  [LIBERTY, LIBERTY, 0],
+  [{ lat: 0, lon: 0 }, { lat: 0, lon: 180 }, 20015.086796020572],
+  [{ lat: 90, lon: 0 }, { lat: -90, lon: 0 }, 20015.086796020572],
+];
+
 describe("greatCircleKm", () => {
   it("gives the fixed values of the haversine formula, without rounding", () => {
     expect(EARTH_RADIUS_KM).toBe(6371);
-    const cases: Array<[{ lat: number; lon: number }, { lat: number; lon: number }, number]> = [
-      [EIFFEL, BRANDENBURG, 879.0864603595937],
-      [{ lat: 0, lon: 0 }, { lat: 0, lon: 1 }, 111.19492664455873],
-      [{ lat: 0, lon: 0 }, { lat: 1, lon: 0 }, 111.19492664455873],
-      [OPERA, LIBERTY, 15984.279726609057],
-      [{ lat: 10, lon: 179.5 }, { lat: 10, lon: -179.5 }, 109.50558394369477],
-      [EIFFEL, { lat: 48.8606, lon: 2.3376 }, 3.16249928500955],
-      [LIBERTY, LIBERTY, 0],
-      [{ lat: 0, lon: 0 }, { lat: 0, lon: 180 }, 20015.086796020572],
-      [{ lat: 90, lon: 0 }, { lat: -90, lon: 0 }, 20015.086796020572],
-    ];
-    for (const [a, b, km] of cases) {
+    for (const [a, b, km] of FIXED) {
       expect(greatCircleKm(a, b)).toBe(km);
       expect(greatCircleKm(b, a)).toBe(km);
     }
@@ -69,6 +71,18 @@ describe("geohash", () => {
     expect(() => geohash(EIFFEL, 13)).toThrow(RangeError);
     expect(() => geohash(EIFFEL, 2.5)).toThrow(RangeError);
   });
+
+  it("keeps the old check: a longitude out of -180 to 180 throws", () => {
+    expect(() => geohash({ lat: 10, lon: 200 })).toThrow(/-180 to 180/);
+    expect(() => geohash({ lat: 10, lon: -540 })).toThrow(RangeError);
+    expect(() => geohash({ lat: 10, lon: Number.POSITIVE_INFINITY })).toThrow(RangeError);
+  });
+
+  it("gives the geohash of the home for each point on the map", () => {
+    for (const point of [EIFFEL, BRANDENBURG, OPERA, LIBERTY, { lat: 0, lon: -180 }, { lat: 90, lon: 180 }]) {
+      for (const precision of [1, 7, 12]) expect(geohash(point, precision)).toBe(homeGeohash(point, precision));
+    }
+  });
 });
 
 describe("decodeGeohash", () => {
@@ -91,6 +105,12 @@ describe("decodeGeohash", () => {
     expect(decodeGeohash("U09TUNQ")).toEqual(decodeGeohash("u09tunq"));
     expect(() => decodeGeohash("u09a")).toThrow(/"a"/);
     expect(() => decodeGeohash("")).toThrow(RangeError);
+    expect(() => decodeGeohash("u09tunqu09tun")).toThrow(RangeError);
+  });
+
+  it("keeps the old reading: the KELVIN SIGN (U+212A) is a k in lower case", () => {
+    expect(decodeGeohash("u09tun\u212A")).toEqual(decodeGeohash("u09tunk"));
+    expect(() => homeDecodeGeohash("u09tun\u212A")).toThrow(RangeError);
   });
 });
 
@@ -100,8 +120,11 @@ describe("geo.distance and geo.geohash", () => {
   const call = async <T>(path: string[], input: unknown): Promise<T> =>
     (await outputValue(await invokePath(path, input, { registry }), path)) as T;
 
-  it("geo.distance gives the kilometres of greatCircleKm", async () => {
-    expect(await call(["geo", "distance"], { from: EIFFEL, to: BRANDENBURG })).toEqual({ km: 879.0864603595937 });
+  it("geo.distance gives the fixed values of the haversine formula, in both directions", async () => {
+    for (const [a, b, km] of FIXED) {
+      expect(await call(["geo", "distance"], { from: a, to: b })).toEqual({ km });
+      expect(await call(["geo", "distance"], { from: b, to: a })).toEqual({ km });
+    }
   });
 
   it("geo.geohash gives the geohash and its cell, with 7 characters by default", async () => {

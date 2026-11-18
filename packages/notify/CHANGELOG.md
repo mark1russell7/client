@@ -1,5 +1,125 @@
 # @procedures/notify
 
+## 0.63.0
+
+### Patch Changes
+
+- c0483cd: The entry `@procedures/notify/twilio` reads the usage records of the account.
+  
+  - `twilioUsageRecordsRequest` reads one page of the usage records. Its filters are `category`, `startDate` and `endDate` (days of GMT, `YYYY-MM-DD`, both included) and `pageSize` (1 to 1000).
+  - `extractTwilioUsageRecords` reads a page into records with `category`, `startDate`, `endDate`, `price`, `priceText`, `priceUnit`, `usage`, `count` and `asOf`, or a `TwilioFailure`.
+  - `twilioNextPageRequest` also reads the next page of the usage records.
+  
+  A spend cap can use the records: the category `totalprice` is the price of all the usage of the days. Twilio adds the usage to the records after a delay.
+  
+  This is a PATCH: new exports before 1.0.0, and no change to the other exports.
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- f1e2170: The entry `@procedures/notify/twilio` reads the list of texts and the keywords of the replies.
+  
+  - `twilioMessageListRequest` reads one page of the texts of the account. Its filters are `to`, `from`, `dateSentAfter` (the filter `DateSent>`) and `pageSize` (1 to 1000).
+  - `twilioNextPageRequest` reads the next page from `nextPageUri`. It refuses a path that is not in the Twilio API.
+  - `extractTwilioMessages` reads a page into texts with `sid`, `from`, `to`, `body`, `direction`, `status`, `dateSent` and `errorCode`, or a `TwilioFailure`.
+  - `twilioOptOutKeyword` gives `stop`, `start` or `help` for a text that is only a default keyword of Twilio. It ignores the case of the letters and the white space around the keyword.
+  - `TWILIO_OPT_OUT_KEYWORDS`, `TWILIO_OPT_IN_KEYWORDS` and `TWILIO_HELP_KEYWORDS` are the default keywords. `TWILIO_LIMITS.pageSize` is 1000.
+  
+  This is a PATCH: new exports before 1.0.0, and no change to the other exports.
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- e33291d: The new entry `@procedures/notify/webhook` sends and checks webhooks in the form of Standard Webhooks (https://www.standardwebhooks.com).
+  
+  - `webhookRequest` signs a JSON body with one secret or more. `sendWebhook` sends it once through a fetch that the caller gives.
+  - `extractWebhookSent` sorts a response by the rules of the spec: `redirect`, `gone`, `throttled`, `server` and `refused`, with a wait from `Retry-After`.
+  - `verifyWebhook` checks the headers, the time in a tolerance of 5 minutes, and the signature, with the comparison of WebCrypto.
+  - `parseWebhookSecret` and `webhookSecretText` read and write the secrets `whsec_` of 24 to 64 bytes.
+  
+  The entry imports no Node built-in, thus a browser can also use it. This is a PATCH: a new entry, and no change to the other entries.
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- 1fc4ea3: The new entry `@procedures/notify/twilio-serverless` has pure functions for the Twilio Serverless API. A browser can also use them.
+  
+  - The request builders make a service, a function, an asset and their versions. They also start a build, and make an environment, a variable and a deployment.
+  - An upload of a version has a multipart body. Its boundary is pure, so the same input gives the same body.
+  - `twilioServerlessBuildStep` gives the next step of the poll of a build. It has no timer.
+  - `twilioServerlessDeploy` deploys a plan of files, a build and variables to one environment. A second deploy of the same plan changes nothing.
+  - The extractors read each response into a typed result or a `TwilioFailure`. They do not throw.
+  - A builder throws an error when the input breaks a rule of the API.
+  
+  The shared types of `./twilio` moved to an internal module that the two entries import. The API of `./twilio` does not change.
+  
+  PATCH: a new entry and new exports, before 1.0.0.
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- 68b3175: The entry `@procedures/notify/twilio` has three new functions and a new option.
+  
+  - `twilioGatherTwiml` gives the TwiML of a call that says a text in a `<Gather>`. Twilio sends the key of the person to the address `action`. With no key, the TwiML says the text `after`, and the call ends. It escapes the texts and the address.
+  - `twilioBalanceRequest` and `extractTwilioBalance` read the balance of the account, as a number and as the decimal text of Twilio.
+  - `twilioSayTwiml` and `twilioGatherTwiml` take a `voice` and a `language` for each `<Say>`. Without them, the TwiML does not change.
+  
+  PATCH: new exports and a new optional parameter, before 1.0.0.
+- ce207f7: The new entry `@procedures/notify/twilio` has the request builders and the extractors of Twilio text messages and voice calls: send a text, start a call, read the status of each, end a call, and the TwiML of a call that says a text. `callTwilio` sends one request through the fetch of the caller. The entry imports no Node built-in, so a browser can also use it.
+  
+  `callPushover` and `callTwilio` use one internal call helper. The behavior of `callPushover` does not change.
+  
+  PATCH: a new entry and new exports, before 1.0.0.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

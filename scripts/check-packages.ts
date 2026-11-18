@@ -8,8 +8,8 @@
 // 5. imports each package root, runs a program with the client, and starts the bins.
 //
 // Usage: node scripts/check-packages.ts [--allow-git-deps] [--no-install] [--keep]
-// --allow-git-deps: accept the github: dependencies of the general packages (cue, splay,
-//   docker-sqlite) until they are on npm. A release must not have them: npm 12 does not install
+// --allow-git-deps: accept the github: dependencies of the general packages (cue, splay)
+//   until they are on npm. A release must not have them: npm 12 does not install
 //   git dependencies by default.
 // --no-install: steps 1 to 3 only.
 // --keep: keep the temporary folder, and print its path.
@@ -57,6 +57,21 @@ try {
   for (const name of fixed) {
     if (!packages.some((p) => p.name === name)) fail(`.changeset/config.json names ${name}, which is not a public package`);
   }
+  // Only the shell package starts a program: the import rule program-start-outside-shell holds the
+  // imports of child_process. The analysis of imports does not read node_modules, so this step reads
+  // the dependencies of each package (public or private) for the npm packages that start programs.
+  const programStarters = ["execa", "cross-spawn", "tinyexec", "nano-spawn"];
+  for (const folder of readdirSync(join(root, "packages"))) {
+    const file = join(root, "packages", folder, "package.json");
+    if (folder === "client-shell" || !existsSync(file)) continue;
+    const manifest = JSON.parse(readFileSync(file, "utf8")) as Record<string, Record<string, string> | undefined>;
+    for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
+      for (const name of programStarters) {
+        if (manifest[field]?.[name] !== undefined) fail(`packages/${folder}: ${field} has ${name}, which starts programs. Use the helpers of @procedures/shell/command`);
+      }
+    }
+  }
+
   console.log(`Packing ${packages.length} public packages (version ${[...versions].join(", ")})`);
 
   const tarballs: string[] = [];

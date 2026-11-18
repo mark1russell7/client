@@ -191,10 +191,11 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 ### I9. Import boundaries
 
-- **Rule.** A browser entry imports no Node built-in. A transport does not import the server. An adapter package imports only the public entries of the client, and not the `src/` folder of another package. No package of this repository imports an app.
-- **Reason.** A browser page then bundles each browser entry. Each layer can then change without a change of the layers above it.
+- **Rule.** A browser entry imports no Node built-in. A transport does not import the server. An adapter package imports only the public entries of the client, and not the `src/` folder of another package. No package of this repository imports an app. Only the shell package starts a program.
+- **Reason.** A browser page then bundles each browser entry. Each layer can then change without a change of the layers above it. A program name then has one lookup, and on Windows that lookup does not look in the working folder.
 - **Guard.** For the browser entries: the step "Check the browser entries" (`scripts/check-browser-entries.ts`, CLI-39). For the other rules: the step "Check the import boundaries" (`pnpm check:boundaries`, CLI-83). The step starts dependency-cruiser on the `src/` folder of each package, without the tests. The shared package `@mark1russell7/boundaries` and `.dependency-cruiser.ts` give the rules, and `scripts/check-boundaries.test.ts` tests them. The rules are these:
   - `transport-imports-server` and `transport-reaches-server` (this repository): a transport (`client/src/adapters/` and `client-mcp/src/transport/`) does not import the server, directly or through other modules. The server is `ProcedureServer`, `Server`, the host parts of `client/src/server/`, the `./server` entry of the client, the MCP host and the packages `@procedures/server` and `@procedures/peer`. A transport can import the shared helpers of `client/src/server/`, for example `method.ts` and `types.ts`.
+  - `program-start-outside-shell` (this repository): only `client-shell/` imports `node:child_process`. The package check fails each other package with a dependency on an npm package that starts programs. The other packages use the helpers of `@procedures/shell/command`, for example `spawnProgram` and `runCommand`. An import of the types is permitted. `SERVER-LAYERS.md` ("The run path of a CLI wrapper") gives the details.
   - `relative-import-out-of-<package>` (shared): a relative import stays in its package.
   - `deep-import-into-<package>` (shared): an import of another package goes to an entry of its `package.json`. Thus no import goes into the `src/` folder of another package.
   - `not-a-declared-export` (shared): an import of a package of this repository resolves through its exports map, with the conditions of an ESM import. The check reads `dist/`, so start it after `pnpm build`.
@@ -205,7 +206,7 @@ The CI names below are the jobs and the steps of `.github/workflows/ci.yml`.
 
 - **Rule.** Each page of the site stays within its size budget, after gzip.
 - **Reason.** A change in the core can pull code into the main bundle of each page. Example: the budget found that the error policy of CLI-80 went into the main bundle.
-- **Guard.** The tests "the budgets" in `packages/site/e2e/seo.spec.ts`, in the CI job "Site (browser smoke test)". The budgets are 256 kB for a page, 180 kB for its scripts and 128 kB for the scripts of a Web Worker.
+- **Guard.** The tests "the budgets" in `packages/site/e2e/seo.spec.ts`, in the CI job "Site / Site check". The budgets are 256 kB for a page, 180 kB for its scripts and 128 kB for the scripts of a Web Worker.
 
 ### I11. Versioning
 

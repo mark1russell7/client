@@ -32,27 +32,83 @@ PushoverRequest: dist/pushover.d.ts#PushoverRequest
 PushoverResponse: dist/pushover.d.ts#PushoverResponse
 PushoverSent: dist/pushover.d.ts#PushoverSent
 PushoverValidated: dist/pushover.d.ts#PushoverValidated
-TWILIO_ACCOUNT_SID: dist/twilio.d.ts#TWILIO_ACCOUNT_SID
+TWILIO_ACCOUNT_SID: dist/twilio-common.d.ts#TWILIO_ACCOUNT_SID
 TWILIO_API: dist/twilio.d.ts#TWILIO_API
+TWILIO_HELP_KEYWORDS: dist/twilio.d.ts#TWILIO_HELP_KEYWORDS
 TWILIO_LIMITS: dist/twilio.d.ts#TWILIO_LIMITS
-TWILIO_MIN_WAIT_MS: dist/twilio.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_MIN_WAIT_MS: dist/twilio-common.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_OPT_IN_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_IN_KEYWORDS
+TWILIO_OPT_OUT_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_OUT_KEYWORDS
 TWILIO_RING_MAX_MS: dist/twilio.d.ts#TWILIO_RING_MAX_MS
+TWILIO_SERVERLESS_API: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_API
+TWILIO_SERVERLESS_BUILD_POLL: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_BUILD_POLL
+TWILIO_SERVERLESS_LIMITS: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_LIMITS
+TWILIO_SERVERLESS_UPLOAD_API: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_UPLOAD_API
+TWILIO_SERVERLESS_VERSION_KEY: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_VERSION_KEY
 TWILIO_VALIDITY_MAX_MS: dist/twilio.d.ts#TWILIO_VALIDITY_MAX_MS
 TwilioBalanceRead: dist/twilio.d.ts#TwilioBalanceRead
 TwilioCall: dist/twilio.d.ts#TwilioCall
 TwilioCallRead: dist/twilio.d.ts#TwilioCallRead
 TwilioCallState: dist/twilio.d.ts#TwilioCallState
-TwilioCredentials: dist/twilio.d.ts#TwilioCredentials
-TwilioFailure: dist/twilio.d.ts#TwilioFailure
-TwilioFailureKind: dist/twilio.d.ts#TwilioFailureKind
+type TwilioCredentials: dist/twilio-common.d.ts#TwilioCredentials
+type TwilioFailure: dist/twilio-common.d.ts#TwilioFailure
+type TwilioFailureKind: dist/twilio-common.d.ts#TwilioFailureKind
 TwilioFetch: dist/twilio.d.ts#TwilioFetch
 TwilioGather: dist/twilio.d.ts#TwilioGather
-TwilioRequest: dist/twilio.d.ts#TwilioRequest
-TwilioResponse: dist/twilio.d.ts#TwilioResponse
+TwilioKeyword: dist/twilio.d.ts#TwilioKeyword
+TwilioMessage: dist/twilio.d.ts#TwilioMessage
+TwilioMessagePage: dist/twilio.d.ts#TwilioMessagePage
+TwilioMessageQuery: dist/twilio.d.ts#TwilioMessageQuery
+type TwilioRequest: dist/twilio-common.d.ts#TwilioRequest
+type TwilioResponse: dist/twilio-common.d.ts#TwilioResponse
+TwilioServerlessBuild: dist/twilio-serverless.d.ts#TwilioServerlessBuild
+TwilioServerlessBuildInput: dist/twilio-serverless.d.ts#TwilioServerlessBuildInput
+TwilioServerlessBuildPoll: dist/twilio-serverless.d.ts#TwilioServerlessBuildPoll
+TwilioServerlessBuildStep: dist/twilio-serverless.d.ts#TwilioServerlessBuildStep
+TwilioServerlessDeployPlan: dist/twilio-serverless.d.ts#TwilioServerlessDeployPlan
+TwilioServerlessDeployPorts: dist/twilio-serverless.d.ts#TwilioServerlessDeployPorts
+TwilioServerlessDeployResult: dist/twilio-serverless.d.ts#TwilioServerlessDeployResult
+TwilioServerlessDeployStage: dist/twilio-serverless.d.ts#TwilioServerlessDeployStage
+TwilioServerlessDeployment: dist/twilio-serverless.d.ts#TwilioServerlessDeployment
+TwilioServerlessEnvironment: dist/twilio-serverless.d.ts#TwilioServerlessEnvironment
+TwilioServerlessEnvironmentInput: dist/twilio-serverless.d.ts#TwilioServerlessEnvironmentInput
+TwilioServerlessFile: dist/twilio-serverless.d.ts#TwilioServerlessFile
+TwilioServerlessPage: dist/twilio-serverless.d.ts#TwilioServerlessPage
+TwilioServerlessPageOptions: dist/twilio-serverless.d.ts#TwilioServerlessPageOptions
+TwilioServerlessRead: dist/twilio-serverless.d.ts#TwilioServerlessRead
+TwilioServerlessResource: dist/twilio-serverless.d.ts#TwilioServerlessResource
+TwilioServerlessService: dist/twilio-serverless.d.ts#TwilioServerlessService
+TwilioServerlessServiceInput: dist/twilio-serverless.d.ts#TwilioServerlessServiceInput
+TwilioServerlessVariable: dist/twilio-serverless.d.ts#TwilioServerlessVariable
+TwilioServerlessVariableInput: dist/twilio-serverless.d.ts#TwilioServerlessVariableInput
+TwilioServerlessVersion: dist/twilio-serverless.d.ts#TwilioServerlessVersion
+TwilioServerlessVisibility: dist/twilio-serverless.d.ts#TwilioServerlessVisibility
 TwilioText: dist/twilio.d.ts#TwilioText
 TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
 TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioUsagePage: dist/twilio.d.ts#TwilioUsagePage
+TwilioUsageQuery: dist/twilio.d.ts#TwilioUsageQuery
+TwilioUsageRecord: dist/twilio.d.ts#TwilioUsageRecord
 TwilioVoice: dist/twilio.d.ts#TwilioVoice
+WEBHOOK_HEADERS: dist/webhook.d.ts#WEBHOOK_HEADERS
+WEBHOOK_MIN_WAIT_MS: dist/webhook.d.ts#WEBHOOK_MIN_WAIT_MS
+WEBHOOK_SECRET_BYTES: dist/webhook.d.ts#WEBHOOK_SECRET_BYTES
+WEBHOOK_SECRET_PREFIX: dist/webhook.d.ts#WEBHOOK_SECRET_PREFIX
+WEBHOOK_TIMEOUT_MS: dist/webhook.d.ts#WEBHOOK_TIMEOUT_MS
+WEBHOOK_TOLERANCE_MS: dist/webhook.d.ts#WEBHOOK_TOLERANCE_MS
+WebhookCheck: dist/webhook.d.ts#WebhookCheck
+WebhookCheckReason: dist/webhook.d.ts#WebhookCheckReason
+WebhookEvent: dist/webhook.d.ts#WebhookEvent
+WebhookFailure: dist/webhook.d.ts#WebhookFailure
+WebhookFailureKind: dist/webhook.d.ts#WebhookFailureKind
+WebhookFetch: dist/webhook.d.ts#WebhookFetch
+WebhookIncoming: dist/webhook.d.ts#WebhookIncoming
+WebhookMessage: dist/webhook.d.ts#WebhookMessage
+WebhookRequest: dist/webhook.d.ts#WebhookRequest
+WebhookResponse: dist/webhook.d.ts#WebhookResponse
+WebhookSecret: dist/webhook.d.ts#WebhookSecret
+WebhookSecretResult: dist/webhook.d.ts#WebhookSecretResult
+WebhookSent: dist/webhook.d.ts#WebhookSent
 callPushover: dist/pushover.d.ts#callPushover
 callTwilio: dist/twilio.d.ts#callTwilio
 extractPushoverCallback: dist/pushover.d.ts#extractPushoverCallback
@@ -63,11 +119,26 @@ extractPushoverSent: dist/pushover.d.ts#extractPushoverSent
 extractPushoverValidated: dist/pushover.d.ts#extractPushoverValidated
 extractTwilioBalance: dist/twilio.d.ts#extractTwilioBalance
 extractTwilioCall: dist/twilio.d.ts#extractTwilioCall
+extractTwilioMessages: dist/twilio.d.ts#extractTwilioMessages
+extractTwilioServerlessAssets: dist/twilio-serverless.d.ts#extractTwilioServerlessAssets
+extractTwilioServerlessBuild: dist/twilio-serverless.d.ts#extractTwilioServerlessBuild
+extractTwilioServerlessDeployment: dist/twilio-serverless.d.ts#extractTwilioServerlessDeployment
+extractTwilioServerlessEnvironment: dist/twilio-serverless.d.ts#extractTwilioServerlessEnvironment
+extractTwilioServerlessEnvironments: dist/twilio-serverless.d.ts#extractTwilioServerlessEnvironments
+extractTwilioServerlessFunctions: dist/twilio-serverless.d.ts#extractTwilioServerlessFunctions
+extractTwilioServerlessResource: dist/twilio-serverless.d.ts#extractTwilioServerlessResource
+extractTwilioServerlessService: dist/twilio-serverless.d.ts#extractTwilioServerlessService
+extractTwilioServerlessVariable: dist/twilio-serverless.d.ts#extractTwilioServerlessVariable
+extractTwilioServerlessVariables: dist/twilio-serverless.d.ts#extractTwilioServerlessVariables
+extractTwilioServerlessVersion: dist/twilio-serverless.d.ts#extractTwilioServerlessVersion
 extractTwilioText: dist/twilio.d.ts#extractTwilioText
+extractTwilioUsageRecords: dist/twilio.d.ts#extractTwilioUsageRecords
+extractWebhookSent: dist/webhook.d.ts#extractWebhookSent
 headerSafe: dist/notify.d.ts#headerSafe
 notifyModule: dist/module.d.ts#notifyModule
 notifyProcedures: dist/procedures.d.ts#notifyProcedures
 notifySendProcedure: dist/procedures.d.ts#notifySendProcedure
+parseWebhookSecret: dist/webhook.d.ts#parseWebhookSecret
 pushoverCancelByTagRequest: dist/pushover.d.ts#pushoverCancelByTagRequest
 pushoverCancelProcedure: dist/pushover-procedures.d.ts#pushoverCancelProcedure
 pushoverCancelRequest: dist/pushover.d.ts#pushoverCancelRequest
@@ -82,16 +153,45 @@ pushoverValidateProcedure: dist/pushover-procedures.d.ts#pushoverValidateProcedu
 pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 registerNotifyProcedures: dist/module.d.ts#registerNotifyProcedures
 sendNotification: dist/notify.d.ts#sendNotification
+sendWebhook: dist/webhook.d.ts#sendWebhook
+signWebhook: dist/webhook.d.ts#signWebhook
 twilioBalanceRequest: dist/twilio.d.ts#twilioBalanceRequest
 twilioCallRequest: dist/twilio.d.ts#twilioCallRequest
 twilioCallState: dist/twilio.d.ts#twilioCallState
 twilioCallStatusRequest: dist/twilio.d.ts#twilioCallStatusRequest
 twilioEndCallRequest: dist/twilio.d.ts#twilioEndCallRequest
 twilioGatherTwiml: dist/twilio.d.ts#twilioGatherTwiml
+twilioMessageListRequest: dist/twilio.d.ts#twilioMessageListRequest
+twilioNextPageRequest: dist/twilio.d.ts#twilioNextPageRequest
+twilioOptOutKeyword: dist/twilio.d.ts#twilioOptOutKeyword
 twilioSayTwiml: dist/twilio.d.ts#twilioSayTwiml
+twilioServerlessAssetListRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetListRequest
+twilioServerlessAssetRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetRequest
+twilioServerlessAssetVersionRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetVersionRequest
+twilioServerlessBuildRequest: dist/twilio-serverless.d.ts#twilioServerlessBuildRequest
+twilioServerlessBuildStatusRequest: dist/twilio-serverless.d.ts#twilioServerlessBuildStatusRequest
+twilioServerlessBuildStep: dist/twilio-serverless.d.ts#twilioServerlessBuildStep
+twilioServerlessDeploy: dist/twilio-serverless.d.ts#twilioServerlessDeploy
+twilioServerlessDeploymentRequest: dist/twilio-serverless.d.ts#twilioServerlessDeploymentRequest
+twilioServerlessEnvironmentListRequest: dist/twilio-serverless.d.ts#twilioServerlessEnvironmentListRequest
+twilioServerlessEnvironmentRequest: dist/twilio-serverless.d.ts#twilioServerlessEnvironmentRequest
+twilioServerlessFunctionListRequest: dist/twilio-serverless.d.ts#twilioServerlessFunctionListRequest
+twilioServerlessFunctionRequest: dist/twilio-serverless.d.ts#twilioServerlessFunctionRequest
+twilioServerlessFunctionVersionRequest: dist/twilio-serverless.d.ts#twilioServerlessFunctionVersionRequest
+twilioServerlessNextPageRequest: dist/twilio-serverless.d.ts#twilioServerlessNextPageRequest
+twilioServerlessServiceFetchRequest: dist/twilio-serverless.d.ts#twilioServerlessServiceFetchRequest
+twilioServerlessServiceRequest: dist/twilio-serverless.d.ts#twilioServerlessServiceRequest
+twilioServerlessVariableListRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableListRequest
+twilioServerlessVariableRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableRequest
+twilioServerlessVariableUpdateRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableUpdateRequest
 twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
 twilioTextState: dist/twilio.d.ts#twilioTextState
 twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
+twilioUsageRecordsRequest: dist/twilio.d.ts#twilioUsageRecordsRequest
+verifyWebhook: dist/webhook.d.ts#verifyWebhook
+webhookBody: dist/webhook.d.ts#webhookBody
+webhookRequest: dist/webhook.d.ts#webhookRequest
+webhookSecretText: dist/webhook.d.ts#webhookSecretText
 
 ## ./pushover (dist/pushover.d.ts): names
 
@@ -132,41 +232,147 @@ pushoverValidateRequest: dist/pushover.d.ts#pushoverValidateRequest
 
 ## ./twilio (dist/twilio.d.ts): names
 
-TWILIO_ACCOUNT_SID: dist/twilio.d.ts#TWILIO_ACCOUNT_SID
+TWILIO_ACCOUNT_SID: dist/twilio-common.d.ts#TWILIO_ACCOUNT_SID
 TWILIO_API: dist/twilio.d.ts#TWILIO_API
+TWILIO_HELP_KEYWORDS: dist/twilio.d.ts#TWILIO_HELP_KEYWORDS
 TWILIO_LIMITS: dist/twilio.d.ts#TWILIO_LIMITS
-TWILIO_MIN_WAIT_MS: dist/twilio.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_MIN_WAIT_MS: dist/twilio-common.d.ts#TWILIO_MIN_WAIT_MS
+TWILIO_OPT_IN_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_IN_KEYWORDS
+TWILIO_OPT_OUT_KEYWORDS: dist/twilio.d.ts#TWILIO_OPT_OUT_KEYWORDS
 TWILIO_RING_MAX_MS: dist/twilio.d.ts#TWILIO_RING_MAX_MS
 TWILIO_VALIDITY_MAX_MS: dist/twilio.d.ts#TWILIO_VALIDITY_MAX_MS
 TwilioBalanceRead: dist/twilio.d.ts#TwilioBalanceRead
 TwilioCall: dist/twilio.d.ts#TwilioCall
 TwilioCallRead: dist/twilio.d.ts#TwilioCallRead
 TwilioCallState: dist/twilio.d.ts#TwilioCallState
-TwilioCredentials: dist/twilio.d.ts#TwilioCredentials
-TwilioFailure: dist/twilio.d.ts#TwilioFailure
-TwilioFailureKind: dist/twilio.d.ts#TwilioFailureKind
+type TwilioCredentials: dist/twilio-common.d.ts#TwilioCredentials
+type TwilioFailure: dist/twilio-common.d.ts#TwilioFailure
+type TwilioFailureKind: dist/twilio-common.d.ts#TwilioFailureKind
 TwilioFetch: dist/twilio.d.ts#TwilioFetch
 TwilioGather: dist/twilio.d.ts#TwilioGather
-TwilioRequest: dist/twilio.d.ts#TwilioRequest
-TwilioResponse: dist/twilio.d.ts#TwilioResponse
+TwilioKeyword: dist/twilio.d.ts#TwilioKeyword
+TwilioMessage: dist/twilio.d.ts#TwilioMessage
+TwilioMessagePage: dist/twilio.d.ts#TwilioMessagePage
+TwilioMessageQuery: dist/twilio.d.ts#TwilioMessageQuery
+type TwilioRequest: dist/twilio-common.d.ts#TwilioRequest
+type TwilioResponse: dist/twilio-common.d.ts#TwilioResponse
 TwilioText: dist/twilio.d.ts#TwilioText
 TwilioTextRead: dist/twilio.d.ts#TwilioTextRead
 TwilioTextState: dist/twilio.d.ts#TwilioTextState
+TwilioUsagePage: dist/twilio.d.ts#TwilioUsagePage
+TwilioUsageQuery: dist/twilio.d.ts#TwilioUsageQuery
+TwilioUsageRecord: dist/twilio.d.ts#TwilioUsageRecord
 TwilioVoice: dist/twilio.d.ts#TwilioVoice
 callTwilio: dist/twilio.d.ts#callTwilio
 extractTwilioBalance: dist/twilio.d.ts#extractTwilioBalance
 extractTwilioCall: dist/twilio.d.ts#extractTwilioCall
+extractTwilioMessages: dist/twilio.d.ts#extractTwilioMessages
 extractTwilioText: dist/twilio.d.ts#extractTwilioText
+extractTwilioUsageRecords: dist/twilio.d.ts#extractTwilioUsageRecords
 twilioBalanceRequest: dist/twilio.d.ts#twilioBalanceRequest
 twilioCallRequest: dist/twilio.d.ts#twilioCallRequest
 twilioCallState: dist/twilio.d.ts#twilioCallState
 twilioCallStatusRequest: dist/twilio.d.ts#twilioCallStatusRequest
 twilioEndCallRequest: dist/twilio.d.ts#twilioEndCallRequest
 twilioGatherTwiml: dist/twilio.d.ts#twilioGatherTwiml
+twilioMessageListRequest: dist/twilio.d.ts#twilioMessageListRequest
+twilioNextPageRequest: dist/twilio.d.ts#twilioNextPageRequest
+twilioOptOutKeyword: dist/twilio.d.ts#twilioOptOutKeyword
 twilioSayTwiml: dist/twilio.d.ts#twilioSayTwiml
 twilioTextRequest: dist/twilio.d.ts#twilioTextRequest
 twilioTextState: dist/twilio.d.ts#twilioTextState
 twilioTextStatusRequest: dist/twilio.d.ts#twilioTextStatusRequest
+twilioUsageRecordsRequest: dist/twilio.d.ts#twilioUsageRecordsRequest
+
+## ./twilio-serverless (dist/twilio-serverless.d.ts): names
+
+TWILIO_SERVERLESS_API: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_API
+TWILIO_SERVERLESS_BUILD_POLL: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_BUILD_POLL
+TWILIO_SERVERLESS_LIMITS: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_LIMITS
+TWILIO_SERVERLESS_UPLOAD_API: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_UPLOAD_API
+TWILIO_SERVERLESS_VERSION_KEY: dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_VERSION_KEY
+TwilioServerlessBuild: dist/twilio-serverless.d.ts#TwilioServerlessBuild
+TwilioServerlessBuildInput: dist/twilio-serverless.d.ts#TwilioServerlessBuildInput
+TwilioServerlessBuildPoll: dist/twilio-serverless.d.ts#TwilioServerlessBuildPoll
+TwilioServerlessBuildStep: dist/twilio-serverless.d.ts#TwilioServerlessBuildStep
+TwilioServerlessDeployPlan: dist/twilio-serverless.d.ts#TwilioServerlessDeployPlan
+TwilioServerlessDeployPorts: dist/twilio-serverless.d.ts#TwilioServerlessDeployPorts
+TwilioServerlessDeployResult: dist/twilio-serverless.d.ts#TwilioServerlessDeployResult
+TwilioServerlessDeployStage: dist/twilio-serverless.d.ts#TwilioServerlessDeployStage
+TwilioServerlessDeployment: dist/twilio-serverless.d.ts#TwilioServerlessDeployment
+TwilioServerlessEnvironment: dist/twilio-serverless.d.ts#TwilioServerlessEnvironment
+TwilioServerlessEnvironmentInput: dist/twilio-serverless.d.ts#TwilioServerlessEnvironmentInput
+TwilioServerlessFile: dist/twilio-serverless.d.ts#TwilioServerlessFile
+TwilioServerlessPage: dist/twilio-serverless.d.ts#TwilioServerlessPage
+TwilioServerlessPageOptions: dist/twilio-serverless.d.ts#TwilioServerlessPageOptions
+TwilioServerlessRead: dist/twilio-serverless.d.ts#TwilioServerlessRead
+TwilioServerlessResource: dist/twilio-serverless.d.ts#TwilioServerlessResource
+TwilioServerlessService: dist/twilio-serverless.d.ts#TwilioServerlessService
+TwilioServerlessServiceInput: dist/twilio-serverless.d.ts#TwilioServerlessServiceInput
+TwilioServerlessVariable: dist/twilio-serverless.d.ts#TwilioServerlessVariable
+TwilioServerlessVariableInput: dist/twilio-serverless.d.ts#TwilioServerlessVariableInput
+TwilioServerlessVersion: dist/twilio-serverless.d.ts#TwilioServerlessVersion
+TwilioServerlessVisibility: dist/twilio-serverless.d.ts#TwilioServerlessVisibility
+extractTwilioServerlessAssets: dist/twilio-serverless.d.ts#extractTwilioServerlessAssets
+extractTwilioServerlessBuild: dist/twilio-serverless.d.ts#extractTwilioServerlessBuild
+extractTwilioServerlessDeployment: dist/twilio-serverless.d.ts#extractTwilioServerlessDeployment
+extractTwilioServerlessEnvironment: dist/twilio-serverless.d.ts#extractTwilioServerlessEnvironment
+extractTwilioServerlessEnvironments: dist/twilio-serverless.d.ts#extractTwilioServerlessEnvironments
+extractTwilioServerlessFunctions: dist/twilio-serverless.d.ts#extractTwilioServerlessFunctions
+extractTwilioServerlessResource: dist/twilio-serverless.d.ts#extractTwilioServerlessResource
+extractTwilioServerlessService: dist/twilio-serverless.d.ts#extractTwilioServerlessService
+extractTwilioServerlessVariable: dist/twilio-serverless.d.ts#extractTwilioServerlessVariable
+extractTwilioServerlessVariables: dist/twilio-serverless.d.ts#extractTwilioServerlessVariables
+extractTwilioServerlessVersion: dist/twilio-serverless.d.ts#extractTwilioServerlessVersion
+twilioServerlessAssetListRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetListRequest
+twilioServerlessAssetRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetRequest
+twilioServerlessAssetVersionRequest: dist/twilio-serverless.d.ts#twilioServerlessAssetVersionRequest
+twilioServerlessBuildRequest: dist/twilio-serverless.d.ts#twilioServerlessBuildRequest
+twilioServerlessBuildStatusRequest: dist/twilio-serverless.d.ts#twilioServerlessBuildStatusRequest
+twilioServerlessBuildStep: dist/twilio-serverless.d.ts#twilioServerlessBuildStep
+twilioServerlessDeploy: dist/twilio-serverless.d.ts#twilioServerlessDeploy
+twilioServerlessDeploymentRequest: dist/twilio-serverless.d.ts#twilioServerlessDeploymentRequest
+twilioServerlessEnvironmentListRequest: dist/twilio-serverless.d.ts#twilioServerlessEnvironmentListRequest
+twilioServerlessEnvironmentRequest: dist/twilio-serverless.d.ts#twilioServerlessEnvironmentRequest
+twilioServerlessFunctionListRequest: dist/twilio-serverless.d.ts#twilioServerlessFunctionListRequest
+twilioServerlessFunctionRequest: dist/twilio-serverless.d.ts#twilioServerlessFunctionRequest
+twilioServerlessFunctionVersionRequest: dist/twilio-serverless.d.ts#twilioServerlessFunctionVersionRequest
+twilioServerlessNextPageRequest: dist/twilio-serverless.d.ts#twilioServerlessNextPageRequest
+twilioServerlessServiceFetchRequest: dist/twilio-serverless.d.ts#twilioServerlessServiceFetchRequest
+twilioServerlessServiceRequest: dist/twilio-serverless.d.ts#twilioServerlessServiceRequest
+twilioServerlessVariableListRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableListRequest
+twilioServerlessVariableRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableRequest
+twilioServerlessVariableUpdateRequest: dist/twilio-serverless.d.ts#twilioServerlessVariableUpdateRequest
+
+## ./webhook (dist/webhook.d.ts): names
+
+WEBHOOK_HEADERS: dist/webhook.d.ts#WEBHOOK_HEADERS
+WEBHOOK_MIN_WAIT_MS: dist/webhook.d.ts#WEBHOOK_MIN_WAIT_MS
+WEBHOOK_SECRET_BYTES: dist/webhook.d.ts#WEBHOOK_SECRET_BYTES
+WEBHOOK_SECRET_PREFIX: dist/webhook.d.ts#WEBHOOK_SECRET_PREFIX
+WEBHOOK_TIMEOUT_MS: dist/webhook.d.ts#WEBHOOK_TIMEOUT_MS
+WEBHOOK_TOLERANCE_MS: dist/webhook.d.ts#WEBHOOK_TOLERANCE_MS
+WebhookCheck: dist/webhook.d.ts#WebhookCheck
+WebhookCheckReason: dist/webhook.d.ts#WebhookCheckReason
+WebhookEvent: dist/webhook.d.ts#WebhookEvent
+WebhookFailure: dist/webhook.d.ts#WebhookFailure
+WebhookFailureKind: dist/webhook.d.ts#WebhookFailureKind
+WebhookFetch: dist/webhook.d.ts#WebhookFetch
+WebhookIncoming: dist/webhook.d.ts#WebhookIncoming
+WebhookMessage: dist/webhook.d.ts#WebhookMessage
+WebhookRequest: dist/webhook.d.ts#WebhookRequest
+WebhookResponse: dist/webhook.d.ts#WebhookResponse
+WebhookSecret: dist/webhook.d.ts#WebhookSecret
+WebhookSecretResult: dist/webhook.d.ts#WebhookSecretResult
+WebhookSent: dist/webhook.d.ts#WebhookSent
+extractWebhookSent: dist/webhook.d.ts#extractWebhookSent
+parseWebhookSecret: dist/webhook.d.ts#parseWebhookSecret
+sendWebhook: dist/webhook.d.ts#sendWebhook
+signWebhook: dist/webhook.d.ts#signWebhook
+verifyWebhook: dist/webhook.d.ts#verifyWebhook
+webhookBody: dist/webhook.d.ts#webhookBody
+webhookRequest: dist/webhook.d.ts#webhookRequest
+webhookSecretText: dist/webhook.d.ts#webhookSecretText
 
 ## ./testing (dist/testing/index.d.ts): names
 
@@ -522,20 +728,380 @@ export declare function pushoverLedgerOf(requests: readonly ScriptedRequest[]): 
 ### dist/testing/index.d.ts#pushoverReceiptOf
 export declare function pushoverReceiptOf(index: number): string;
 
-### dist/twilio.d.ts#TWILIO_ACCOUNT_SID
+### dist/twilio-common.d.ts#TWILIO_ACCOUNT_SID
 export declare const TWILIO_ACCOUNT_SID: RegExp;
+
+### dist/twilio-common.d.ts#TWILIO_MIN_WAIT_MS
+export declare const TWILIO_MIN_WAIT_MS = 5000;
+
+### dist/twilio-common.d.ts#TwilioCredentials
+export interface TwilioCredentials {
+    readonly accountSid: string;
+    readonly keySid?: string | undefined;
+    readonly secret: string;
+}
+
+### dist/twilio-common.d.ts#TwilioFailure
+export interface TwilioFailure {
+    readonly ok: false;
+    readonly kind: TwilioFailureKind;
+    readonly status: number;
+    readonly errors: readonly string[];
+    readonly code?: number;
+    readonly retryAfterMs?: number;
+}
+
+### dist/twilio-common.d.ts#TwilioFailureKind
+export type TwilioFailureKind = "network" | "timeout" | "server" | "rate-limited" | "auth" | "refused";
+
+### dist/twilio-common.d.ts#TwilioRequest
+export interface TwilioRequest {
+    readonly url: string;
+    readonly method: "GET" | "POST";
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body?: string;
+}
+
+### dist/twilio-common.d.ts#TwilioResponse
+export interface TwilioResponse {
+    readonly status: number;
+    readonly text: string;
+    readonly headers?: {
+        get(name: string): string | null;
+    } | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_API
+export declare const TWILIO_SERVERLESS_API = "https://serverless.twilio.com/v1";
+
+### dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_BUILD_POLL
+export declare const TWILIO_SERVERLESS_BUILD_POLL: {
+    readonly intervalMs: 2_000;
+    readonly timeoutMs: 300_000;
+};
+
+### dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_LIMITS
+export declare const TWILIO_SERVERLESS_LIMITS: {
+    readonly serviceName: 50;
+    readonly friendlyName: 255;
+    readonly path: 255;
+    readonly environmentName: 100;
+    readonly domainSuffix: 16;
+    readonly variableKey: 128;
+    readonly variableValueBytes: 450;
+    readonly pageSize: 1000;
+};
+
+### dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_UPLOAD_API
+export declare const TWILIO_SERVERLESS_UPLOAD_API = "https://serverless-upload.twilio.com/v1";
+
+### dist/twilio-serverless.d.ts#TWILIO_SERVERLESS_VERSION_KEY
+export declare const TWILIO_SERVERLESS_VERSION_KEY = "DEPLOY_VERSION";
+
+### dist/twilio-serverless.d.ts#TwilioServerlessBuild
+export interface TwilioServerlessBuild {
+    readonly sid: string;
+    readonly serviceSid: string;
+    readonly status: string;
+    readonly runtime?: string;
+    readonly createdAt?: number;
+    readonly updatedAt?: number;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessBuildInput
+export interface TwilioServerlessBuildInput {
+    readonly functionVersions?: readonly string[] | undefined;
+    readonly assetVersions?: readonly string[] | undefined;
+    readonly dependencies?: Readonly<Record<string, string>> | undefined;
+    readonly runtime?: string | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessBuildPoll
+export interface TwilioServerlessBuildPoll {
+    readonly serviceSid: string;
+    readonly buildSid: string;
+    readonly startedAt: number;
+    readonly intervalMs?: number | undefined;
+    readonly timeoutMs?: number | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessBuildStep
+export type TwilioServerlessBuildStep = {
+    readonly step: "poll";
+    readonly waitMs: number;
+    readonly request: TwilioRequest;
+} | {
+    readonly step: "done";
+    readonly last: TwilioServerlessRead<TwilioServerlessBuild>;
+} | {
+    readonly step: "failed";
+    readonly last: TwilioServerlessRead<TwilioServerlessBuild> | TwilioFailure;
+} | {
+    readonly step: "timed-out";
+    readonly elapsedMs: number;
+    readonly last?: TwilioServerlessRead<TwilioServerlessBuild> | TwilioFailure;
+};
+
+### dist/twilio-serverless.d.ts#TwilioServerlessDeployPlan
+export interface TwilioServerlessDeployPlan {
+    readonly service: TwilioServerlessServiceInput;
+    readonly environment: TwilioServerlessEnvironmentInput;
+    readonly functions: readonly TwilioServerlessFile[];
+    readonly assets?: readonly TwilioServerlessFile[] | undefined;
+    readonly build?: Pick<TwilioServerlessBuildInput, "dependencies" | "runtime"> | undefined;
+    readonly variables?: Readonly<Record<string, string>> | undefined;
+    readonly version: string;
+    readonly versionKey?: string | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessDeployPorts
+export interface TwilioServerlessDeployPorts {
+    readonly fetch: TwilioFetch;
+    readonly now: () => number;
+    readonly sleep: (ms: number) => Promise<void>;
+    readonly timeoutMs?: number | undefined;
+    readonly signal?: AbortSignal | undefined;
+    readonly log?: ((line: string) => void) | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessDeployResult
+export type TwilioServerlessDeployResult = {
+    readonly ok: true;
+    readonly changed: boolean;
+    readonly serviceSid: string;
+    readonly environmentSid: string;
+    readonly domainName: string;
+    readonly buildSid: string;
+} | {
+    readonly ok: false;
+    readonly stage: TwilioServerlessDeployStage;
+    readonly errors: readonly string[];
+    readonly failure?: TwilioFailure;
+};
+
+### dist/twilio-serverless.d.ts#TwilioServerlessDeployStage
+export type TwilioServerlessDeployStage = "service" | "environment" | "variables" | "functions" | "assets" | "upload" | "build" | "deployment" | "version";
+
+### dist/twilio-serverless.d.ts#TwilioServerlessDeployment
+export interface TwilioServerlessDeployment {
+    readonly sid: string;
+    readonly serviceSid: string;
+    readonly environmentSid: string;
+    readonly buildSid?: string;
+    readonly createdAt?: number;
+    readonly updatedAt?: number;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessEnvironment
+export interface TwilioServerlessEnvironment {
+    readonly sid: string;
+    readonly serviceSid: string;
+    readonly uniqueName: string;
+    readonly domainName: string;
+    readonly domainSuffix?: string;
+    readonly buildSid?: string;
+    readonly createdAt?: number;
+    readonly updatedAt?: number;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessEnvironmentInput
+export interface TwilioServerlessEnvironmentInput {
+    readonly uniqueName: string;
+    readonly domainSuffix?: string | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessFile
+export interface TwilioServerlessFile {
+    readonly path: string;
+    readonly visibility: TwilioServerlessVisibility;
+    readonly content: string;
+    readonly contentType?: string | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessPage
+export interface TwilioServerlessPage<Item> {
+    readonly ok: true;
+    readonly items: readonly Item[];
+    readonly nextPageUrl?: string;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessPageOptions
+export interface TwilioServerlessPageOptions {
+    readonly pageSize?: number | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessRead
+export type TwilioServerlessRead<Item> = {
+    readonly ok: true;
+} & Item;
+
+### dist/twilio-serverless.d.ts#TwilioServerlessResource
+export interface TwilioServerlessResource {
+    readonly sid: string;
+    readonly serviceSid: string;
+    readonly friendlyName?: string;
+    readonly createdAt?: number;
+    readonly updatedAt?: number;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessService
+export interface TwilioServerlessService {
+    readonly sid: string;
+    readonly uniqueName: string;
+    readonly friendlyName?: string;
+    readonly includeCredentials?: boolean;
+    readonly uiEditable?: boolean;
+    readonly domainBase?: string;
+    readonly createdAt?: number;
+    readonly updatedAt?: number;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessServiceInput
+export interface TwilioServerlessServiceInput {
+    readonly uniqueName: string;
+    readonly friendlyName: string;
+    readonly includeCredentials?: boolean | undefined;
+    readonly uiEditable?: boolean | undefined;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessVariable
+export interface TwilioServerlessVariable {
+    readonly sid: string;
+    readonly serviceSid: string;
+    readonly environmentSid: string;
+    readonly key: string;
+    readonly value: string;
+    readonly createdAt?: number;
+    readonly updatedAt?: number;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessVariableInput
+export interface TwilioServerlessVariableInput {
+    readonly key: string;
+    readonly value: string;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessVersion
+export interface TwilioServerlessVersion {
+    readonly sid: string;
+    readonly serviceSid: string;
+    readonly resourceSid: string;
+    readonly path: string;
+    readonly visibility: TwilioServerlessVisibility;
+    readonly createdAt?: number;
+}
+
+### dist/twilio-serverless.d.ts#TwilioServerlessVisibility
+export type TwilioServerlessVisibility = "public" | "protected" | "private";
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessAssets
+export declare function extractTwilioServerlessAssets(response: TwilioResponse): TwilioServerlessPage<TwilioServerlessResource> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessBuild
+export declare function extractTwilioServerlessBuild(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessBuild> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessDeployment
+export declare function extractTwilioServerlessDeployment(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessDeployment> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessEnvironment
+export declare function extractTwilioServerlessEnvironment(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessEnvironment> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessEnvironments
+export declare function extractTwilioServerlessEnvironments(response: TwilioResponse): TwilioServerlessPage<TwilioServerlessEnvironment> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessFunctions
+export declare function extractTwilioServerlessFunctions(response: TwilioResponse): TwilioServerlessPage<TwilioServerlessResource> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessResource
+export declare function extractTwilioServerlessResource(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessResource> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessService
+export declare function extractTwilioServerlessService(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessService> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessVariable
+export declare function extractTwilioServerlessVariable(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessVariable> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessVariables
+export declare function extractTwilioServerlessVariables(response: TwilioResponse): TwilioServerlessPage<TwilioServerlessVariable> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#extractTwilioServerlessVersion
+export declare function extractTwilioServerlessVersion(response: TwilioResponse): TwilioServerlessRead<TwilioServerlessVersion> | TwilioFailure;
+
+### dist/twilio-serverless.d.ts#twilioServerlessAssetListRequest
+export declare function twilioServerlessAssetListRequest(credentials: TwilioCredentials, serviceSid: string, options?: TwilioServerlessPageOptions): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessAssetRequest
+export declare function twilioServerlessAssetRequest(credentials: TwilioCredentials, serviceSid: string, friendlyName: string): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessAssetVersionRequest
+export declare function twilioServerlessAssetVersionRequest(credentials: TwilioCredentials, serviceSid: string, assetSid: string, file: TwilioServerlessFile): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessBuildRequest
+export declare function twilioServerlessBuildRequest(credentials: TwilioCredentials, serviceSid: string, build: TwilioServerlessBuildInput): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessBuildStatusRequest
+export declare function twilioServerlessBuildStatusRequest(credentials: TwilioCredentials, serviceSid: string, buildSid: string): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessBuildStep
+export declare function twilioServerlessBuildStep(credentials: TwilioCredentials, poll: TwilioServerlessBuildPoll, now: number, last?: TwilioServerlessRead<TwilioServerlessBuild> | TwilioFailure): TwilioServerlessBuildStep;
+
+### dist/twilio-serverless.d.ts#twilioServerlessDeploy
+export declare function twilioServerlessDeploy(ports: TwilioServerlessDeployPorts, credentials: TwilioCredentials, plan: TwilioServerlessDeployPlan): Promise<TwilioServerlessDeployResult>;
+
+### dist/twilio-serverless.d.ts#twilioServerlessDeploymentRequest
+export declare function twilioServerlessDeploymentRequest(credentials: TwilioCredentials, serviceSid: string, environmentSid: string, buildSid: string): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessEnvironmentListRequest
+export declare function twilioServerlessEnvironmentListRequest(credentials: TwilioCredentials, serviceSid: string, options?: TwilioServerlessPageOptions): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessEnvironmentRequest
+export declare function twilioServerlessEnvironmentRequest(credentials: TwilioCredentials, serviceSid: string, environment: TwilioServerlessEnvironmentInput): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessFunctionListRequest
+export declare function twilioServerlessFunctionListRequest(credentials: TwilioCredentials, serviceSid: string, options?: TwilioServerlessPageOptions): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessFunctionRequest
+export declare function twilioServerlessFunctionRequest(credentials: TwilioCredentials, serviceSid: string, friendlyName: string): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessFunctionVersionRequest
+export declare function twilioServerlessFunctionVersionRequest(credentials: TwilioCredentials, serviceSid: string, functionSid: string, file: TwilioServerlessFile): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessNextPageRequest
+export declare function twilioServerlessNextPageRequest(credentials: TwilioCredentials, nextPageUrl: string): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessServiceFetchRequest
+export declare function twilioServerlessServiceFetchRequest(credentials: TwilioCredentials, sidOrUniqueName: string): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessServiceRequest
+export declare function twilioServerlessServiceRequest(credentials: TwilioCredentials, service: TwilioServerlessServiceInput): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessVariableListRequest
+export declare function twilioServerlessVariableListRequest(credentials: TwilioCredentials, serviceSid: string, environmentSid: string, options?: TwilioServerlessPageOptions): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessVariableRequest
+export declare function twilioServerlessVariableRequest(credentials: TwilioCredentials, serviceSid: string, environmentSid: string, variable: TwilioServerlessVariableInput): TwilioRequest;
+
+### dist/twilio-serverless.d.ts#twilioServerlessVariableUpdateRequest
+export declare function twilioServerlessVariableUpdateRequest(credentials: TwilioCredentials, serviceSid: string, environmentSid: string, variableSid: string, value: string): TwilioRequest;
 
 ### dist/twilio.d.ts#TWILIO_API
 export declare const TWILIO_API = "https://api.twilio.com/2010-04-01";
+
+### dist/twilio.d.ts#TWILIO_HELP_KEYWORDS
+export declare const TWILIO_HELP_KEYWORDS: readonly ["HELP", "INFO"];
 
 ### dist/twilio.d.ts#TWILIO_LIMITS
 export declare const TWILIO_LIMITS: {
     readonly body: 1600;
     readonly twiml: 4000;
+    readonly pageSize: 1000;
 };
 
-### dist/twilio.d.ts#TWILIO_MIN_WAIT_MS
-export declare const TWILIO_MIN_WAIT_MS = 5000;
+### dist/twilio.d.ts#TWILIO_OPT_IN_KEYWORDS
+export declare const TWILIO_OPT_IN_KEYWORDS: readonly ["START", "YES", "UNSTOP"];
+
+### dist/twilio.d.ts#TWILIO_OPT_OUT_KEYWORDS
+export declare const TWILIO_OPT_OUT_KEYWORDS: readonly ["STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT", "REVOKE", "OPTOUT"];
 
 ### dist/twilio.d.ts#TWILIO_RING_MAX_MS
 export declare const TWILIO_RING_MAX_MS = 600000;
@@ -579,26 +1145,6 @@ export interface TwilioCallRead {
 ### dist/twilio.d.ts#TwilioCallState
 export type TwilioCallState = "pending" | "connected" | "answered" | "machine" | "unanswered" | "failed";
 
-### dist/twilio.d.ts#TwilioCredentials
-export interface TwilioCredentials {
-    readonly accountSid: string;
-    readonly keySid?: string | undefined;
-    readonly secret: string;
-}
-
-### dist/twilio.d.ts#TwilioFailure
-export interface TwilioFailure {
-    readonly ok: false;
-    readonly kind: TwilioFailureKind;
-    readonly status: number;
-    readonly errors: readonly string[];
-    readonly code?: number;
-    readonly retryAfterMs?: number;
-}
-
-### dist/twilio.d.ts#TwilioFailureKind
-export type TwilioFailureKind = "network" | "timeout" | "server" | "rate-limited" | "auth" | "refused";
-
 ### dist/twilio.d.ts#TwilioFetch
 export type TwilioFetch = ApiFetch;
 
@@ -613,21 +1159,34 @@ export interface TwilioGather extends TwilioVoice {
     readonly actionOnEmptyResult?: boolean | undefined;
 }
 
-### dist/twilio.d.ts#TwilioRequest
-export interface TwilioRequest {
-    readonly url: string;
-    readonly method: "GET" | "POST";
-    readonly headers: Readonly<Record<string, string>>;
-    readonly body?: string;
+### dist/twilio.d.ts#TwilioKeyword
+export type TwilioKeyword = "stop" | "start" | "help";
+
+### dist/twilio.d.ts#TwilioMessage
+export interface TwilioMessage {
+    readonly sid: string;
+    readonly from?: string;
+    readonly to: string;
+    readonly body: string;
+    readonly direction: string;
+    readonly status: string;
+    readonly dateSent?: number;
+    readonly errorCode?: number;
 }
 
-### dist/twilio.d.ts#TwilioResponse
-export interface TwilioResponse {
-    readonly status: number;
-    readonly text: string;
-    readonly headers?: {
-        get(name: string): string | null;
-    } | undefined;
+### dist/twilio.d.ts#TwilioMessagePage
+export interface TwilioMessagePage {
+    readonly ok: true;
+    readonly messages: readonly TwilioMessage[];
+    readonly nextPageUri?: string;
+}
+
+### dist/twilio.d.ts#TwilioMessageQuery
+export interface TwilioMessageQuery {
+    readonly to?: string | undefined;
+    readonly from?: string | undefined;
+    readonly dateSentAfter?: number | string | undefined;
+    readonly pageSize?: number | undefined;
 }
 
 ### dist/twilio.d.ts#TwilioText
@@ -657,6 +1216,36 @@ export interface TwilioTextRead {
 ### dist/twilio.d.ts#TwilioTextState
 export type TwilioTextState = "pending" | "delivered" | "failed";
 
+### dist/twilio.d.ts#TwilioUsagePage
+export interface TwilioUsagePage {
+    readonly ok: true;
+    readonly records: readonly TwilioUsageRecord[];
+    readonly nextPageUri?: string;
+}
+
+### dist/twilio.d.ts#TwilioUsageQuery
+export interface TwilioUsageQuery {
+    readonly category?: string | undefined;
+    readonly startDate?: string | undefined;
+    readonly endDate?: string | undefined;
+    readonly pageSize?: number | undefined;
+}
+
+### dist/twilio.d.ts#TwilioUsageRecord
+export interface TwilioUsageRecord {
+    readonly category: string;
+    readonly startDate: string;
+    readonly endDate: string;
+    readonly price: number;
+    readonly priceText: string;
+    readonly priceUnit: string;
+    readonly usage?: number;
+    readonly usageUnit?: string;
+    readonly count?: number;
+    readonly countUnit?: string;
+    readonly asOf?: number;
+}
+
 ### dist/twilio.d.ts#TwilioVoice
 export interface TwilioVoice {
     readonly voice?: string | undefined;
@@ -675,8 +1264,14 @@ export declare function extractTwilioBalance(response: TwilioResponse): TwilioBa
 ### dist/twilio.d.ts#extractTwilioCall
 export declare function extractTwilioCall(response: TwilioResponse): TwilioCallRead | TwilioFailure;
 
+### dist/twilio.d.ts#extractTwilioMessages
+export declare function extractTwilioMessages(response: TwilioResponse): TwilioMessagePage | TwilioFailure;
+
 ### dist/twilio.d.ts#extractTwilioText
 export declare function extractTwilioText(response: TwilioResponse): TwilioTextRead | TwilioFailure;
+
+### dist/twilio.d.ts#extractTwilioUsageRecords
+export declare function extractTwilioUsageRecords(response: TwilioResponse): TwilioUsagePage | TwilioFailure;
 
 ### dist/twilio.d.ts#twilioBalanceRequest
 export declare function twilioBalanceRequest(credentials: TwilioCredentials): TwilioRequest;
@@ -696,6 +1291,15 @@ export declare function twilioEndCallRequest(credentials: TwilioCredentials, sid
 ### dist/twilio.d.ts#twilioGatherTwiml
 export declare function twilioGatherTwiml(text: string, gather: TwilioGather): string;
 
+### dist/twilio.d.ts#twilioMessageListRequest
+export declare function twilioMessageListRequest(credentials: TwilioCredentials, query?: TwilioMessageQuery): TwilioRequest;
+
+### dist/twilio.d.ts#twilioNextPageRequest
+export declare function twilioNextPageRequest(credentials: TwilioCredentials, nextPageUri: string): TwilioRequest;
+
+### dist/twilio.d.ts#twilioOptOutKeyword
+export declare function twilioOptOutKeyword(body: string): TwilioKeyword | undefined;
+
 ### dist/twilio.d.ts#twilioSayTwiml
 export declare function twilioSayTwiml(text: string, repeats?: number, voice?: TwilioVoice): string;
 
@@ -707,3 +1311,140 @@ export declare function twilioTextState(status: string): TwilioTextState;
 
 ### dist/twilio.d.ts#twilioTextStatusRequest
 export declare function twilioTextStatusRequest(credentials: TwilioCredentials, sid: string): TwilioRequest;
+
+### dist/twilio.d.ts#twilioUsageRecordsRequest
+export declare function twilioUsageRecordsRequest(credentials: TwilioCredentials, query?: TwilioUsageQuery): TwilioRequest;
+
+### dist/webhook.d.ts#WEBHOOK_HEADERS
+export declare const WEBHOOK_HEADERS: {
+    readonly id: "webhook-id";
+    readonly timestamp: "webhook-timestamp";
+    readonly signature: "webhook-signature";
+};
+
+### dist/webhook.d.ts#WEBHOOK_MIN_WAIT_MS
+export declare const WEBHOOK_MIN_WAIT_MS = 5000;
+
+### dist/webhook.d.ts#WEBHOOK_SECRET_BYTES
+export declare const WEBHOOK_SECRET_BYTES: {
+    readonly min: 24;
+    readonly max: 64;
+};
+
+### dist/webhook.d.ts#WEBHOOK_SECRET_PREFIX
+export declare const WEBHOOK_SECRET_PREFIX = "whsec_";
+
+### dist/webhook.d.ts#WEBHOOK_TIMEOUT_MS
+export declare const WEBHOOK_TIMEOUT_MS = 15000;
+
+### dist/webhook.d.ts#WEBHOOK_TOLERANCE_MS
+export declare const WEBHOOK_TOLERANCE_MS = 300000;
+
+### dist/webhook.d.ts#WebhookCheck
+export type WebhookCheck = {
+    readonly ok: true;
+    readonly id: string;
+    readonly timestampMs: number;
+} | {
+    readonly ok: false;
+    readonly reason: WebhookCheckReason;
+};
+
+### dist/webhook.d.ts#WebhookCheckReason
+export type WebhookCheckReason = "missing" | "timestamp" | "old" | "future" | "signature";
+
+### dist/webhook.d.ts#WebhookEvent
+export interface WebhookEvent<Data> {
+    readonly type: string;
+    readonly timestamp: string;
+    readonly data: Data;
+}
+
+### dist/webhook.d.ts#WebhookFailure
+export interface WebhookFailure {
+    readonly ok: false;
+    readonly kind: WebhookFailureKind;
+    readonly status?: number;
+    readonly retryAfterMs?: number;
+}
+
+### dist/webhook.d.ts#WebhookFailureKind
+export type WebhookFailureKind = "network" | "timeout" | "throttled" | "server" | "gone" | "redirect" | "refused";
+
+### dist/webhook.d.ts#WebhookFetch
+export type WebhookFetch = ApiFetch;
+
+### dist/webhook.d.ts#WebhookIncoming
+export interface WebhookIncoming {
+    readonly headers: {
+        get(name: string): string | null;
+    };
+    readonly body: string;
+}
+
+### dist/webhook.d.ts#WebhookMessage
+export interface WebhookMessage {
+    readonly url: string;
+    readonly id: string;
+    readonly timestampMs: number;
+    readonly body: string;
+    readonly headers?: Readonly<Record<string, string>> | undefined;
+}
+
+### dist/webhook.d.ts#WebhookRequest
+export type WebhookRequest = ApiRequest & {
+    readonly method: "POST";
+    readonly body: string;
+    readonly redirect: "manual";
+};
+
+### dist/webhook.d.ts#WebhookResponse
+export type WebhookResponse = ApiResponse;
+
+### dist/webhook.d.ts#WebhookSecret
+export interface WebhookSecret {
+    readonly bytes: Uint8Array<ArrayBuffer>;
+}
+
+### dist/webhook.d.ts#WebhookSecretResult
+export type WebhookSecretResult = {
+    readonly ok: true;
+    readonly secret: WebhookSecret;
+} | {
+    readonly ok: false;
+    readonly problem: string;
+};
+
+### dist/webhook.d.ts#WebhookSent
+export interface WebhookSent {
+    readonly ok: true;
+    readonly status: number;
+}
+
+### dist/webhook.d.ts#extractWebhookSent
+export declare function extractWebhookSent(response: WebhookResponse, nowMs?: number): WebhookSent | WebhookFailure;
+
+### dist/webhook.d.ts#parseWebhookSecret
+export declare function parseWebhookSecret(text: string): WebhookSecretResult;
+
+### dist/webhook.d.ts#sendWebhook
+export declare function sendWebhook(fetch: WebhookFetch, message: WebhookMessage, secrets: readonly WebhookSecret[], options?: {
+    readonly timeoutMs?: number;
+    readonly signal?: AbortSignal | undefined;
+    readonly now?: () => number;
+}): Promise<WebhookSent | WebhookFailure>;
+
+### dist/webhook.d.ts#signWebhook
+export declare function signWebhook(secret: WebhookSecret, id: string, timestampSeconds: number, body: string): Promise<string>;
+
+### dist/webhook.d.ts#verifyWebhook
+export declare function verifyWebhook(incoming: WebhookIncoming, secrets: readonly WebhookSecret[], nowMs: number, toleranceMs?: number): Promise<WebhookCheck>;
+
+### dist/webhook.d.ts#webhookBody
+export declare function webhookBody<Data>(type: string, atMs: number, data: Data): string;
+
+### dist/webhook.d.ts#webhookRequest
+export declare function webhookRequest(message: WebhookMessage, secrets: readonly WebhookSecret[]): Promise<WebhookRequest>;
+
+### dist/webhook.d.ts#webhookSecretText
+export declare function webhookSecretText(bytes: Uint8Array): string;

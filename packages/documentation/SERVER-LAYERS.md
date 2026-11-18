@@ -261,14 +261,22 @@ The reasons for the nested call:
 - `vitest.run` and `vite.build` keep the end of a long output (`keep: "tail"`). `shell.run` keeps the start.
 - `runRestic()` of `@procedures/restic` takes a runner from a test, and it has no procedure context.
 - A long-running process, for example `vite.dev`, starts through `processes` of `@procedures/shell/command`.
-- `spawnMarkServer()` of `@procedures/server` starts the background `mark --server` as a detached process. The section "The auto-warm and the idle stop (CLI-27)" gives the reasons.
+- `spawnMarkServer()` of `@procedures/server` starts the background `mark --server` as a detached process, with `spawnProgram` of `@procedures/shell/command`. The section "The auto-warm and the idle stop (CLI-27)" gives the reasons.
 - These packages use the argument helpers of `@procedures/shell/cli`.
 
-One package uses neither path. `startTurn()` of `@procedures/claude-cli` starts `claude` with `spawn` of `node:child_process`.
+`startTurn()` of `@procedures/claude-cli` uses neither path. It starts `claude` with `spawnProgram` of `@procedures/shell/command`.
 
 - The turn is a detached process. Its standard input and output are files, so the turn continues after its host stops.
 - `runCommand`, `shell.run` and `processes` hold pipes to each process, and the end of the host stops the process.
+- `spawnProgram` does not record the process, so the end of the host does not stop it.
 - The process starts with an argument list and no shell. This agrees with the rule "No shell strings" of `ARCHITECTURE.md`.
+
+Only the shell package starts a program. On Windows, its helpers find a program name with no folder only in the folders of `PATH`, not in the working folder. Thus a `git.exe` in a cloned repository does not start when a tool runs `git` in its folder.
+
+- The import rule `program-start-outside-shell` of `.dependency-cruiser.ts` holds it. The rule fails each module of `packages/*/src` outside `client-shell` that imports `node:child_process` or `child_process`.
+- The analysis of imports does not read node_modules. Thus `scripts/check-packages.ts` fails each package outside `client-shell` that has `execa`, `cross-spawn`, `tinyexec` or `nano-spawn` in its dependencies.
+- An import of the types of `node:child_process` is permitted. The tests are not examined.
+- The fresh bundle of `@procedures/node` starts its build with `spawnProgramSync`.
 
 The tailscale procedures and `pnpm.store.path` moved to `shell.run` in tracker item O64.
 

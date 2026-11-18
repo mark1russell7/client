@@ -132,6 +132,7 @@ function samples(): Record<string, unknown> {
     "procedure.export": { path: ["client", "identity"] },
     "procedure.get": { path: ["client", "identity"] },
     "procedure.manifest": { namespace: "client" },
+    "procedure.search": { query: "identity" },
     // The check, the compiler, the diagram and the explanation read the registry. The program stays data (roadmap R22, R23).
     "program.check": { program: { $proc: ["client", "chain"], input: { steps: [{ $proc: ["client", "identity"], input: { value: 1 } }] } } },
     "program.compile": { program: { $proc: ["client", "identity"], input: { value: 1 } } },

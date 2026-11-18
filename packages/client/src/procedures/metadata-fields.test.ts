@@ -1,18 +1,17 @@
 /**
- * The schema of the typed metadata fields (`metadata-fields.ts`), and the warning of the registry
- * for a typed field with a wrong type. The procedure stays in the registry and its call works.
+ * The schema of the typed metadata fields (`metadata-fields.ts`), and the refusal of the registry
+ * for a typed field with a wrong type. A custom field keeps any value.
  */
 
 import { describe, expect, it } from "vitest";
-import { Client } from "../client/client.js";
 import type { LogFields, Logger, LogLevel } from "../logger.js";
 import { outputSchema } from "./core/schemas.js";
 import { defineProcedure } from "./define.js";
-import { metadataFieldProblems } from "./metadata-fields.js";
-import { ProcedureRegistry } from "./registry.js";
+import { metadataFieldProblems, metadataFieldRefusal } from "./metadata-fields.js";
+import { ProcedureRegistry, RegistryError } from "./registry.js";
 import type { AnyProcedure } from "./types.js";
 
-describe("metadataFieldProblems", () => {
+describe("metadataFieldProblems and metadataFieldRefusal", () => {
   it.each([
     [undefined],
     [{}],
@@ -21,8 +20,9 @@ describe("metadataFieldProblems", () => {
     [{ stream: { unbounded: true }, untrusted: ["body"], fsRoot: { cwd: "cwd", paths: ["path"], refuse: "no root" } }],
     [{ description: undefined, tags: undefined }],
     [{ note: 7, custom: { any: ["value"] } }],
-  ])("finds no problem in the metadata %j", (metadata) => {
+  ])("accepts the metadata %j", (metadata) => {
     expect(metadataFieldProblems(metadata)).toEqual([]);
+    expect(metadataFieldRefusal(metadata)).toBeUndefined();
   });
 
   it.each([
@@ -34,15 +34,20 @@ describe("metadataFieldProblems", () => {
     [{ effects: { writes: "fs" } }, "metadata.effects.writes", "metadata.effects", "an object: reads and writes are lists of strings, idempotent and destructive are booleans"],
     [{ stream: true }, "metadata.stream", "metadata.stream", "an object: unbounded is a boolean"],
     [{ untrusted: "body" }, "metadata.untrusted", "metadata.untrusted", "a list of strings"],
-    [{ fsRoot: { paths: "path" } }, "metadata.fsRoot.paths", "metadata.fsRoot", expect.stringContaining("paths, names, required and values are lists of strings")],
+    [{ fsRoot: { paths: "path" } }, "metadata.fsRoot.paths", "metadata.fsRoot", "an object: cwd and refuse are strings, paths, names, required and values are lists of strings, program is a boolean"],
     ["text", "metadata", "metadata", "an object"],
-  ])("finds the problem of the metadata %j at %s", (metadata, field, typedField, needs) => {
+  ])("refuses the metadata %j at %s", (metadata, field, typedField, needs) => {
     expect(metadataFieldProblems(metadata)).toEqual([{ field, typedField, needs, message: expect.any(String) }]);
+    const refusal = metadataFieldRefusal(metadata);
+    expect(refusal).toContain(`The field ${field} has a wrong type`);
+    expect(refusal).toContain(`The field ${typedField} needs ${needs}.`);
   });
 
-  it("gives one problem for each wrong field", () => {
-    const fields = metadataFieldProblems({ tags: "math", description: 5, note: "custom" }).map((problem) => problem.field);
-    expect(fields.sort()).toEqual(["metadata.description", "metadata.tags"]);
+  it("gives one problem for each wrong field, and the refusal names the first", () => {
+    const metadata = { tags: "math", description: 5, note: "custom" };
+    const fields = metadataFieldProblems(metadata).map((problem) => problem.field);
+    expect([...fields].sort()).toEqual(["metadata.description", "metadata.tags"]);
+    expect(metadataFieldRefusal(metadata)).toContain(`The field ${String(fields[0])} has a wrong type`);
   });
 });
 
@@ -63,45 +68,45 @@ function procedureWith(path: string[], metadata: unknown): AnyProcedure {
   return { ...procedure, metadata } as unknown as AnyProcedure;
 }
 
-/** A client that runs the procedures of a registry in process. The transport is not used. */
-function clientOf(registry: ProcedureRegistry): Client {
-  const stubTransport = { send: async function* () {} } as unknown as ConstructorParameters<typeof Client>[0];
-  return new Client(stubTransport).useRegistry(registry);
-}
-
-describe("the warning of the registry for a typed metadata field with a wrong type", () => {
-  it("warns one time through the logger, and the call of the procedure works", async () => {
-    const logger = memoryLogger();
-    const registry = new ProcedureRegistry({ logger });
-    registry.register(procedureWith(["test", "add"], { tags: "math" }));
-    registry.register(procedureWith(["test", "add"], { tags: "math" }), { override: true });
-
-    expect(logger.lines).toHaveLength(1);
-    const [line] = logger.lines;
-    expect(line?.level).toBe("warn");
-    expect(line?.message).toContain("The procedure test.add has the field metadata.tags with a wrong type");
-    expect(line?.message).toContain("The field metadata.tags needs a list of strings");
-    expect(line?.message).toContain("0.60.0 refuses this");
-    expect(line?.fields).toEqual({ procedure: "test.add", field: "metadata.tags", needs: "a list of strings" });
-
-    expect(registry.has(["test", "add"])).toBe(true);
-    await expect(clientOf(registry).exec(["test", "add"], { n: 1 })).resolves.toEqual({ n: 2 });
+describe("the registry and the typed metadata fields", () => {
+  it("refuses a typed field with a wrong type, and names the procedure, the field and its type", () => {
+    const registry = new ProcedureRegistry();
+    const register = (): void => registry.register(procedureWith(["test", "add"], { tags: "math" }));
+    expect(register).toThrow(RegistryError);
+    expect(register).toThrow("The field metadata.tags has a wrong type");
+    expect(register).toThrow("The field metadata.tags needs a list of strings. (test.add)");
+    expect(registry.has(["test", "add"])).toBe(false);
   });
 
-  it("warns one time for each field and procedure", () => {
-    const logger = memoryLogger();
-    const registry = new ProcedureRegistry({ logger });
-    registry.register(procedureWith(["test", "a"], { tags: "math", description: 5 }));
-    registry.register(procedureWith(["test", "b"], { tags: "math" }));
-    const pairs = logger.lines.map((line) => `${String(line.fields["procedure"])} ${String(line.fields["field"])}`);
-    expect(pairs.sort()).toEqual(["test.a metadata.description", "test.a metadata.tags", "test.b metadata.tags"]);
+  it("refuses an override with a wrong type, and keeps the procedure that it replaces", () => {
+    const registry = new ProcedureRegistry();
+    const good = procedureWith(["test", "add"], { tags: ["math"] });
+    registry.register(good);
+    expect(() => registry.register(procedureWith(["test", "add"], { description: 5 }), { override: true })).toThrow("metadata.description");
+    expect(registry.get(["test", "add"])?.metadata).toEqual({ tags: ["math"] });
   });
 
-  it("gives no warning for metadata with the correct types and custom fields", () => {
-    const logger = memoryLogger();
-    const registry = new ProcedureRegistry({ logger });
+  it("registers metadata with the correct types and custom fields", () => {
+    const registry = new ProcedureRegistry();
     registry.register(procedureWith(["test", "good"], { description: "Add one", tags: ["math"], note: 7 }));
     registry.register(procedureWith(["test", "bare"], undefined));
-    expect(logger.lines).toEqual([]);
+    expect(registry.has(["test", "good"])).toBe(true);
+    expect(registry.has(["test", "bare"])).toBe(true);
+  });
+
+  it("gives the error of a listener to the logger, and the registration works", () => {
+    const logger = memoryLogger();
+    const registry = new ProcedureRegistry({ logger });
+    registry.on("register", () => {
+      throw new Error("the listener broke");
+    });
+    registry.register(procedureWith(["test", "add"], { tags: ["math"] }));
+    expect(registry.has(["test", "add"])).toBe(true);
+    expect(logger.lines).toHaveLength(1);
+    const [line] = logger.lines;
+    expect(line?.level).toBe("error");
+    expect(line?.message).toBe("Registry listener error for register: the listener broke");
+    expect(line?.fields["event"]).toBe("register");
+    expect(line?.fields["error"]).toBeInstanceOf(Error);
   });
 });

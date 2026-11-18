@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@procedures/geo?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/geo)
 
-Map procedures. They give the coordinates of an address (OpenStreetMap Nominatim) and the time and the distance of a drive (OSRM). They also give the great-circle distance and the geohash.
+Map procedures. They give the coordinates of an address (OpenStreetMap Nominatim) and the time and the distance of a drive (OSRM). The package also has a procedure for each function of [`@mark1russell7/geo`](https://github.com/mark1russell7/geo): distances, bearings, boxes, polygons, buffers and geohashes.
 
 ## Install
 
@@ -18,8 +18,9 @@ A host registers the procedures with `createRegistry(geoModule)`, or with `impor
 | --- | --- | --- |
 | `geo.geocode` | reads `network` | Finds the coordinates of an address or a place name. |
 | `geo.route` | reads `network` | Gives the kilometres and the minutes of a drive between two points. |
-| `geo.distance` | none | Gives the great-circle distance between two points, in kilometres. |
+| `geo.distance` | none | Gives the great-circle distance between two points, in kilometres. It is deprecated: use `geo.distanceKm`. |
 | `geo.geohash` | none | Gives the geohash of a point and the cell of that geohash. |
+| 42 generated procedures | none | Each one calls one function of `@mark1russell7/geo`, for example `geo.distanceKm`, `geo.destinationKm` and `geo.bboxOfPoints`. |
 
 ## Example
 
@@ -30,22 +31,65 @@ const { found, result } = await client.exec(["geo", "geocode"], {
 });
 ```
 
-## Distance and geohash
+## The generated procedures
 
-These functions use no network:
+The package has 42 procedures in the namespace `geo` that come from the types of `@mark1russell7/geo`. Each one calls one function of the library with JSON inputs and a JSON output. Each one has no effects: it reads nothing and writes nothing.
+
+- The input is an object with one property for each parameter of the function, by its name.
+- The JSON Schemas of the input and the output come from the types. A named type has one definition in `$defs`.
+- A point is `{ lat, lon }` in degrees, for example `{ "lat": 42.3601, "lon": -71.0589 }`.
+
+`geoManifest` gives the names, the schemas and the effects of each generated procedure. `geoHomeProcedures` gives the procedures. `geoModule` and `createGeoModule()` have them.
 
 ```ts
-import { decodeGeohash, geohash, greatCircleKm } from "@procedures/geo";
+import { createRegistry, invokePath, outputValue } from "@procedures/client";
+import { geoModule } from "@procedures/geo";
 
-greatCircleKm({ lat: 48.8584, lon: 2.2945 }, { lat: 52.5163, lon: 13.3777 }); // 879.0864603595937
+const registry = createRegistry(geoModule);
+const output = await invokePath(["geo", "destinationKm"], { from: { lat: 42.3601, lon: -71.0589 }, bearingDegrees: 225, distance: 300 }, { registry });
+const point = await outputValue(output);
+```
+
+## The functions with no procedure
+
+6 functions of the library have no procedure. The manifest gives each with its reason:
+
+| Functions | Reason | The cause |
+| --- | --- | --- |
+| `geohash` | `overlay` | The hand-written procedure `geo.geohash` has this name. It also gives the cell of the hash. |
+| `parseGeoJson`, `parseGeometry`, `parseLatLon` | `output-not-json` | The result can hold an instance of the class `GeoError`. |
+| `pointLocator`, `regionSimplifier` | `output-not-json` | The result is a function. |
+
+## Update the manifest
+
+After an update of `@mark1russell7/geo`, start this command from the root of the repository:
+
+```bash
+node scripts/wraps.ts generate --package geo
+```
+
+The command writes `src/manifest.ts`. It also raises the ratchet of the library in `wraps.coverage.json`. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current, or when the share of the functions with a procedure falls.
+
+The wrap is pure: its `wrap.json` has `"pure": true`. So the check also examines the effects of the generated procedures, the browser entries and the program `point-at-the-median-distance` of `wraps.programs.json`. The hand-written procedures `geo.geocode` and `geo.route` read the network. They are not in the manifest, so the gate does not examine them.
+
+## Distance and geohash
+
+The procedures `geo.distance` and `geo.geohash` use [`@mark1russell7/geo`](https://github.com/mark1russell7/geo). They use no network. For the plain functions, import that package:
+
+```ts
+import { decodeGeohash, distanceKm, geohash } from "@mark1russell7/geo";
+import { EARTH_RADIUS_KM } from "@procedures/geo";
+
+distanceKm({ lat: 48.8584, lon: 2.2945 }, { lat: 52.5163, lon: 13.3777 }, EARTH_RADIUS_KM); // 879.0864603595937
 geohash({ lat: 48.8584, lon: 2.2945 }); // "u09tunq"
 decodeGeohash("u09tunq"); // { south, west, north, east, center }
 ```
 
-- `greatCircleKm(a, b)` uses the haversine formula on a sphere with the mean radius of the Earth (`EARTH_RADIUS_KM`, 6371 km). It does not round the result. A road is longer than this distance.
-- `geohash(point, precision)` gives `precision` characters (1 to 12, default 7). The first bit is the longitude. A coordinate on the middle of a range goes to the upper half.
-- `decodeGeohash(hash)` gives the edges and the center of the cell of a geohash. It reads upper case letters.
-- The functions throw a `RangeError` for a point off the map and for a precision out of range.
+- `geo.distance` uses the haversine formula on a sphere with the mean radius of the Earth (`EARTH_RADIUS_KM`, 6371 km). It does not round the result. A road is longer than this distance.
+- `geo.distance` is deprecated, and it goes at a later MINOR of the client group. `geo.distanceKm` with `radiusKm: 6371` gives the same value. Its default radius is 6371.0088 km.
+- `geo.geohash` gives `precision` characters (1 to 12, default 7) and the cell of the geohash. The first bit is the longitude. A coordinate on the middle of a range goes to the upper half.
+- The procedures refuse a point off the map and a precision out of range.
+- This package also has `greatCircleKm`, `geohash`, `decodeGeohash`, `GeohashCell` and the geohash constants. They are deprecated, and they go at the next MINOR of the client group. Until then, they keep their old checks.
 
 ## The policy of the public servers
 

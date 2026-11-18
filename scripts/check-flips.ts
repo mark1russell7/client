@@ -88,10 +88,27 @@ export function budgetsOf(spec: string): Budgets {
   return { page: read("PAGE_BUDGET"), script: read("SCRIPT_BUDGET"), worker: read("WORKER_BUDGET") };
 }
 
-/** This function gives the reason that a job of `ci.yml` cannot fail the required check, or undefined. */
-export function cannotFail(workflow: string, job: string, command: string): string | undefined {
+/** This function gives the lines of one job of a workflow, from its name to the next job, or undefined. */
+export function jobOf(workflow: string, job: string): string | undefined {
+  const lines = workflow.split(/\r?\n/);
+  const jobs = lines.indexOf("jobs:");
+  const start = jobs < 0 ? -1 : lines.indexOf(`  ${job}:`, jobs);
+  if (start < 0) return undefined;
+  const end = lines.findIndex((line, at) => at > start && /^ {0,2}\S/.test(line));
+  return lines.slice(start, end < 0 ? undefined : end).join("\n");
+}
+
+/**
+ * This function gives the reason that a job of `ci.yml` cannot fail the required check, or undefined.
+ * A job that uses the shared Pages check starts the build command of `.github/site.json`, so
+ * `siteBuild` is that command.
+ */
+export function cannotFail(workflow: string, job: string, command: string, siteBuild = ""): string | undefined {
   if (workflow.includes("continue-on-error")) return "the workflow has continue-on-error";
-  if (!workflow.includes(command)) return `the workflow does not start ${command}`;
+  const body = jobOf(workflow, job);
+  if (body === undefined) return `the workflow has no job ${job}`;
+  const pagesCheck = /^ {4}uses: \S*\/reusable-pages-check\.yml@/m.test(body);
+  if (!body.includes(command) && !(pagesCheck && siteBuild.includes(command))) return `the job ${job} does not start ${command}`;
   const needs = /^ {2}ci-ok:[\s\S]*?^ {4}needs: \[(.*)\]$/m.exec(workflow)?.[1].split(/,\s*/) ?? [];
   if (!needs.includes(job)) return `the job ci-ok does not need the job ${job}`;
   return undefined;
@@ -221,7 +238,8 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
     process.exit(2);
   }
   const workflow = readFileSync(join(".github", "workflows", "ci.yml"), "utf8");
-  const blocked = kind !== "size" ? cannotFail(workflow, "checks", "node scripts/coverage.ts") : cannotFail(workflow, "site", "@procedures/site test:e2e");
+  const siteBuild = (JSON.parse(readFileSync(join(".github", "site.json"), "utf8")) as { build?: string }).build ?? "";
+  const blocked = kind !== "size" ? cannotFail(workflow, "checks", "node scripts/coverage.ts") : cannotFail(workflow, "site", "@procedures/site test:e2e", siteBuild);
   const flips = blocked ? [{ name: kind, held: false, reason: blocked }] : kind === "coverage" ? coverageFlips() : kind === "live-close" ? liveCloseFlips() : sizeFlips();
   for (const flip of flips) console.log(`${flip.held ? "HELD" : "NOT HELD"}: ${flip.name}: ${flip.reason}`);
   if (out) writeFileSync(out, `${JSON.stringify({ schema: "check-flips/1", kind, flips }, null, 2)}\n`);

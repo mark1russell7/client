@@ -1,0 +1,10 @@
+{
+  "home": "@mark1russell7/rigor-statistics",
+  "entry": ".",
+  "namespace": ["statistics"],
+  "manifest": "src/manifest.ts",
+  "overlay": {
+    "effects": { "reads": [], "writes": [] }
+  },
+  "pure": true
+}

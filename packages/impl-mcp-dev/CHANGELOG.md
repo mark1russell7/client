@@ -1,5 +1,132 @@
 # @procedures/mcp-dev-tools
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/bundle-mcp@0.63.0
+  - @procedures/fs@0.63.0
+  - @procedures/mcp-server@0.63.0
+  - @procedures/compiler@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- 02582c5: The tool search finds synonyms. A thesaurus of the general words of tool operations gives each word of the query its synonyms at half weight. So `remove` finds `delete`, `download` finds `pull`, and the phrase `same time` finds `parallel`.
+  
+  - Each synonym has its own IDF, so a common synonym does not lower the weight of a rare word of the query.
+  - A document scores the best word of each term, so two synonyms in one document do not count two times.
+  - The golden set of the dev tools has 20 new held-out queries, written before the first run of the synonyms. On the 48 old queries, hit5 goes from 43 to 48 and hit1 from 39 to 43. On the 20 held-out queries, hit5 goes from 16 to 19 and hit1 from 7 to 15.
+  
+  PATCH: before 1.0.0, a backward-compatible feature raises PATCH. The API does not change: `searchDocuments` keeps its signature and only ranks better.
+- 365aad4: The tool search (direction 40, the tool surface). A server with thousands of tools now gives the model three tools in place of each tool.
+  
+  - `@procedures/client`: the new core procedure `procedure.search` finds the procedures by words. It searches only the procedures that the host exposes. The ranking is BM25 over the key, the tags and the description. The functions `searchDocuments` and `searchWords` give the same ranking to each catalog of tools.
+  - `@procedures/mcp-server`: the new option `listing: "search"` of the transport and of `createMcpHost()` lists three tools: `search_tools`, `describe_tool` and `call_tool`. The expose rule and the call policy do not change. The default `"each"` keeps the list of each tool.
+  - `@procedures/mcp-dev-tools` and `@procedures/mark`: `MCP_LISTING=search` and `mark mcp --listing search` start the dev-tools server with the search listing.
+  
+  A list of the three tools is 1410 bytes of JSON. The list of each tool costs about 386 tokens for each tool.
+- Updated dependencies [4ce6ac9]
+- Updated dependencies [02582c5]
+- Updated dependencies [77d07c7]
+- Updated dependencies [365aad4]
+  - @procedures/compiler@0.62.1
+  - @procedures/client@0.62.1
+  - @procedures/mcp-server@0.62.1
+  - @procedures/bundle-mcp@0.62.1
+  - @procedures/fs@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [b7fbc8e]
+- Updated dependencies [14f61a7]
+- Updated dependencies [b3e65e7]
+- Updated dependencies [fdb89bc]
+- Updated dependencies [9efdd12]
+- Updated dependencies [870f429]
+  - @procedures/compiler@0.62.0
+  - @procedures/client@0.62.0
+  - @procedures/fs@0.62.0
+  - @procedures/bundle-mcp@0.62.0
+  - @procedures/mcp-server@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [56cd2bc]
+- Updated dependencies [84d9551]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/compiler@0.61.0
+  - @procedures/fs@0.61.0
+  - @procedures/mcp-server@0.61.0
+  - @procedures/bundle-mcp@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [a87cdda]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/mcp-server@0.60.1
+  - @procedures/fs@0.60.1
+  - @procedures/bundle-mcp@0.60.1
+  - @procedures/compiler@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/bundle-mcp@0.60.0
+  - @procedures/fs@0.60.0
+  - @procedures/mcp-server@0.60.0
+  - @procedures/compiler@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [c0ecfe0]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/fs@0.59.1
+  - @procedures/bundle-mcp@0.59.1
+  - @procedures/mcp-server@0.59.1
+  - @procedures/compiler@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

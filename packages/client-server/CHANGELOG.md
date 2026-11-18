@@ -1,5 +1,96 @@
 # @procedures/peer
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- fdb89bc: The path, glob and walk functions of three packages move to their home, `@mark1russell7/files` (roadmap CLI-125).
+  
+  - `@procedures/fs`: `isInside` is a re-export of `@mark1russell7/files`. With `dot: true`, `fs.glob` uses `findEntriesAsync` of `@mark1russell7/files`, and its walk does not block the event loop.
+  - `@procedures/fs`: with `dot: true`, an absolute pattern under `cwd` matches. Before, it matched nothing. The other matches do not change.
+  - `@procedures/lib`: `expandHome` is a re-export of `@mark1russell7/files`. `findWorkspaceRoot` uses `findUp`.
+  - `@procedures/archive`: the walk of `archive.create` uses `walk` of `@mark1russell7/files`. `portableLinkTarget` uses `toPosix`. The limits and the error codes do not change.
+  - `@procedures/peer`: the range of `@mark1russell7/files` is `^0.0.4`, as in the other packages. The code does not change.
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- a87cdda: The storages of a partitioned collection close at the stop of the server.
+  
+  - `CollectionPartitions` gets an optional `close()`. `closeStorages()` and `stop()` of `ProcedureServer` close each partitions object one time with it.
+  - `ProcedureServer.partitionHandles()` gives one dependency handle for each partitions object, with the name `partitions.<collections>`. The handle closes the partitions after the transports close.
+  - The procedures host and the MCP host declare these handles next to the storage handles. The new type `McpRunnerPartitions` of `@procedures/mcp-server` is the partitions handle, and `McpServiceBuilder.dependency` takes it next to `McpRunnerDependency`. `host.dependencies` of the procedures host also gives the storages and partitions that the app adds after the construction.
+  - Partitions without `close()` stay on the server, and the host closes their storages.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- 6cc8f0e: A call that the stop of a face cuts ends with `UNAVAILABLE` on each face, as `WIRE-PROTOCOL.md` tells (CLI-48). The flag `retryable` follows the declared effects of the procedure, with the rule of the host.
+  
+  - A repeatable procedure (`isRepeatable`) gives the same state after a second start. Its cut call ends with `retryable: true`. A stream that sent an item ends with `retryable: false`, because a retry sends the items again.
+  - The handler of another call started, so the call can have had its effect. Its cut call ends with `retryable: false`, and the retry middleware does not send it again.
+  - The HTTP face: an open stream ended with `ABORTED` and `retryable: true` for each procedure. A call with a value ended with the error of its handler after the abort. Both end with `UNAVAILABLE`. A call with a value gets HTTP 503 when it is repeatable, and HTTP 500 when it is not. A value that the handler gives after the cut still goes out.
+  - The WebSocket face: the server and the client send the error frame of each stopped call before the socket closes. Before, the caller got `CONNECTION_CLOSED`, and the outcome of the call was not known.
+  - The port transport: `close()` sends the error of each call of the other side that it stops. Before, the other side got no frame, and its call waited for its time-out.
+  - New optional members: `RequestHandler.isRepeatableCall(method)`, implemented by `ProcedureServer` and forwarded by the face handler of the host, and the option `retryableOnStop` of `writeNdjsonStream`. A handler without `isRepeatableCall` ends each cut call with `retryable: false`.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

@@ -7,7 +7,7 @@
  * migration with the sha256 of its SQL.
  *
  * - The pending migrations run in one transaction: when one fails, none is applied.
- * - A second call applies nothing, and does not write the file.
+ * - A second call applies nothing, and does not change the file.
  * - The SQL of an applied migration must not change: a different sha256 is an error, and the
  *   call applies nothing. (The sha256 reads line ends as LF, so a checkout with CRLF is the same.)
  * - A migration must not hold BEGIN, COMMIT or ROLLBACK: the procedure runs the transaction.
@@ -16,9 +16,8 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { query, withConnection } from "@mark1russell7/docker-sqlite";
 import { MIGRATION_TABLE_PATTERN, type DbMigrateInput, type DbMigrateOutput, type DbMigration } from "../../types.js";
-import { databasePath, runStatements } from "./shared.js";
+import { databasePath, errorText, rowsOf, runStatements, withDatabase } from "./shared.js";
 
 /** The name of a migration file: a number, then "_" or "-", then a name, then ".sql". */
 const MIGRATION_FILE = /^(\d+)[_-](.+)\.sql$/i;
@@ -75,47 +74,43 @@ export async function dbMigrate(input: DbMigrateInput): Promise<DbMigrateOutput>
   if (!MIGRATION_TABLE_PATTERN.test(table)) throw new Error(`sqlite.migrate: the table name ${JSON.stringify(table)} is not valid`);
   const migrations = ordered(input.folder !== undefined ? await migrationsOfFolder(input.folder) : input.migrations!);
 
-  return withConnection({ dbPath: databasePath(input.dbPath) }, (db) => {
-    db.run("BEGIN");
+  const mode = { procedure: "sqlite.migrate", missing: "make", queryOnly: false, callerSql: true } as const;
+  return withDatabase(databasePath(input.dbPath), mode, (db, sqlite) => {
     try {
-      db.run(
-        `CREATE TABLE IF NOT EXISTS "${table}" (version INTEGER PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now')))`,
-      );
-      const applied = new Map(
-        query<{ version: number; checksum: string }>(db, `SELECT version, checksum FROM "${table}"`).rows.map((row) => [row.version, row.checksum]),
-      );
-      for (const migration of migrations) {
-        const known = applied.get(migration.version);
-        if (known !== undefined && known !== migration.checksum) {
-          throw new Error(`sqlite.migrate: the migration ${migration.version} (${migration.name}) changed after it was applied: its sha256 is different`);
+      return sqlite.transaction(db, () => {
+        db.exec(
+          `CREATE TABLE IF NOT EXISTS "${table}" (version INTEGER PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+        );
+        const applied = new Map(
+          rowsOf<{ version: number; checksum: string }>(db, `SELECT version, checksum FROM "${table}"`).map((row) => [Number(row.version), row.checksum]),
+        );
+        for (const migration of migrations) {
+          const known = applied.get(migration.version);
+          if (known !== undefined && known !== migration.checksum) {
+            throw new Error(`sqlite.migrate: the migration ${migration.version} (${migration.name}) changed after it was applied: its sha256 is different`);
+          }
         }
-      }
-      const pending = migrations.filter((migration) => !applied.has(migration.version));
-      for (const migration of pending) {
-        const label = `the migration ${migration.version} (${migration.name})`;
-        try {
-          runStatements(db, migration.sql, [], label);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          throw new Error(message.startsWith(label) ? `sqlite.migrate: ${message}` : `sqlite.migrate: ${label} failed: ${message}`);
+        const pending = migrations.filter((migration) => !applied.has(migration.version));
+        const record = db.prepare(`INSERT INTO "${table}" (version, name, checksum) VALUES (?, ?, ?)`);
+        for (const migration of pending) {
+          const label = `the migration ${migration.version} (${migration.name})`;
+          try {
+            runStatements(sqlite, db, migration.sql, [], label);
+          } catch (error) {
+            const message = errorText(error);
+            throw new Error(message.startsWith(label) ? `sqlite.migrate: ${message}` : `sqlite.migrate: ${label} failed: ${message}`);
+          }
+          record.run(migration.version, migration.name, migration.checksum);
         }
-        db.run(`INSERT INTO "${table}" (version, name, checksum) VALUES (?, ?, ?)`, [migration.version, migration.name, migration.checksum]);
-      }
-      db.run("COMMIT");
-      const versions = [...applied.keys(), ...pending.map((migration) => migration.version)];
-      return {
-        applied: pending.map((migration) => ({ version: migration.version, name: migration.name })),
-        skipped: migrations.length - pending.length,
-        version: versions.length > 0 ? Math.max(...versions) : 0,
-      };
+        const versions = [...applied.keys(), ...pending.map((migration) => migration.version)];
+        return {
+          applied: pending.map((migration) => ({ version: migration.version, name: migration.name })),
+          skipped: migrations.length - pending.length,
+          version: versions.length > 0 ? Math.max(...versions) : 0,
+        };
+      });
     } catch (error) {
-      try {
-        db.run("ROLLBACK");
-      } catch {
-        // SQLite ended the transaction already
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`${message}. No migration was applied.`);
+      throw new Error(`${errorText(error)}. No migration was applied.`);
     }
   });
 }

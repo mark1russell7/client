@@ -49,10 +49,12 @@ import {
 } from "./ref.js";
 import { hydrateInput, runProgram } from "./program.js";
 import { INFERRED_EFFECTS_METADATA_KEY, PURE_EFFECTS, REGISTRY_READ_EFFECTS, effectsValue, withEffects } from "./effects.js";
-import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, type ProcedureManifest } from "./manifest.js";
+import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, exposedProcedures, type ProcedureManifest } from "./manifest.js";
+import { SEARCH_MAX_LIMIT, searchDocuments } from "./search.js";
 import type { JsonSchema } from "./schema.js";
 import { isRuntimeDefined, markRuntimeProgram, runtimeProgramOfHandler } from "./runtime-programs.js";
 import { InvocationError } from "./invoke.js";
+import { procedureMetadataFields } from "./metadata-fields.js";
 
 // Input schemas of procedure.define and procedure.delete (roadmap 2.1)
 const procedurePathField = z.array(z.string().min(1)).min(1);
@@ -65,7 +67,9 @@ const defineInputSchema = z.object({
       $name: z.string().optional().describe("A name that a $ref can read"),
     })
     .describe("The body of the procedure: a call ({ $proc, input }) that runs, as client.exec runs it, each time the procedure is called"),
-  metadata: z.record(z.string(), z.unknown()).optional().describe("The metadata of the procedure, for example { description, tags }"),
+  metadata: procedureMetadataFields
+    .optional()
+    .describe("The metadata of the procedure, for example { description, tags }. The fields of the framework have their types. A custom field keeps any value."),
   replace: z.boolean().optional().describe("Replace a procedure that procedure.define made at the same path (never a procedure of code)"),
 });
 const deleteInputSchema = z.object({
@@ -282,6 +286,15 @@ export function clearRuntimeProcedures(registry: RegistryOf = PROCEDURE_REGISTRY
 // =============================================================================
 
 /**
+ * This rule tells if a path is outside the expose rule of the host (R17). A path outside it is
+ * not the caller's. `procedure.define`, `procedure.get` and `procedure.delete` examine it before
+ * the lookup, so a free path and a used path get the same answer.
+ */
+function hiddenFromCaller(ctx: ProcedureContext | undefined, path: ProcedurePath): boolean {
+  return ctx?.expose !== undefined && !ctx.expose(path);
+}
+
+/**
  * Metadata for the procedure.define procedure.
  */
 interface DefineMetadata extends ProcedureMetadata {
@@ -303,7 +316,8 @@ interface DefineMetadata extends ProcedureMetadata {
  *   stays: an MCP client cannot replace a tool or an internal procedure.
  * - The registry gets the procedure first. A define that fails leaves nothing.
  * - The new procedure is data-driven: with a server's `expose` rule, it calls only exposed paths.
- * - With a server's `expose` rule, a caller cannot replace a hidden procedure (`NOT_EXPOSED`).
+ * - With a server's `expose` rule, the procedure goes only to an exposed path. A hidden path gets
+ *   `NOT_EXPOSED`, with the same message for a free path and a used path.
  * - Its input is raw (the `runs-refs` tag): `exec()` does not run the body at definition time.
  */
 export const defineProcedureProcedure: Procedure<
@@ -332,16 +346,17 @@ export const defineProcedureProcedure: Procedure<
     }
 
     const pathKey = pathToKey(path);
-    // A lazy registry loads the package of the path first: a procedure of a package is not new (roadmap O93)
-    const existing = await resolveIn(registry, path);
-    // A procedure outside the expose rule of the host is not the caller's to replace (R17)
-    if (existing && ctx?.expose && !ctx.expose(path)) {
+    // A path outside the expose rule of the host is not the caller's (R17). The refusal comes
+    // before the lookup, so the answer does not tell if a procedure is at the path.
+    if (hiddenFromCaller(ctx, path)) {
       throw new InvocationError(
         "NOT_EXPOSED",
-        `Procedure not exposed: ${pathKey}. procedure.define can replace only a procedure that this host exposes.`,
+        `Procedure not exposed: ${pathKey}. procedure.define makes a procedure only at a path that this host exposes.`,
         ctx.path ?? ["procedure", "define"]
       );
     }
+    // A lazy registry loads the package of the path first: a procedure of a package is not new (roadmap O93)
+    const existing = await resolveIn(registry, path);
     if (existing && !isRuntimeDefined(existing)) {
       throw new Error(
         `A code procedure exists at path: ${pathKey}. procedure.define can replace only a procedure that procedure.define made.`
@@ -361,11 +376,11 @@ export const defineProcedureProcedure: Procedure<
       input: anySchema,
       output: anySchema,
       metadata: {
-        ...(metadata ?? {
-          description: `Runtime-defined aggregation procedure`,
-          generatedFrom: "procedure.define",
-          aggregation,
-        }),
+        ...(metadata ?? { description: `Runtime-defined aggregation procedure` }),
+        // The framework sets the source and the body after the metadata of the caller: a caller
+        // cannot remove them or give a false body
+        generatedFrom: "procedure.define",
+        aggregation,
         // No effects of its own, as client.chain: the admission examines each nested call of a
         // data-driven procedure. The framework sets it, so the metadata of a caller cannot claim less
         effects: PURE_EFFECTS,
@@ -479,12 +494,11 @@ export const getProcedureProcedure: Procedure<
   },
   handler: async (input: ProcedureGetInput, ctx?: ProcedureContext) => {
     const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
+    // A path outside the expose rule of the host is not found (R17), also when a procedure is at it
+    if (hiddenFromCaller(ctx, path)) return { found: false as const };
     // A lazy registry loads the package of the path first (roadmap O93)
     const procedure = await resolveIn(ctx?.registry ?? PROCEDURE_REGISTRY, path);
-    // A procedure outside the expose rule of the host is not found (R17)
-    if (!procedure || (ctx?.expose && !ctx.expose(procedure.path))) {
-      return { found: false as const };
-    }
+    if (!procedure) return { found: false as const };
     const entry = describeEntry(procedure);
     return {
       found: true as const,
@@ -560,6 +574,99 @@ export const manifestProcedure: Procedure<{ namespace?: string | undefined }, Pr
   },
 });
 
+/** The input of `procedure.search` */
+export interface ProcedureSearchInput {
+  /** The words to find */
+  query: string;
+  /** The most hits, from 1 to 100. The default is 10. */
+  limit?: number | undefined;
+  /** Only the procedures under this first path segment */
+  namespace?: string | undefined;
+}
+
+/** One hit of `procedure.search` */
+export interface ProcedureSearchHit {
+  /** The path of the procedure */
+  path: ProcedurePath;
+  /** The path as a dotted key */
+  key: string;
+  /** The first line of the description, at most 200 characters */
+  description: string | undefined;
+  /** The score of the match: a better match has a higher score */
+  score: number;
+}
+
+/** The output of `procedure.search` */
+export interface ProcedureSearchOutput {
+  /** The best matches, the best first */
+  hits: ProcedureSearchHit[];
+  /** The number of procedures that match one word of the query or more */
+  matched: number;
+  /** The number of procedures of the search */
+  total: number;
+}
+
+const searchInputSchema: z.ZodType<ProcedureSearchInput> = z.object({
+  query: z.string().min(1).describe('The words to find, for example "median interval"'),
+  limit: z.number().int().min(1).max(SEARCH_MAX_LIMIT).optional().describe("The most hits, from 1 to 100. The default is 10."),
+  namespace: z.string().optional().describe("Only the procedures under this first path segment"),
+});
+
+const SearchOutputSchema = z.looseObject({
+  hits: z
+    .array(
+      z.looseObject({
+        path: z.array(z.string()).describe("The path of the procedure"),
+        key: z.string().describe("The path as a dotted key"),
+        description: z.string().optional().describe("The first line of the description, at most 200 characters"),
+        score: z.number().describe("The score of the match: a better match has a higher score"),
+      }),
+    )
+    .describe("The best matches, the best first"),
+  matched: z.number().describe("The number of procedures that match one word of the query or more"),
+  total: z.number().describe("The number of procedures of the search"),
+}) as z.ZodType<ProcedureSearchOutput>;
+
+/**
+ * Search the procedures of the caller's registry by words (direction 40, the tool surface). The
+ * search reads the key, the tags and the description of each procedure that the host exposes and
+ * that can run. A session finds a procedure with it, reads its schemas with `procedure.get`, and
+ * calls it.
+ */
+export const searchProceduresProcedure: Procedure<ProcedureSearchInput, ProcedureSearchOutput, ProcedureMetadata> = defineProcedure({
+  path: ["procedure", "search"],
+  input: searchInputSchema,
+  output: SearchOutputSchema,
+  metadata: {
+    description: "Search the procedures by words: the best matches of the key, the tags and the description",
+    tags: ["core", "meta"],
+    args: ["query"],
+    shorts: { limit: "l", namespace: "n" },
+    output: "json",
+  },
+  handler: async (input: ProcedureSearchInput, ctx?: ProcedureContext) => {
+    const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
+    // A lazy registry loads each package first: the search reads each procedure (roadmap O93)
+    await loadAllIn(registry);
+    const namespace = input.namespace;
+    const procedures = exposedProcedures(registry, {
+      ...(ctx?.expose ? { expose: ctx.expose } : {}),
+      ...(namespace ? { include: (procedure: AnyProcedure) => procedure.path[0] === namespace } : {}),
+    });
+    const byKey = new Map(procedures.map((procedure) => [pathToKey(procedure.path), procedure]));
+    const documents = procedures.map((procedure) => {
+      const meta = procedure.metadata as ProcedureMetadata | undefined;
+      return { name: pathToKey(procedure.path), words: procedure.path, description: meta?.description, tags: meta?.tags };
+    });
+    const result = searchDocuments(documents, input.query, { limit: input.limit });
+    return {
+      hits: result.hits.map((hit) => ({ path: byKey.get(hit.name)!.path, key: hit.name, description: hit.description, score: hit.score })),
+      matched: result.matched,
+      total: result.total,
+    };
+  },
+});
+
 /**
  * Delete a runtime-defined procedure. A procedure outside the expose rule of the host is not
  * found (R17), so a caller cannot delete a hidden procedure.
@@ -579,7 +686,7 @@ export const deleteProcedureProcedure: Procedure<
   handler: async (input: { path: ProcedurePath }, ctx?: ProcedureContext): Promise<{ deleted: boolean }> => {
     const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
     // A procedure outside the expose rule of the host is not found (R17)
-    if (ctx?.expose && !ctx.expose(input.path)) {
+    if (hiddenFromCaller(ctx, input.path)) {
       return { deleted: false };
     }
     // A lazy registry loads the package of the path first (roadmap O93)
@@ -611,6 +718,7 @@ export const metaProcedures: AnyProcedure[] = [
     getProcedureProcedure as AnyProcedure,
     listProceduresProcedure as AnyProcedure,
     manifestProcedure as AnyProcedure,
+    searchProceduresProcedure as AnyProcedure,
   ]),
   ...withEffects({ reads: ["registry"], writes: ["registry"] }, [deleteProcedureProcedure as AnyProcedure]),
 ];

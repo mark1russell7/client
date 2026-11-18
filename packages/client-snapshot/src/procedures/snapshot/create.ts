@@ -50,7 +50,7 @@ export async function snapshotCreate(
     );
 
     // Get environment info
-    const environment = await getEnvironmentInfo(ctx.signal, ctx.fsRoot);
+    const environment = getEnvironmentInfo(ctx.fsRoot);
 
     // Create metadata
     const metadata: SnapshotMetadata = {
@@ -213,11 +213,11 @@ async function getRepositoryInfo(
 /**
  * Get environment info
  */
-async function getEnvironmentInfo(signal?: AbortSignal, fsRoot?: string): Promise<SnapshotMetadata["environment"]> {
+function getEnvironmentInfo(fsRoot?: string): SnapshotMetadata["environment"] {
   return {
     os: process.platform,
     nodeVersion: process.version,
-    pnpmVersion: await pnpmVersion(signal, fsRoot),
+    pnpmVersion: pnpmVersion(fsRoot),
     username: process.env["USER"] || process.env["USERNAME"] || "unknown",
     hostname: hostname(),
   };

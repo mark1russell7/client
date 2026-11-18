@@ -1,5 +1,103 @@
 # @procedures/archive
 
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/fs@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/fs@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- fdb89bc: The path, glob and walk functions of three packages move to their home, `@mark1russell7/files` (roadmap CLI-125).
+  
+  - `@procedures/fs`: `isInside` is a re-export of `@mark1russell7/files`. With `dot: true`, `fs.glob` uses `findEntriesAsync` of `@mark1russell7/files`, and its walk does not block the event loop.
+  - `@procedures/fs`: with `dot: true`, an absolute pattern under `cwd` matches. Before, it matched nothing. The other matches do not change.
+  - `@procedures/lib`: `expandHome` is a re-export of `@mark1russell7/files`. `findWorkspaceRoot` uses `findUp`.
+  - `@procedures/archive`: the walk of `archive.create` uses `walk` of `@mark1russell7/files`. `portableLinkTarget` uses `toPosix`. The limits and the error codes do not change.
+  - `@procedures/peer`: the range of `@mark1russell7/files` is `^0.0.4`, as in the other packages. The code does not change.
+- Updated dependencies [14f61a7]
+- Updated dependencies [fdb89bc]
+  - @procedures/client@0.62.0
+  - @procedures/fs@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [84d9551]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/fs@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/fs@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/fs@0.60.0
+
+## 0.59.1
+
+### Patch Changes
+
+- c0ecfe0: The check of a path in a root and the operation on the path start in one hold of the roots. Thus the operation reads the links that the check read, for the calls of this process.
+  
+  - `fs.move`, `fs.copy`, `archive.extract` and each confined procedure that writes files or starts a process hold the roots alone. The other calls share the hold.
+  - The calls get the hold in the order that they came. A nested call starts in the hold of its caller.
+  - A call in a shared hold that starts a nested call that needs the hold alone gets an error. This nested call writes files, and its caller declares no file writes.
+  - `holdRoots()` and `RootHoldMode` of `@procedures/fs/root`, and `rootHoldOf()` of `@procedures/fs`, give the hold to other packages.
+  - `@procedures/fs` uses `rwLock()` of `@mark1russell7/collections`.
+- Updated dependencies [425ea64]
+- Updated dependencies [ea801cd]
+- Updated dependencies [74ddeff]
+- Updated dependencies [6513a83]
+- Updated dependencies [8c69a74]
+- Updated dependencies [74ddeff]
+- Updated dependencies [c0ecfe0]
+- Updated dependencies [6cc8f0e]
+  - @procedures/client@0.59.1
+  - @procedures/fs@0.59.1
+
 ## 0.59.0
 
 ### Patch Changes

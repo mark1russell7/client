@@ -1,8 +1,10 @@
 /**
  * The data of the site. `scripts/gen-data.ts` generates it from the workspace before each build.
  *
- * Each page loads this module. Thus it has the procedures without their input and output
- * schemas. The page of a procedure loads the schemas of its package (refer to `schemas.ts`).
+ * Only the pages that show procedures or packages load this module: the catalog grows with each
+ * library that becomes procedures (direction 40). The main bundle has the facts of the build in
+ * `site.ts`. This module has the procedures without their input and output schemas. The page of a
+ * procedure loads the schemas of its package (refer to `schemas.ts`).
  */
 
 import catalogJson from "./generated/catalog.js";
@@ -72,35 +74,12 @@ export interface JsonSchema {
   [key: string]: unknown;
 }
 
-/** A package that did not load when `gen-data` made the catalog. */
-export interface LoadFailure {
-  package: string;
-  error: string;
-}
-
-/** The commit and the time of the build that made the data. */
-export interface BuildInfo {
-  commit: string | null;
-  date: string | null;
-}
-
-/** The measured numbers of the home page (`scripts/site-metrics.ts`). */
-export interface SiteMetrics {
-  /** The tests (`it`/`test` calls) in the test files of the packages. */
-  tests: number;
-  testFiles: number;
-  /** The library on npm: the latest version, or null when it is not published. */
-  npm: { name: string; version: string | null };
-  /** The newest version of the changelogs (`scripts/releases-data.ts`), or null. The build can run before npm has it. */
-  release?: { version: string; date: string } | null;
-}
+// The facts of the build are in site.ts, so the main bundle does not load this module.
+export type { BuildInfo, LoadFailure, SiteMetrics } from "./site";
 
 interface Catalog {
   procedures: ProcedureSummary[];
   mcpTools: string[];
-  failed: LoadFailure[];
-  build: BuildInfo;
-  metrics?: SiteMetrics;
 }
 
 const catalog = catalogJson as unknown as Catalog;
@@ -109,9 +88,6 @@ const catalog = catalogJson as unknown as Catalog;
 export const procedures: ProcedureSummary[] = catalog.procedures;
 export const packages: PackageInfo[] = packagesJson as unknown as PackageInfo[];
 export const mcpTools: string[] = catalog.mcpTools;
-export const failedPackages: LoadFailure[] = catalog.failed ?? [];
-export const build: BuildInfo = catalog.build ?? { commit: null, date: null };
-export const metrics: SiteMetrics = catalog.metrics ?? { tests: 0, testFiles: 0, npm: { name: "@procedures/client", version: null } };
 
 const byKey = new Map(procedures.map((procedure) => [procedure.key, procedure]));
 

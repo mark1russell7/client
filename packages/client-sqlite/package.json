@@ -1,12 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/sqlite",
-  "version": "0.59.0",
-  "description": "SQLite procedures with sql.js and no native build: queries, tables and schemas, transactions, migrations, backups and structured logs, safe for concurrent writes, and SqliteStorage, a durable collection storage with a change log on node:sqlite or sql.js.",
+  "version": "0.63.0",
+  "description": "SQLite procedures on node:sqlite through @mark1russell7/sqlite: queries, tables and schemas, transactions, migrations, backups and structured logs, and SqliteStorage, a durable collection storage with a change log.",
   "keywords": [
     "sqlite",
     "node:sqlite",
-    "sql.js",
     "database",
     "logging",
     "procedures"
@@ -60,7 +59,7 @@
     "./dist/register.js"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "publishConfig": {
     "access": "public",
@@ -77,8 +76,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/docker-sqlite": "^0.3.0",
-    "@mark1russell7/sqlite": "^0.3.4",
+    "@mark1russell7/sqlite": "^0.3.6",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },

@@ -638,6 +638,8 @@ Options:
   --fs-root <folder>    Keep each path of each tool in this folder, also in the nested calls,
                         and refuse each tool that the folder cannot confine (default:
                         MCP_FS_ROOT, or no root). The list of the tools stays the same.
+  --listing <mode>      each: list each tool (the default). search: list three tools,
+                        search_tools, describe_tool and call_tool (default: MCP_LISTING)
   --debug               Write debug lines to stderr
   -h, --help            Show this help
 
@@ -691,6 +693,10 @@ async function startMcp(args: string[], fsRoot?: string): Promise<void> {
       config.http = { port: config.http?.port ?? 3003, ...config.http, maxSessions };
     } else if (name === "--fs-root") {
       config.fsRoot = value();
+    } else if (name === "--listing") {
+      const listing = value();
+      if (listing !== "each" && listing !== "search") throw new Error("--listing is each or search");
+      config.listing = listing;
     } else if (name === "--debug") {
       config.debug = true;
     } else {

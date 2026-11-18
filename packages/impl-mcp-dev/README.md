@@ -49,8 +49,9 @@ When the client closes the input of stdio, the server stops: the calls in flight
 | `MCP_HTTP_MAX_SESSIONS` | `256` | The most sessions of the Streamable HTTP face at one time (CLI-51). `Infinity` turns the limit off. |
 | `MCP_PROGRAM_CHECK` | `true` | With `false`, a program starts without the check before the run |
 | `MCP_FS_ROOT` | not set | The root of the files: each tool keeps its paths in this folder, or the host refuses it. Refer to "The root of the files". |
+| `MCP_LISTING` | `each` | With `search`, the list has three tools: `search_tools`, `describe_tool` and `call_tool`. Refer to "The cost of the search listing". |
 
-`mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token`, `--max-sessions` and `--fs-root`.
+`mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token`, `--max-sessions`, `--fs-root` and `--listing`.
 
 The server operates under `run()` of `@mark1russell7/service` (CLI-11). The runner owns the signals, the stop in stages and the exit of the process.
 
@@ -103,7 +104,25 @@ The server sends `console.log` output to stderr, because stdout carries the MCP 
 
 ## The tool list
 
-`tools.snapshot.txt` has the names of the 91 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
+`tools.snapshot.txt` has the names of the 94 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
+
+## The cost of the search listing
+
+A session reads the list of the tools before it uses a tool. With `MCP_LISTING=search`, the list has three tools in place of each tool. Two tests hold the gains of this listing:
+
+- `src/search-quality.test.ts` holds the quality of `search_tools` on the task queries of `search.golden.json`.
+- `src/listing-cost.test.ts` holds its cost. The test starts the server two times and measures the UTF-8 bytes of the JSON that the model reads.
+
+The bytes are a measure of the tokens. A task is the search listing, one result of `search_tools` and one result of `describe_tool`, for one golden query. A call costs the same in the two listings, so a task has no call.
+
+| Measure | Bytes |
+|---|---|
+| The list of each tool (94 tools) | 121582 |
+| The search listing (3 tools) | 1420 |
+| A task, on average | 4714 |
+| The worst task | 9686 |
+
+`listing.cost.json` has two limits. The bytes of the search listing are exact. The share of the worst task in the list of each tool has a ceiling of 0.08. A new tool makes the list of each tool larger, so it does not fail the gate. To accept a change, start the test with `UPDATE_LISTING_COST=1` and examine the diff.
 
 ## Troubleshooting
 

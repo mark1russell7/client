@@ -37,6 +37,11 @@ export interface McpServerConfig {
    * refused tool, give `FORBIDDEN` with the reason `outside-root`. No value: no root.
    */
   fsRoot?: string | undefined;
+  /**
+   * How the server lists its tools (direction 40). `"each"` (the default) lists each tool.
+   * `"search"` lists three tools: `search_tools`, `describe_tool` and `call_tool`.
+   */
+  listing?: "each" | "search" | undefined;
 }
 
 /**
@@ -53,9 +58,21 @@ export interface McpServerConfig {
  * - MCP_HTTP_MAX_SESSIONS: the most sessions of the HTTP face (default: 256; "Infinity": no limit)
  * - MCP_PROGRAM_CHECK: "false" or "0" starts a program without the check before the run
  * - MCP_FS_ROOT: the root of the files: each tool keeps its paths in it, or it is refused (default: no root)
+ * - MCP_LISTING: "search" lists the three search tools in place of each tool (default: "each")
  */
 /** The default time limit of a tool call: a build or a test run can take minutes. */
 export const DEFAULT_TOOL_TIMEOUT_MS = 600_000;
+
+/**
+ * The listing from its environment variable. A value that is not a listing is an error: without
+ * this check, a mistake gives each tool to the context of the model.
+ */
+export function parseListing(value: string | undefined): "each" | "search" | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  const listing = value.trim();
+  if (listing !== "each" && listing !== "search") throw new Error(`MCP_LISTING is "each" or "search", not "${listing}"`);
+  return listing;
+}
 
 /** The time limit from its environment variable. A value that is not a number gives the default. */
 export function parseTimeout(value: string | undefined): number {
@@ -87,6 +104,7 @@ export function loadConfig(): McpServerConfig {
   const bundlesEnv = process.env["MCP_BUNDLES"] ?? "@procedures/bundle-mcp";
   const bundles = bundlesEnv.split(",").map((b) => b.trim()).filter(Boolean);
   const fsRoot = process.env["MCP_FS_ROOT"]?.trim();
+  const listing = parseListing(process.env["MCP_LISTING"]);
   const maxSessions = parseMaxSessions(process.env["MCP_HTTP_MAX_SESSIONS"]);
   const httpToken = process.env["MCP_HTTP_PORT"] ? parseHttpToken(process.env["MCP_HTTP_TOKEN"]) : undefined;
 
@@ -99,6 +117,7 @@ export function loadConfig(): McpServerConfig {
     readOnly: process.env["MCP_READ_ONLY"] === "true" || process.env["MCP_READ_ONLY"] === "1",
     programCheck: !(process.env["MCP_PROGRAM_CHECK"] === "false" || process.env["MCP_PROGRAM_CHECK"] === "0"),
     ...(fsRoot ? { fsRoot } : {}),
+    ...(listing ? { listing } : {}),
     ...(process.env["MCP_HTTP_PORT"]
       ? {
           http: {
