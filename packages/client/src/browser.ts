@@ -18,6 +18,11 @@
 // Import client middleware explicitly: import { createRetryMiddleware } from "@procedures/client/client"
 // ============================================================================
 export { Client, ClientError } from "./client/index.js";
+// The module of a running peer over HTTP, and the stubs of a manifest (d40-tool-surface)
+export { peerModule } from "./client/index.js";
+export type { PeerAddress, PeerModuleOptions } from "./client/index.js";
+export { HOST_NAMESPACES, forwardedModule } from "./procedures/index.js";
+export type { ForwardCall, ForwardOptions } from "./procedures/index.js";
 export {
   HttpTransport,
   LocalTransport,
@@ -94,7 +99,7 @@ export { hostProcedures } from "./server/host-procedures.js";
 export type { HostSource } from "./server/host-procedures.js";
 export type { ProcedureServerOptions, RegisterProcedureOptions, StorageConfig, StopOptions, UseStorageOptions } from "./server/procedure-server.js";
 // The stop parts of the server and its storages as dependencies, in the shape of the runner (CLI-5)
-export type { StopParts, StorageHandle } from "./server/procedure-server.js";
+export type { PartitionsHandle, StopParts, StorageHandle } from "./server/procedure-server.js";
 // The limits of the calls: keyed limiters of @mark1russell7/service/limiter in the admission path (CLI-40)
 export type { CallLimit, CallLimitCovers, CallLimitKey, CallLimitKeyPart, LimitedCall } from "./server/limits.js";
 export {
@@ -295,6 +300,7 @@ export {
   getProcedureProcedure,
   manifestProcedure,
   listProceduresProcedure,
+  searchProceduresProcedure,
   deleteProcedureProcedure,
   metaProcedures,
   getRuntimeProcedure,
@@ -416,7 +422,14 @@ export type {
   AggregationDefinition,
   DefineProcedureInput,
   DefineProcedureOutput,
+  ProcedureSearchHit,
+  ProcedureSearchInput,
+  ProcedureSearchOutput,
 } from "./procedures/index.js";
+
+// The search of a catalog of procedures or tools (direction 40, the tool surface)
+export { SEARCH_LIMIT, SEARCH_MAX_LIMIT, searchDocuments, searchWords } from "./procedures/index.js";
+export type { SearchDocument, SearchHit, SearchOptions, SearchResult } from "./procedures/index.js";
 
 // ============================================================================
 // Invocation: the one path, the call policy and the interceptors
@@ -522,9 +535,14 @@ export type {
   ConfirmationResult,
 } from "./procedures/elicit.js";
 export type { ProgressUpdate, ReportProgress } from "./procedures/progress.js";
+// The objects with a state of a caller: handles with an owner and an end (d40-handles)
+export { HandleScope, HandleError, HANDLE_KEYWORD, DEFAULT_MAX_HANDLES, handleSchema, isHandleRef, handleScopeOf, closeValue } from "./procedures/handles.js";
+export type { HandleRef, HandleInfo, HandleOpenOptions, HandleScopeOptions, HandleCloseFailure, HandleEndReport } from "./procedures/handles.js";
+export { handleModule, handleListProcedure, handleCloseProcedure } from "./procedures/handle-procedures.js";
+export type { HandleListInput, HandleListOutput, HandleCloseInput } from "./procedures/handle-procedures.js";
 export { toolHintsOf, toolHintOverrideOf, toolHintOverrideRefusal } from "./procedures/hints.js";
 export type { ToolHintOverride } from "./procedures/hints.js";
-export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./procedures/untrusted.js";
+export { untrustedText, untrustedFieldsOf, untrustedTextsOf, markUntrusted, untrustedMarkOf } from "./procedures/untrusted.js";
 export type { UntrustedText, UntrustedSource, UntrustedValue } from "./procedures/untrusted.js";
 // One manifest type (roadmap R17)
 export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./procedures/manifest.js";

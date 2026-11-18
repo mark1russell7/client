@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   expandHome,
   extractEcosystemDeps,
@@ -102,5 +102,41 @@ describe("extractEcosystemDeps", () => {
 
   it("ignores ecosystem packages that come from the registry", () => {
     expect(extractEcosystemDeps({ dependencies: { "@mark1russell7/x": "^1.0.0" } })).toEqual([]);
+  });
+});
+
+describe("expandHome and findWorkspaceRoot move to @mark1russell7/files (CA14)", () => {
+  // The old copies, kept as fixtures.
+  const oldExpandHome = (p: string): string =>
+    p === "~" ? homedir() : p.startsWith("~/") || p.startsWith("~\\") ? join(homedir(), p.slice(2)) : p;
+  const oldFindWorkspaceRoot = (start: string): string | null => {
+    let dir = resolve(start);
+    for (;;) {
+      if (existsSync(join(dir, "pnpm-workspace.yaml"))) return dir;
+      const parent = dirname(dir);
+      if (parent === dir) return null;
+      dir = parent;
+    }
+  };
+
+  it("expandHome gives the old result for each form of the home folder", () => {
+    for (const p of ["~", "~/", "~/a", "~\\a\\b", "~a", "a/~", "", "/abs", "C:\\x", "~~/a", " ~/a"]) {
+      expect(expandHome(p), p).toBe(oldExpandHome(p));
+    }
+  });
+
+  it("findWorkspaceRoot gives the old result at, below and outside a workspace", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "client-lib-ws-home-"));
+    try {
+      mkdirSync(join(tmp, "ws", "packages", "p", "src"), { recursive: true });
+      writeFileSync(join(tmp, "ws", "pnpm-workspace.yaml"), "");
+      mkdirSync(join(tmp, "ws", "pnpm-workspace.yaml.d"));
+      for (const start of [join(tmp, "ws"), join(tmp, "ws", "packages", "p", "src"), join(tmp, "ws", "packages", "..", "packages"), join(tmp, "ws", "missing", "x")]) {
+        expect(findWorkspaceRoot(start), start).toBe(oldFindWorkspaceRoot(start));
+      }
+      expect(findWorkspaceRoot(join(tmp, "ws", "packages"))).toBe(join(tmp, "ws"));
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });

@@ -1,8 +1,8 @@
 /**
- * client-sqlite
+ * @procedures/sqlite
  *
- * SQLite database operations via client procedures.
- * Enables database queries and logging via client.call().
+ * The SQLite procedures and the SQLite collection storage. Each procedure opens the file through the engine of
+ * `@mark1russell7/sqlite`. That package has the functions of a connection (`openDatabase`, `migrate`, `transaction`).
  *
  * @example
  * ```typescript
@@ -92,31 +92,3 @@ export {
   type SqliteEngineName,
   type SqliteStorageOptions,
 } from "./storage.js";
-
-// =============================================================================
-// Re-export docker-sqlite utilities for direct use
-// =============================================================================
-
-export {
-  withConnection,
-  createConnection,
-  query,
-  execute,
-  execMultiple,
-  lastInsertRowId,
-  tableExists,
-  getMigrationStatus,
-  runMigrations,
-  rollbackMigration,
-  createMigration,
-} from "@mark1russell7/docker-sqlite";
-
-export type {
-  ConnectionConfig,
-  ConnectionCallback,
-  QueryResult,
-  ExecuteResult,
-  Migration,
-  MigrationStatus,
-  Database,
-} from "@mark1russell7/docker-sqlite";

@@ -4,9 +4,10 @@
  * Configuration options for the MCP server transport.
  */
 
+import type { McpToolListing } from "./transport/search-listing.js";
 import type { Readable, Writable } from "node:stream";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { BrowserGuardOptions, ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
+import type { BrowserGuardOptions, ElicitationPolicy, HandleScopeOptions, ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
 import type { Duration, Logger } from "@procedures/client";
 import type { UntrustedContentOptions } from "./untrusted.js";
@@ -154,6 +155,12 @@ export interface McpServerTransportOptions {
   elicitation?: ElicitationPolicy | undefined;
 
   /**
+   * The options of the handle scope of each session (d40-handles): the count limit and the idle
+   * time limit of its objects with a state. The end of a session closes its objects.
+   */
+  handles?: HandleScopeOptions | undefined;
+
+  /**
    * The envelopes of the output fields with text from outside the host (`metadata.untrusted`).
    * The default tag is `untrusted-content`.
    */
@@ -170,6 +177,14 @@ export interface McpServerTransportOptions {
 
   /** Tool filtering options */
   toolFilter?: McpToolFilter;
+
+  /**
+   * How the server lists its tools (direction 40, the tool surface). `"each"` (the default) lists
+   * each tool. `"search"` lists three tools: `search_tools`, `describe_tool` and `call_tool`. Then
+   * the model loads the schema of a tool only when it needs the tool. The expose rule and the call
+   * policy do not change.
+   */
+  listing?: McpToolListing | undefined;
 
   /**
    * The name of the tool of a procedure. The default joins the segments of the path with dots

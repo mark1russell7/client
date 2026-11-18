@@ -3,7 +3,7 @@
  *
  * - The stop of the intake ends the GET stream of each idle session. Thus a stop with idle MCP
  *   clients ends well under the cap of the drain. Before, each GET stream stayed open until the
- *   close of the face, so the drain of the listener waited for its full cap (fleet #24).
+ *   close of the face, so the drain of the listener waited for its full cap.
  * - A call in progress at the stop completes, with its answer stream. The drain waits only for it.
  * - A session with a task in progress keeps its GET stream until the work of the task ends. The
  *   end of the task goes on that stream.
@@ -359,7 +359,7 @@ function startStop(life: Lifecycle, clock: FakeClock): { readonly startedAt: num
 describe("the MCP face at the stop of the host (CLI-72)", () => {
   it("ends the GET streams of idle sessions at the stop of the intake: the stop ends well under the cap of the drain", async () => {
     const { life, clock, endpoint } = await runHost("mcp-idle", { onListener: true });
-    // Six idle clients, as on the fleet site (fleet #24): each one keeps its GET stream open
+    // Six idle clients: each one keeps its GET stream open
     const streams: Stream[] = [];
     for (let client = 0; client < 6; client++) streams.push(await openStream(endpoint, await initialize(endpoint)));
     expect(streams.map((stream) => stream.status)).toEqual([200, 200, 200, 200, 200, 200]);

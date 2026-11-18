@@ -6,13 +6,13 @@
 
 Breaking change: `@mark1russell7/service` is a peer dependency of `@procedures/peer`, `@procedures/server` and `@procedures/mcp-dev-tools` (CLI-117). Before this version, it was a plain dependency of each of these packages.
 
-Each app that uses one of these packages does one step: install `@mark1russell7/service` `^0.9.0` next to the package.
+Each app that uses one of these packages does one step: install `@mark1russell7/service` `^0.10.0` next to the package.
 
 ```sh
-pnpm add @mark1russell7/service@^0.9.0
+pnpm add @mark1russell7/service@^0.10.0
 ```
 
-Each version in the range `^0.9.0` exports `IDENTITY_TYPES`, the list of the identity types of service. The new check below reads this list.
+Each version in the range `^0.10.0` exports `IDENTITY_TYPES`, the list of the identity types of service. The new check below reads this list.
 
 Service keeps some state for each copy of the package, keyed by an object. A lifecycle keys its drains, and an HTTP answer keys its owner. The public API of these three packages takes or gives such values. With two copies of service, a builder of one copy does not find the drains of the other copy. The peer gives the app and these packages one copy.
 

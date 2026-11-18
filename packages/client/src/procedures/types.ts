@@ -6,6 +6,7 @@
  */
 
 import type { Elicit } from "./elicit.js";
+import type { HandleScope } from "./handles.js";
 import type { ReportProgress } from "./progress.js";
 import type { ToolHintOverride } from "./hints.js";
 import type { ZodErrorLike } from "../client/validation/types.js";
@@ -378,6 +379,14 @@ export interface ProcedureContext {
    * get the same function.
    */
   elicit?: Elicit | undefined;
+
+  /**
+   * The handle scope of the owner of the call (d40-handles): an MCP session, a connection, or a
+   * scope in the process. A procedure that opens an object with a state keeps it here and gives a
+   * handle. `handleScopeOf(ctx)` gives the scope, or an error when the face keeps no handles. The
+   * nested calls get the same scope.
+   */
+  handles?: HandleScope | undefined;
 
   /**
    * The function that tells the caller the progress of this call (an MCP progress notification).

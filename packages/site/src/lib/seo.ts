@@ -3,10 +3,15 @@
  * build writes them in the HTML file of each static page with the Open Graph tags, the
  * structured data and the sitemap (refer to `build-time/`). One module for both keeps them equal.
  *
+ * The main bundle has this module, but not the catalog: the catalog grows with each library that
+ * becomes procedures. Thus the page of a procedure or of a package gets its meta data only with
+ * the catalog. The build gives the full catalog. The app loads it when a route needs it.
+ *
  * The titles put the words that people search for first, then the site name.
  */
 
-import { mcpTools, packages, procedureByKey, procedures } from "../data";
+import type { PackageInfo, ProcedureSummary } from "../data";
+import { counts } from "../data/site";
 import { docRoutes } from "../data/doc-routes";
 
 /** The name of the site, as the header shows it. */
@@ -72,12 +77,12 @@ function fixedPages(): PageMeta[] {
     ),
     page(
       "catalog",
-      `Procedure catalog: ${procedures.length} typed procedures`,
-      `Search ${procedures.length} typed procedures: git, docker, pnpm, vitest, MongoDB, SQLite, S3 and more. Each with its JSON Schemas, CLI command and MCP tool.`,
+      `Procedure catalog: ${counts.procedures} typed procedures`,
+      `Search ${counts.procedures} typed procedures: git, docker, pnpm, vitest, MongoDB, SQLite, S3 and more. Each with its JSON Schemas, CLI command and MCP tool.`,
     ),
     page(
       "architecture",
-      `Architecture: one call's journey, ${packages.length} packages`,
+      `Architecture: one call's journey, ${counts.packages} packages`,
       "One streaming call through the real middlewares, transport, server and interceptors (HTTP, WebSocket, MCP), and the package map.",
     ),
     page(
@@ -87,8 +92,8 @@ function fixedPages(): PageMeta[] {
     ),
     page(
       "claude",
-      `MCP tools for Claude Code: ${mcpTools.length} procedures`,
-      `The ${mcpTools.length} procedures that the dev-tools MCP server gives to Claude Code as tools, and the rules that keep shell access out of them.`,
+      `MCP tools for Claude Code: ${counts.mcpTools} procedures`,
+      `The ${counts.mcpTools} procedures that the dev-tools MCP server gives to Claude Code as tools, and the rules that keep shell access out of them.`,
     ),
     page(
       "status",
@@ -129,11 +134,38 @@ function docPage(slug: string): PageMeta | null {
   return page(`docs/${slug}`, route.heading, clip(description), route.title);
 }
 
+/** The procedures and the packages of the catalog (refer to `data/index.ts`). */
+export interface CatalogData {
+  procedures: readonly ProcedureSummary[];
+  packages: readonly PackageInfo[];
+}
+
+/** The maps of one catalog by key and by folder. The pages of a large catalog need no linear search. */
+interface CatalogIndex {
+  procedures: ReadonlyMap<string, ProcedureSummary>;
+  packages: ReadonlyMap<string, PackageInfo>;
+}
+
+const indexes = new WeakMap<CatalogData, CatalogIndex>();
+
+/** This function gives the maps of a catalog. It makes them one time for each catalog. */
+function indexOf(catalog: CatalogData): CatalogIndex {
+  let index = indexes.get(catalog);
+  if (index === undefined) {
+    index = {
+      procedures: new Map(catalog.procedures.map((procedure) => [procedure.key, procedure])),
+      packages: new Map(catalog.packages.map((pkg) => [pkg.dir, pkg])),
+    };
+    indexes.set(catalog, index);
+  }
+  return index;
+}
+
 /** The meta data of the page of one procedure. */
-function procedurePage(key: string): PageMeta | null {
-  const procedure = procedureByKey(key);
+function procedurePage(catalog: CatalogIndex, key: string): PageMeta | null {
+  const procedure = catalog.procedures.get(key);
   if (!procedure) return null;
-  const pkg = packages.find((candidate) => candidate.dir === procedure.package);
+  const pkg = catalog.packages.get(procedure.package);
   const hosts = [procedure.cli ? `the CLI command mark ${procedure.path.join(" ")}` : "", procedure.mcp ? "an MCP tool" : ""].filter(Boolean);
   const summary = procedure.description ? procedure.description.trim().replace(/([^.!?])$/, "$1.") : `The ${procedure.key} procedure.`;
   const description = clip(
@@ -145,8 +177,8 @@ function procedurePage(key: string): PageMeta | null {
 }
 
 /** The meta data of the architecture page that shows one package. */
-function packagePage(dir: string): PageMeta | null {
-  const pkg = packages.find((candidate) => candidate.dir === dir);
+function packagePage(catalog: CatalogIndex, dir: string): PageMeta | null {
+  const pkg = catalog.packages.get(dir);
   if (!pkg) return null;
   const description = clip(
     `${pkg.description || pkg.name}. ${pkg.procedures > 0 ? `${pkg.procedures} procedures, ` : ""}${pkg.lines.toLocaleString("en-US")} lines of TypeScript, and the packages it uses.`,
@@ -154,14 +186,23 @@ function packagePage(dir: string): PageMeta | null {
   return page(`architecture/${pkg.dir}`, `${pkg.name} package`, description);
 }
 
+/** This function tells if the meta data of a route needs the catalog: the page of a procedure or of a package. */
+export function needsCatalog(route: { page: string; rest: string }): boolean {
+  return route.rest !== "" && (route.page === "catalog" || route.page === "architecture");
+}
+
 /**
  * The meta data of a route, or null for a route that has no page (the app shows its "not
- * found" page). The query does not change the meta data.
+ * found" page). The query does not change the meta data. The result is undefined when the route
+ * needs the catalog (refer to `needsCatalog`) and the catalog is null: the app then waits for it.
  */
-export function metaOf(route: { page: string; rest: string }): PageMeta | null {
+export function metaOf(route: { page: string; rest: string }, catalog: CatalogData | null = null): PageMeta | null | undefined {
   if (route.rest === "") return fixedPages().find((candidate) => candidate.path === route.page) ?? null;
-  if (route.page === "catalog") return procedurePage(route.rest);
-  if (route.page === "architecture") return packagePage(route.rest);
+  if (needsCatalog(route)) {
+    if (catalog === null) return undefined;
+    const index = indexOf(catalog);
+    return route.page === "catalog" ? procedurePage(index, route.rest) : packagePage(index, route.rest);
+  }
   if (route.page === "docs") return docPage(route.rest);
   return null;
 }
@@ -175,15 +216,28 @@ export const NOT_FOUND_META: PageMeta = {
   section: "",
 };
 
-/** Every page that the build writes as its own HTML file: the fixed pages, each procedure and each package. */
-export function staticPages(): PageMeta[] {
-  const procedurePages = [...procedures]
+/** The meta data of a page that did not load its data, for example after a deploy removed a chunk. */
+export const LOAD_FAILURE_META: PageMeta = {
+  path: "",
+  title: `Page error | ${SITE_NAME}`,
+  heading: "This page stopped with an error",
+  description: "This page did not load its data. Load the page again.",
+  section: "",
+};
+
+/**
+ * Every page that the build writes as its own HTML file: the fixed pages, each procedure and each
+ * package. The build gives the full catalog.
+ */
+export function staticPages(catalog: CatalogData): PageMeta[] {
+  const index = indexOf(catalog);
+  const procedurePages = [...catalog.procedures]
     .sort((a, b) => a.key.localeCompare(b.key))
-    .map((procedure) => procedurePage(procedure.key))
+    .map((procedure) => procedurePage(index, procedure.key))
     .filter((meta): meta is PageMeta => meta !== null);
-  const packagePages = [...packages]
+  const packagePages = [...catalog.packages]
     .sort((a, b) => a.dir.localeCompare(b.dir))
-    .map((pkg) => packagePage(pkg.dir))
+    .map((pkg) => packagePage(index, pkg.dir))
     .filter((meta): meta is PageMeta => meta !== null);
   const docPages = docRoutes.map((route) => docPage(route.slug)).filter((meta): meta is PageMeta => meta !== null);
   return [...fixedPages(), ...procedurePages, ...packagePages, ...docPages];

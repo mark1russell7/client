@@ -1,5 +1,97 @@
 # @procedures/npm
 
+## 0.64.0
+
+### Patch Changes
+
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [dfd04b7]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+  - @procedures/shell@0.64.0
+  - @procedures/json@0.64.0
+
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/shell@0.63.0
+  - @procedures/json@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/json@0.62.1
+  - @procedures/shell@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- f2bf9e8: The entry `@procedures/npm/measures` checks the bytes of a tarball against the hashes of the registry. It uses the Web Crypto API, so a browser can also use it.
+  
+  - `extractRegistryDist` reads the facts of the tarball from the response of `registryVersionRequest`: the URL, `integrity`, `shasum`, `fileCount` and `unpackedSize`. The tag of the request can be an exact version.
+  - `checkIntegrity(bytes, integrity)` checks bytes against an integrity text with the form of W3C Subresource Integrity. It uses the strongest algorithm of the text. The check fails when the text has no hash that it knows.
+  - `tarballIntegrity(dist)` gives the integrity text of a version. For an old version with only `shasum`, it gives the `sha1` text of that hash, as npm does.
+  
+  No export changes. A caller that reads the tarball through its own fetch, for example the bytes of `polite-crawler/api`, can check the tarball before it unpacks it.
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+  - @procedures/json@0.62.0
+  - @procedures/shell@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/shell@0.61.0
+  - @procedures/json@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [d472a8b]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/shell@0.60.1
+  - @procedures/json@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [7250ac5]
+- Updated dependencies [3075d86]
+  - @procedures/shell@0.60.0
+  - @procedures/client@0.60.0
+  - @procedures/json@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

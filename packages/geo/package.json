@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/geo",
-  "version": "0.59.1",
-  "description": "Map procedures: the coordinates of an address (OpenStreetMap Nominatim), the time and distance of a drive (OSRM), the great-circle distance and the geohash.",
+  "version": "0.64.0",
+  "description": "Map procedures: the coordinates of an address (OpenStreetMap Nominatim) and the time and distance of a drive (OSRM). It also has a procedure for each function of @mark1russell7/geo: distances, bearings, boxes, polygons and geohashes.",
   "keywords": [
     "geocode",
     "nominatim",
@@ -76,8 +76,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/geo": "^0.3.1",
+    "@mark1russell7/geo": "^0.5.3",
     "@procedures/client": "workspace:*",
+    "@procedures/compiler": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

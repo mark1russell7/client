@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createRegistry, invokePath, outputItems, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { createFsModule, fsModule } from "./module.js";
 import type { FsHashOutput, FsTempOutput, FsWatchOutput, FsWriteJsonOutput } from "./types.js";
@@ -74,6 +74,12 @@ describe("fs.temp (R44)", () => {
     expect(one.path).not.toBe(two.path);
     expect(existsSync(one.path) && existsSync(two.path)).toBe(true);
     await expect(call("fs.temp", { prefix: "../escape" })).rejects.toThrow();
+    // The prefixes . and .. are only the start of a name in the same folder
+    for (const prefix of [".", ".."]) {
+      const dots = await call<FsTempOutput>("fs.temp", { prefix });
+      made.push(dots.path);
+      expect(dirname(dots.path)).toBe(dirname(two.path));
+    }
   });
 });
 
@@ -112,6 +118,12 @@ describe("the new procedures with a root (R44)", () => {
     await expect(call("fs.hash", { path: join(tmpdir(), "x") }, rooted)).rejects.toMatchObject({ code: "FORBIDDEN" });
     const temp = await call<FsTempOutput>("fs.temp", {}, rooted);
     expect(temp.path.startsWith(join(folder, ".tmp"))).toBe(true);
+    // The prefixes . and .. make a folder in .tmp, not next to the root
+    for (const prefix of [".", ".."]) {
+      const dots = await call<FsTempOutput>("fs.temp", { prefix }, rooted);
+      expect(dirname(dots.path)).toBe(dirname(temp.path));
+      expect(existsSync(dots.path)).toBe(true);
+    }
     expect((await call<FsHashOutput>("fs.hash", { path: "inside.json", algorithm: "sha1" }, rooted)).size).toBe(5);
     const watching = await invokePath<FsWatchOutput>(["fs", "watch"], { path: "." }, { registry: rooted });
     const changes = outputItems(watching)[Symbol.asyncIterator]();

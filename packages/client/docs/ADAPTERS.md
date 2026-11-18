@@ -128,7 +128,8 @@ const transport = new HttpServerTransport(server, {
   // leave it out unless the client uses another format
   // urlStrategy: rpcServerUrlStrategy,
 
-  // CORS is off by default. origin is "*", one origin or a list.
+  // CORS is off by default. origin is "*", one origin or a list. The CORS applies only to the
+  // base path and the paths under it, not to the other routes of the app.
   cors: true,
   corsOptions: { origin: ["https://app.example"] },
 

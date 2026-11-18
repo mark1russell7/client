@@ -72,6 +72,23 @@ describe("exposePatterns and surfaceRule", () => {
     // Another procedure of the collection stays
     expect(hostPolicy({ exclude: ["collections.e2e.tabs.delete"] }).expose?.(["collections", "e2e.tabs", "find"])).toBe(true);
   });
+
+  it("hide each procedure of an exclude pattern: a prefix or *", () => {
+    const rule = hostPolicy({ expose: ["*"], exclude: ["shell.*", "fs.write"] }).expose!;
+    expect(rule(["shell", "run"])).toBe(false);
+    expect(rule(["shell", "exec"])).toBe(false);
+    expect(rule(["fs", "write"])).toBe(false);
+    expect(rule(["fs", "read"])).toBe(true);
+    expect(rule(["shellx", "run"])).toBe(true);
+    expect(hostPolicy({ exclude: ["*"] }).expose?.(["git", "status"])).toBe(false);
+    const surface = surfaceRule({ namespaces: ["docker", "git"], exclude: ["docker.*"] });
+    expect(surface(["docker", "prune"])).toBe(false);
+    expect(surface(["git", "status"])).toBe(true);
+    // A prefix in each form hides a path with a dot in a segment
+    for (const entry of ["collections.e2e.tabs.*", "collections.e2e%2Etabs.*"]) {
+      expect(hostPolicy({ exclude: [entry] }).expose?.(["collections", "e2e.tabs", "drop"])).toBe(false);
+    }
+  });
 });
 
 describe("hostPolicy", () => {
@@ -103,6 +120,20 @@ describe("hostPolicy", () => {
     expect(await call(server, ["tool", "declared"])).toMatchObject({ type: "success" });
     expect(await call(server, ["tool", "undeclared"])).toMatchObject({ type: "error" });
     expect(await call(server, ["tool", "slow"])).toMatchObject({ type: "error", code: "TIMEOUT" });
+  });
+
+  it("gives a ProcedureServer the depth limit of the nested calls, and the server refuses a depth that is not a whole number", async () => {
+    // tool.loop calls itself with no end: the depth limit ends it
+    const loop = defineModule("host-policy-depth", [
+      proc(["tool", "loop"], async (_input: never, ctx: ProcedureContext) => ctx.client.call(["tool", "loop"], {})),
+    ]);
+    const policy = hostPolicy({ maxDepth: 5 });
+    expect(policy.maxDepth).toBe(5);
+    expect(procedureServerOptions(policy).maxDepth).toBe(5);
+    expect(procedureServerOptions(hostPolicy())).not.toHaveProperty("maxDepth");
+    const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(loop)));
+    expect(await call(server, ["tool", "loop"])).toMatchObject({ type: "error", code: "FORBIDDEN" });
+    expect(() => new ProcedureServer({ maxDepth: -1 })).toThrow("The option maxDepth is a whole number of 0 or more, not -1");
   });
 
   it("gives one result for each spelling of an escape in a dotted name (CLI-75)", async () => {

@@ -3,7 +3,8 @@
  *
  * A backup folder holds `Manifest.db` and the files of the phone. The name of each file is its
  * `fileID`, in a subfolder with the first two characters of that name. `Manifest.db` gives the
- * `fileID` of each domain and relative path. The module reads SQLite with `node:sqlite`.
+ * `fileID` of each domain and relative path. The module opens SQLite with `openDatabase` of
+ * `@mark1russell7/sqlite`, which uses `node:sqlite`.
  */
 
 import { existsSync } from "node:fs";
@@ -205,15 +206,16 @@ export function extractTypedstreamText(body: Uint8Array): string | undefined {
   return text.length > 0 ? text : undefined;
 }
 
-type Sqlite = typeof import("node:sqlite");
+type Sqlite = typeof import("@mark1russell7/sqlite");
 
 /**
- * This function loads `node:sqlite` at the first read. Thus an import of the package does not
- * show the experimental warning of `node:sqlite`, and does not fail on an older Node.
+ * This function loads `@mark1russell7/sqlite`, and with it `node:sqlite`, at the first read. Thus an
+ * import of the package does not show the experimental warning of `node:sqlite`, and does not
+ * fail on an older Node.
  */
 async function loadSqlite(): Promise<Sqlite> {
   try {
-    return await import("node:sqlite");
+    return await import("@mark1russell7/sqlite");
   } catch (error) {
     throw new Error("@procedures/ios-backup needs node:sqlite: use Node 22.13 or later", { cause: error });
   }
@@ -238,13 +240,13 @@ async function withScratch<T>(use: (dir: string) => Promise<T>): Promise<T> {
 export async function findBackupFile(backup: string, domain: string, relativePath: string): Promise<BackupFile | undefined> {
   const manifest = join(backup, "Manifest.db");
   if (!existsSync(manifest)) throw new IosBackupError("no-backup", `The folder has no Manifest.db: ${backup}`);
-  const { DatabaseSync } = await loadSqlite();
+  const { openDatabase } = await loadSqlite();
   const fileId = await withScratch(async (scratch) => {
     const copy = join(scratch, "Manifest.db");
     await copyFile(manifest, copy);
     let db: DatabaseSync | undefined;
     try {
-      db = new DatabaseSync(copy, { readOnly: true });
+      db = openDatabase(copy, { readOnly: true });
       const row = db.prepare("SELECT fileID FROM Files WHERE domain = ? AND relativePath = ?").get(domain, relativePath);
       const id = row?.["fileID"];
       return typeof id === "string" ? id : undefined;
@@ -316,8 +318,8 @@ export async function readSmsDatabase(file: string, query: MessageQuery = {}): P
     ORDER BY ${MESSAGE_NS} ${limited ? "DESC" : "ASC"}, m.ROWID ${limited ? "DESC" : "ASC"}
     ${limited ? "LIMIT ?" : ""}`;
 
-  const { DatabaseSync } = await loadSqlite();
-  const db = new DatabaseSync(file, { readOnly: true });
+  const { openDatabase } = await loadSqlite();
+  const db = openDatabase(file, { readOnly: true });
   let rows: MessageRow[];
   try {
     const statement = db.prepare(sql);

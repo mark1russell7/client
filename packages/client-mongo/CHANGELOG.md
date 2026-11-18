@@ -1,5 +1,104 @@
 # @procedures/mongo
 
+## 0.64.0
+
+### Minor Changes
+
+- 49b516e: The packages use `@mark1russell7/service` 0.10.0 and `@mark1russell7/algebra` 0.9.
+  
+  This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script ended while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
+  
+  - The `realClock` of `@procedures/client` worked this way before. Its timers do not change.
+  - The watch timers of service (checks, the watchdog, the sweeps) do not keep a process alive.
+  - The heartbeat of the WebSocket client uses `unrefClock` of service. Its timers do not keep a process alive: the socket does.
+  - A new end-to-end test runs a command with `main()` of `@procedures/mark` in a script. After the command, no timer keeps the script alive.
+  
+  Migration: a script that must end before a pending timer of service fires stops its work first. Close each client, host and transport, or abort the call. For a timer that only watches other work, give the service a clock made with `unrefClock` of `@mark1russell7/service/clock`.
+
+### Patch Changes
+
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [dfd04b7]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+  - @procedures/collections@0.64.0
+
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/collections@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/collections@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+  - @procedures/collections@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- 8506442: The hash of a row of `ViewMaterializer` uses `canonicalJson` of `@mark1russell7/rigor-generators` (CLI-128). The local copy of the canonical text is removed. The text of each row does not change, so each row keeps its hash.
+- Updated dependencies [8506442]
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/collections@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- 487d144: `ViewMaterializer` writes a row of a target again when only a value that is not JSON changes, for example a Date (CLI-126). Before this fix, the hash of a row of a plain target gave `{}` for each Date. A row that changed only in a Date kept its hash, so the view kept the old value.
+  
+  The hash of a row reads one text in both kinds of target. A JSON value stays as it is. Each other value gives its canonical Extended JSON form. These values are a Date, a RegExp, a BSON value, NaN, an infinity and -0. A BSON value is, for example, an ObjectId, a Decimal128, a Binary, a Timestamp or a Long.
+  
+  Fix: a target in a stored form stopped its run at a row with a RegExp that has the flag `g`. The old hash read the canonical Extended JSON of the row, and Extended JSON refuses the flag `g`. The driver (bson 7.3.3) reads the BSON option `s` of a regular expression as the flag `g`. So a row read back from MongoDB with the option `s` also stopped the run. The hash text of a RegExp is `{"$regularExpression": {"options", "pattern"}}`, with its flags in order, so the run continues.
+  
+  Migration: a plain target keeps the hash of each row in `_viewHash`. The hash of a row with a value that is not JSON changes. At the first pass after the upgrade, a view writes each of these rows one time. The rows of JSON values keep their hash, and the view does not write them.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [4ab1acf]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/collections@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/collections@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

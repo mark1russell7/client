@@ -33,7 +33,7 @@ import type {
   ReportProgress,
   Logger,
 } from "@procedures/client";
-import { LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, untrustedTextsOf, writeLog } from "@procedures/client";
+import { HandleScope, LOCAL_CREDENTIALS, NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToKey, pathToMethod, createElicit, elicitWithPolicy, lastResortError, requestCredentials, retryableOf, writeLog, type UntrustedText } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -44,8 +44,10 @@ import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
 import { createHttpTransport, requestCredentialsOf, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
-import { createUntrustedEnvelopes } from "../untrusted.js";
+import { createUntrustedEnvelopes, type UntrustedEnvelopes } from "../untrusted.js";
+import { separateUntrusted } from "./untrusted-sites.js";
 import { taskStoreOf, type McpTaskStore } from "../tasks.js";
+import { SEARCH_LISTING_NAMES, SEARCH_LISTING_TOOLS, callTarget, describeToolResult, searchToolsResult, toolNotFound } from "./search-listing.js";
 
 /**
  * The tools with the names of a `toolName` function. Without the function, the tools keep the
@@ -249,6 +251,8 @@ export class McpServerTransport implements ServerTransport {
   private http: McpHttpTransport | undefined;
   /** The MCP servers of the sessions of the Streamable HTTP transport */
   private readonly sessionServers = new Set<McpServer>();
+  /** The handle scope of each SDK server: the local face, and each session of Streamable HTTP (d40-handles). */
+  private readonly handleScopes = new Map<McpServer, HandleScope>();
   private httpUrl: string | undefined;
   /** A pending list_changed notification: a burst of registrations sends one */
   private listChangedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -323,6 +327,9 @@ export class McpServerTransport implements ServerTransport {
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       this.log("ListToolsRequest received");
 
+      // The search listing gives three tools, and the model finds the others by a search
+      if (this.options.listing === "search") return { tools: [...SEARCH_LISTING_TOOLS] };
+
       // Without a task store, no tool runs as a task: the list does not say that it can
       const tools = Array.from(this.tools.values(), (tool) => {
         const definition = toToolDefinition(tool);
@@ -337,20 +344,30 @@ export class McpServerTransport implements ServerTransport {
 
     // CallToolRequestSchema -> Execute procedure
     server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      const { name, arguments: args, task } = request.params;
+      const { name, task } = request.params;
+      let args = request.params.arguments;
 
       this.log(`CallToolRequest: ${name}`);
 
+      // The three tools of the search listing. call_tool calls its tool as a direct call does.
+      let tool = this.tools.get(name);
+      if (this.options.listing === "search") {
+        if (name === SEARCH_LISTING_NAMES.search) return searchToolsResult(this.tools.values(), args, this.options.json);
+        if (name === SEARCH_LISTING_NAMES.describe) return describeToolResult(this.tools, args, { tasks: this.taskStore !== undefined, json: this.options.json });
+        if (name === SEARCH_LISTING_NAMES.call) {
+          const target = callTarget(this.tools, args);
+          if ("refused" in target) return target.refused;
+          tool = target.tool;
+          args = target.input;
+        }
+      }
+
       // Find tool
-      const tool = this.tools.get(name);
       if (!tool) {
         this.log(`Tool not found: ${name}`);
-        return {
-          content: [{ type: "text" as const, text: `Tool not found: ${name}` }],
-          isError: true,
-          _meta: { code: "NOT_FOUND", retryable: false },
-        };
+        return toolNotFound(name);
       }
+      const toolName = tool.name;
 
       // MCP tasks (CLI-35): a call as a task needs a tool that can run as one, and a call of a
       // tool that runs only as a task needs a task. Without a task store each call is a request.
@@ -358,12 +375,12 @@ export class McpServerTransport implements ServerTransport {
       const callExtra = extra as CallExtra;
       if (task !== undefined) {
         if (!this.taskStore || (support !== "optional" && support !== "required")) {
-          throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} does not run as a task`);
+          throw new McpError(ErrorCode.MethodNotFound, `The tool ${toolName} does not run as a task`);
         }
         return this.startTask(server, this.taskStore, tool, args, callExtra, { method: request.method, params: request.params });
       }
       if (support === "required") {
-        throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} runs only as a task: call it with a task`);
+        throw new McpError(ErrorCode.MethodNotFound, `The tool ${toolName} runs only as a task: call it with a task`);
       }
       return this.callTool(server, tool, args, callExtra);
     });
@@ -487,6 +504,8 @@ export class McpServerTransport implements ServerTransport {
     const progress = this.callProgress(extra);
     const callRequest = {
       ...serverRequest,
+      // The objects with a state of this session: its end closes them (d40-handles)
+      handles: this.handleScopeFor(server),
       ...(elicit ? { elicit } : {}),
       ...(progress ? { progress: progress.report } : {}),
     };
@@ -592,12 +611,12 @@ export class McpServerTransport implements ServerTransport {
           break;
         }
         // An item with untrusted fields gives its data, then its envelopes (CLI-10)
-        const rendered = tool?.untrusted ? this.render(item, tool).content : undefined;
-        const text = rendered ? rendered.map((block) => block.text).join("\n") : toText(item, this.options.json);
+        const rendered = this.render(item, tool, false).content;
+        const text = rendered.map((block) => block.text).join("\n");
         blocks.push({ type: "text", text });
         if (blocks.length > MAX_STREAM_BLOCKS) blocks.shift();
         if (progressToken !== undefined && !ownProgress()) {
-          const message = rendered ? rendered[0]!.text : text;
+          const message = rendered[0]!.text;
           await extra
             .sendNotification({
               method: "notifications/progress",
@@ -624,33 +643,36 @@ export class McpServerTransport implements ServerTransport {
   }
 
   /**
-   * The content of a successful value. A tool with untrusted fields (`metadata.untrusted`) gives
-   * the data as JSON in the first block. The second block has the texts of those fields in
-   * envelopes. In the structured content, each untrusted field is the text of its envelopes.
+   * The content of a successful value. The untrusted fields are the fields that the tool declares
+   * (`metadata.untrusted`) and the fields of the marked objects at each depth (`markUntrusted()`).
+   * With such a field, the first block has the data as JSON, and the second block has the texts in
+   * envelopes. In the structured content, a declared field is the text of its envelopes, and each
+   * text of another field is in its envelope, with the same shape.
    */
-  private render(value: unknown, tool: McpTool): McpToolContent {
-    const fields = tool.untrusted ?? [];
-    if (fields.length === 0 || value === null || typeof value !== "object" || Array.isArray(value)) {
-      const structured = tool.outputSchema ? structuredContentOf(value) : undefined;
-      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(structured ? { structuredContent: structured } : {}) };
-    }
-    const data: Record<string, unknown> = { ...(value as Record<string, unknown>) };
-    const envelopes = createUntrustedEnvelopes(this.options.untrusted ?? {});
+  private render(value: unknown, tool: McpTool | undefined, structuredOutput = true): McpToolContent {
+    const name = tool?.name ?? "";
     const wrap = this.options.untrusted?.wrap;
+    // One answer has one id for all of its envelopes
+    let envelopes: UntrustedEnvelopes | undefined;
+    const seal = (texts: readonly UntrustedText[], field: string): string =>
+      wrap ? wrap(texts, { tool: name, field }) : (envelopes ??= createUntrustedEnvelopes(this.options.untrusted ?? {})).text(texts);
+    const { data, structured, sites } = separateUntrusted(value, tool?.untrusted ?? [], (text, label) => seal([text], label));
+    const schema = structuredOutput && tool?.outputSchema !== undefined;
+    if (sites.length === 0) {
+      const plain = schema ? structuredContentOf(value) : undefined;
+      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(plain ? { structuredContent: plain } : {}) };
+    }
     const texts: Record<string, string> = {};
     const blocks: string[] = [];
-    for (const field of fields) {
-      if (!(field in data)) continue;
-      const items = untrustedTextsOf(data[field]);
-      delete data[field];
-      const text = wrap ? wrap(items, { tool: tool.name, field }) : envelopes.text(items);
-      texts[field] = text;
+    for (const site of sites) {
+      const text = seal(site.texts, site.label);
+      if (site.declared) texts[site.label] = text;
       if (text !== "") blocks.push(text);
     }
     const content: McpTextBlock[] = [{ type: "text", text: toText(data, this.options.json) }];
     if (blocks.length > 0) content.push({ type: "text", text: blocks.join("\n") });
-    const structured = tool.outputSchema ? structuredContentOf(data) : undefined;
-    return { content, ...(structured ? { structuredContent: { ...structured, ...texts } } : {}) };
+    const object = schema ? structuredContentOf(structured) : undefined;
+    return { content, ...(object ? { structuredContent: { ...object, ...texts } } : {}) };
   }
 
   /**
@@ -658,6 +680,27 @@ export class McpServerTransport implements ServerTransport {
    * (it declares no elicitation). Each question goes with the tool call (`relatedRequestId`), so
    * the Streamable HTTP transport sends it on the stream of the call.
    */
+  /** The handle scope of an SDK server. The first call of its session makes it. */
+  private handleScopeFor(server: McpServer): HandleScope {
+    let scope = this.handleScopes.get(server);
+    if (scope === undefined) {
+      scope = new HandleScope(this.options.handles);
+      this.handleScopes.set(server, scope);
+    }
+    return scope;
+  }
+
+  /** This method ends the handle scope of an SDK server: each object of its session closes. */
+  private async endHandles(server: McpServer): Promise<void> {
+    const scope = this.handleScopes.get(server);
+    if (scope === undefined) return;
+    this.handleScopes.delete(server);
+    const report = await scope.end();
+    for (const failure of report.failed) {
+      this.log(`The handle ${failure.handle} (${failure.kind}) did not close: ${failure.error instanceof Error ? failure.error.message : String(failure.error)}`);
+    }
+  }
+
   private faceElicit(server: McpServer, extra: CallExtra): Elicit | undefined {
     const capability = server.getClientCapabilities()?.elicitation as { form?: unknown; url?: unknown } | undefined;
     if (!capability) return undefined;
@@ -769,7 +812,8 @@ export class McpServerTransport implements ServerTransport {
     }
 
     this.log(`Refreshed tools: ${this.tools.size} available`);
-    if (this.running && this.toolSignature() !== before) this.scheduleListChanged();
+    // The search listing does not change: its three tools find the new tools
+    if (this.running && this.options.listing !== "search" && this.toolSignature() !== before) this.scheduleListChanged();
   }
 
   /** The tool names and descriptions: a change of this text is a change of the tool list. */
@@ -856,6 +900,8 @@ export class McpServerTransport implements ServerTransport {
             this.sessionServers.add(sessionServer);
             sessionServer.onclose = () => {
               this.sessionServers.delete(sessionServer);
+              // The end of a session closes its objects with a state (d40-handles)
+              void this.endHandles(sessionServer);
               // The close of a session cancels its tasks: their work stops (CLI-35)
               if (taskStore && sessionTransport.sessionId) void taskStore.cancelSession(sessionTransport.sessionId);
             };
@@ -919,6 +965,8 @@ export class McpServerTransport implements ServerTransport {
     await this.http?.close();
     for (const sessionServer of this.sessionServers) await sessionServer.close().catch(() => undefined);
     this.sessionServers.clear();
+    // The objects with a state of each session and of the local face close (d40-handles)
+    for (const server of [...this.handleScopes.keys()]) await this.endHandles(server);
     // A store of this transport stops with it: its tasks are cancelled (CLI-35)
     if (this.ownsTaskStore) await this.taskStore?.close();
     this.http = undefined;

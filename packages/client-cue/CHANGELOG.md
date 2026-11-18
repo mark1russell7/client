@@ -1,5 +1,97 @@
 # @procedures/cue
 
+## 0.64.0
+
+### Patch Changes
+
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [dfd04b7]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+  - @procedures/fs@0.64.0
+  - @procedures/shell@0.64.0
+
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/fs@0.63.0
+  - @procedures/shell@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/fs@0.62.1
+  - @procedures/shell@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+- Updated dependencies [fdb89bc]
+  - @procedures/client@0.62.0
+  - @procedures/fs@0.62.0
+  - @procedures/shell@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- 9593125: The procedure `cue.generate` takes `resolveFeatures` from `@mark1russell7/cue/core` 2.1.2, its home. The local copy is gone. The output order of the features does not change.
+- Updated dependencies [8506442]
+- Updated dependencies [84d9551]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/fs@0.61.0
+  - @procedures/shell@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [d472a8b]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [264e6a1]
+- Updated dependencies [11fcffb]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [e8e88ac]
+- Updated dependencies [a87cdda]
+- Updated dependencies [a6fd4f3]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/shell@0.60.1
+  - @procedures/fs@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [7250ac5]
+- Updated dependencies [3075d86]
+  - @procedures/shell@0.60.0
+  - @procedures/client@0.60.0
+  - @procedures/fs@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

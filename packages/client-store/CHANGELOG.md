@@ -1,5 +1,110 @@
 # @procedures/store
 
+## 0.64.0
+
+### Minor Changes
+
+- 49b516e: The packages use `@mark1russell7/service` 0.10.0 and `@mark1russell7/algebra` 0.9.
+  
+  This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script ended while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
+  
+  - The `realClock` of `@procedures/client` worked this way before. Its timers do not change.
+  - The watch timers of service (checks, the watchdog, the sweeps) do not keep a process alive.
+  - The heartbeat of the WebSocket client uses `unrefClock` of service. Its timers do not keep a process alive: the socket does.
+  - A new end-to-end test runs a command with `main()` of `@procedures/mark` in a script. After the command, no timer keeps the script alive.
+  
+  Migration: a script that must end before a pending timer of service fires stops its work first. Close each client, host and transport, or abort the call. For a timer that only watches other work, give the service a clock made with `unrefClock` of `@mark1russell7/service/clock`.
+
+### Patch Changes
+
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [dfd04b7]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+  - @procedures/collections@0.64.0
+
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/collections@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/collections@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- 14f61a7: Break: under the expose rule of a host, `procedure.define` makes a procedure only at an exposed path. A hidden path gets `NOT_EXPOSED`, also a free path. Before this release, a new procedure at a free hidden path was possible. This ends the deprecation of 0.60.1.
+  
+  - `procedure.define`, `procedure.get` and `procedure.delete` examine the path before the lookup. A free hidden path and a used hidden path get the same answer.
+  - A lazy registry loads no package for a hidden path of these procedures.
+  - A nested `procedure.define` gets the same rule. Under an expose rule, `procedure.load` gives each stored program at a hidden path as a conflict. The scheduler then records `NOT_FOUND` for the run of that program.
+  
+  Migration steps for the site and each app:
+  
+  1. Find each call of `procedure.define` and each stored program under a host with an expose rule.
+  2. For each one at a hidden path, move the program to an exposed path. Or add its path to the expose rule of the host.
+  3. Store the moved programs again with `procedure.store`. Then remove the old entries from the program store.
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+  - @procedures/collections@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/collections@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- 6dbc47e: Deprecated: under the expose rule of a host, `procedure.define` at a free hidden path, and `procedure.load` of a stored program at a free hidden path. From 0.62.0, the define gets `NOT_EXPOSED`, and the load gives the program as a conflict.
+  
+  To prepare, move each such program to an exposed path, or add its path to the expose rule of the host. This note changes no code.
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [4ab1acf]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/collections@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [3075d86]
+  - @procedures/client@0.60.0
+  - @procedures/collections@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

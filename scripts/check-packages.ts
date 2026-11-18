@@ -8,8 +8,8 @@
 // 5. imports each package root, runs a program with the client, and starts the bins.
 //
 // Usage: node scripts/check-packages.ts [--allow-git-deps] [--no-install] [--keep]
-// --allow-git-deps: accept the github: dependencies of the general packages (cue, splay,
-//   docker-sqlite) until they are on npm. A release must not have them: npm 12 does not install
+// --allow-git-deps: accept the github: dependencies of the general packages (cue, splay)
+//   until they are on npm. A release must not have them: npm 12 does not install
 //   git dependencies by default.
 // --no-install: steps 1 to 3 only.
 // --keep: keep the temporary folder, and print its path.

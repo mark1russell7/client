@@ -1,5 +1,129 @@
 # @procedures/bundle-assistant
 
+## 0.64.0
+
+### Patch Changes
+
+- 68366eb: `@procedures/geo` has the wrap of kind 1 of its home: 42 of 48 functions of `@mark1russell7/geo` are procedures, made from the types of the home.
+  
+  - The generated procedures are in the namespace `geo`, next to the hand-written `geo.geocode`, `geo.route`, `geo.distance` and `geo.geohash`. `geoModule` and `createGeoModule()` have both parts.
+  - The new exports `geoManifest` and `geoHomeProcedures` give the manifest and the generated procedures.
+  - The overlay exempts the function `geohash`, because the hand-written procedure `geo.geohash` has this name. The other 5 functions give a `GeoError` instance or a function.
+  - `geo.distance` is deprecated. `geo.distanceKm` with `radiusKm: 6371` gives the same value. A later MINOR of the client group removes `geo.distance`.
+  - The range of `@mark1russell7/geo` goes from `^0.3.1` to `^0.5.3`. The MINOR steps of 0.4.0 and 0.5.0 only add values to `GeoErrorCode`, and this package does not read that type.
+  - `@procedures/bundle-assistant` gives `geo.distanceKm` as a new tool, the replacement of `geo.distance`. Its `mcpExclude` keeps the other generated procedures out of the tools, from `geoManifest`. Each tool costs approximately 386 tokens in the tool list of a session.
+  - The wrap is pure. The new program `point-at-the-median-distance` of `wraps.programs.json` uses geo and statistics.
+  
+  PATCH: before 1.0.0, a backward-compatible feature raises PATCH. The new procedures and exports add to the API, and each old procedure keeps its behavior.
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [68366eb]
+- Updated dependencies [dfd04b7]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+  - @procedures/geo@0.64.0
+  - @procedures/exif@0.64.0
+  - @procedures/http@0.64.0
+  - @procedures/ics@0.64.0
+  - @procedures/mail@0.64.0
+  - @procedures/weather@0.64.0
+
+## 0.63.0
+
+### Patch Changes
+
+- Updated dependencies [3dede6e]
+  - @procedures/client@0.63.0
+  - @procedures/exif@0.63.0
+  - @procedures/geo@0.63.0
+  - @procedures/http@0.63.0
+  - @procedures/ics@0.63.0
+  - @procedures/mail@0.63.0
+  - @procedures/weather@0.63.0
+
+## 0.62.1
+
+### Patch Changes
+
+- Updated dependencies [02582c5]
+- Updated dependencies [365aad4]
+  - @procedures/client@0.62.1
+  - @procedures/exif@0.62.1
+  - @procedures/geo@0.62.1
+  - @procedures/http@0.62.1
+  - @procedures/ics@0.62.1
+  - @procedures/mail@0.62.1
+  - @procedures/weather@0.62.1
+
+## 0.62.0
+
+### Patch Changes
+
+- Updated dependencies [14f61a7]
+  - @procedures/client@0.62.0
+  - @procedures/exif@0.62.0
+  - @procedures/geo@0.62.0
+  - @procedures/http@0.62.0
+  - @procedures/ics@0.62.0
+  - @procedures/mail@0.62.0
+  - @procedures/weather@0.62.0
+
+## 0.61.0
+
+### Patch Changes
+
+- Updated dependencies [8506442]
+- Updated dependencies [f9a78f9]
+- Updated dependencies [3eb4b59]
+  - @procedures/client@0.61.0
+  - @procedures/exif@0.61.0
+  - @procedures/geo@0.61.0
+  - @procedures/http@0.61.0
+  - @procedures/ics@0.61.0
+  - @procedures/mail@0.61.0
+  - @procedures/weather@0.61.0
+
+## 0.60.1
+
+### Patch Changes
+
+- Updated dependencies [beca782]
+- Updated dependencies [6dbc47e]
+- Updated dependencies [663465c]
+- Updated dependencies [66585f5]
+- Updated dependencies [511d820]
+- Updated dependencies [02a7074]
+- Updated dependencies [265f41c]
+- Updated dependencies [a87cdda]
+- Updated dependencies [94b5f88]
+- Updated dependencies [ca23351]
+- Updated dependencies [84e1b25]
+- Updated dependencies [fe6cd23]
+- Updated dependencies [e9b7551]
+  - @procedures/client@0.60.1
+  - @procedures/exif@0.60.1
+  - @procedures/geo@0.60.1
+  - @procedures/http@0.60.1
+  - @procedures/ics@0.60.1
+  - @procedures/mail@0.60.1
+  - @procedures/weather@0.60.1
+
+## 0.60.0
+
+### Patch Changes
+
+- Updated dependencies [89f52d5]
+- Updated dependencies [3075d86]
+  - @procedures/geo@0.60.0
+  - @procedures/client@0.60.0
+  - @procedures/exif@0.60.0
+  - @procedures/http@0.60.0
+  - @procedures/ics@0.60.0
+  - @procedures/mail@0.60.0
+  - @procedures/weather@0.60.0
+
 ## 0.59.1
 
 ### Patch Changes

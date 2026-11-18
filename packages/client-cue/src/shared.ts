@@ -198,29 +198,11 @@ export function hasFeature(manifest: FeaturesManifest, feature: string): boolean
   return Object.hasOwn(manifest.features, feature);
 }
 
-// Flood-fill resolve all transitive dependencies
-export function resolveFeatures(requested: string[], manifest: FeaturesManifest): string[] {
-  const resolved = new Set<string>();
-  const queue = [...requested];
-
-  while (queue.length > 0) {
-    const feature = queue.shift()!;
-    if (resolved.has(feature)) continue;
-
-    if (!hasFeature(manifest, feature)) continue;
-    const featureDef = manifest.features[feature]!;
-
-    resolved.add(feature);
-
-    for (const dep of featureDef.dependencies) {
-      if (!resolved.has(dep)) {
-        queue.push(dep);
-      }
-    }
-  }
-
-  return Array.from(resolved);
-}
+/**
+ * The function `resolveFeatures` gives the requested features and their dependencies, in the order of a
+ * flood fill. Its home is `@mark1russell7/cue/core`: it skips a name that is not an own key of the manifest.
+ */
+export { resolveFeatures } from "@mark1russell7/cue/core";
 
 // Map feature name to CUE file field name (handle vite-react -> viteReact)
 export function featureToFieldName(feature: string): string {

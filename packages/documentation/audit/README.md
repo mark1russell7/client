@@ -21,7 +21,7 @@ cross-validation — it is intentional and preserved.
 | 05 | [CLI wrappers](./05-cli-wrappers.md) | `client-shell`, `client-git`, `client-pnpm`, `client-docker`, `client-cli`, `client-node`, `client-vite`, `client-vitest`, `client-test`, `test`, `client-procedure`, `client-playground` |
 | 06 | [Data layer](./06-data-layer.md) | `client-mongo`, `client-sqlite`, the explorer app, `client-fs`, `client-s3`, `client-snapshot`, `docker/mongo`, `docker/sqlite` |
 | 07 | [Support / UI](./07-support-ui.md) | `logger`, `client-logger`, `mock-*`, `splay`, `splay-react`, `client-splay`, `client-dag` |
-| 08 | [Docs & cross-cutting health](./08-docs-cross-cutting.md) | documentation accuracy + fleet-wide git/dep/build/test sweep |
+| 08 | [Docs & cross-cutting health](./08-docs-cross-cutting.md) | documentation accuracy + git/dep/build/test sweep of all packages |
 
 > These are point-in-time findings (2026-07-10/11). Line numbers and file paths were accurate at
 > audit time; verify before acting if the code has since changed.

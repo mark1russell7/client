@@ -8,7 +8,14 @@ import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate as tick } from "node:timers/promises";
+import { WINDOWS_RENAME_RETRY_MS } from "./atomic.js";
 import { editFile } from "./edit.js";
+
+/**
+ * The limit of a test of edits in a row. On Windows, each rename can wait `WINDOWS_RENAME_RETRY_MS` for a scan of the file
+ * that the edit before it wrote. A Windows runner of the nightly run took over 5.2 s for 20 edits, and 0.45 s in the next job.
+ */
+const limitOf = (edits: number): number => edits * WINDOWS_RENAME_RETRY_MS + 5000;
 
 let folder: string;
 beforeEach(async () => {
@@ -19,7 +26,7 @@ afterEach(async () => {
 });
 
 describe("editFile", () => {
-  it("serializes parallel edits of one path: 20 increments give 20", async () => {
+  it("serializes parallel edits of one path: 20 increments give 20", { timeout: limitOf(20) }, async () => {
     const path = join(folder, "count.txt");
     await writeFile(path, "0");
     const edits = Array.from({ length: 20 }, () =>
@@ -34,7 +41,7 @@ describe("editFile", () => {
     expect(await readdir(folder)).toEqual(["count.txt"]);
   });
 
-  it("serializes two spellings of one path", async () => {
+  it("serializes two spellings of one path", { timeout: limitOf(10) }, async () => {
     await mkdir(join(folder, "sub"));
     const path = join(folder, "sub", "count.txt");
     const other = join(folder, "sub", "..", "sub", ".", process.platform === "win32" ? "COUNT.TXT" : "count.txt");

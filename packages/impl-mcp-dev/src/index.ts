@@ -7,7 +7,8 @@
  * transport.
  */
 
-export { loadConfig, type McpServerConfig } from "./config.js";
+export { loadConfig, parsePeers, type McpServerConfig, type PeerConfig } from "./config.js";
+export { DEFAULT_PEER_TIMEOUT_MS, loadPeers, peerAddress, readDiscovery, type LoadPeersOptions, type LoadedPeers, type PeerState } from "./peers.js";
 export {
   createDevToolsHost,
   runDevToolsServer,

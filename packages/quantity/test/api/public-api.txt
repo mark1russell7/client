@@ -1,0 +1,35 @@
+# The public API of @procedures/quantity
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+quantityManifest: dist/manifest.d.ts#manifest
+quantityModule: dist/module.d.ts#quantityModule
+registerQuantityProcedures: dist/module.d.ts#registerQuantityProcedures
+
+## ./module (dist/module.d.ts): names
+
+default: dist/module.d.ts#quantityModule
+quantityManifest: dist/manifest.d.ts#manifest
+quantityModule: dist/module.d.ts#quantityModule
+registerQuantityProcedures: dist/module.d.ts#registerQuantityProcedures
+
+## ./register (dist/register.d.ts): names
+
+quantityManifest: dist/manifest.d.ts#manifest
+quantityModule: dist/module.d.ts#quantityModule
+registerQuantityProcedures: dist/module.d.ts#registerQuantityProcedures
+
+## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#quantityModule
+export declare const quantityModule: ProcedureModule;
+
+### dist/module.d.ts#registerQuantityProcedures
+export declare function registerQuantityProcedures(registry?: ProcedureRegistry): void;

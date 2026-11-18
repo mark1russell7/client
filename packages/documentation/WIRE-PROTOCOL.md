@@ -123,6 +123,7 @@ The server reads the credentials of each network request. They go to the request
 - The first value of each query parameter.
 - The secret headers stay out of the metadata: `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key` and the names of the option `secretHeaders`.
 - The secret query parameters stay out of the metadata too. For `procedureHandler`, the default of the option `secretQuery` is `["token"]`. For `HttpServerTransport`, the default is no parameter.
+- The metadata key `auth` holds credentials, so a network request does not set it. Each network face drops it from the query, the headers, `X-Metadata` and the metadata of a WebSocket frame. A local face keeps it.
 - The request hook can give the bearer token from a cookie, a header or the query, for example `?token=<token>`. A WebSocket connection gives the credentials of its upgrade to each call, and its `?token=` query is a bearer token.
 - A local face sets the local marker `LOCAL_CREDENTIALS` in place of credentials (CLI-1). The local faces are a direct `handle()` of the application, MCP over stdio and `PortTransport`. The request hook and the token check do not apply to a local request.
 - The key of the marker is a symbol. JSON, a header, a cookie and a query cannot carry it. Thus a network request cannot claim to be local.
@@ -186,6 +187,7 @@ A client can send many calls in one request (CLI-32). The answer is one NDJSON s
 The request:
 
 - `POST {base}`, with the header `Procedures-Batch: 1` and the other headers of "The request".
+- A browser on another origin first sends a preflight request: `OPTIONS {base}`, with `Procedures-Batch` in `Access-Control-Request-Headers`. The server answers it with its CORS rule, and no procedure starts.
 - The body is `{"calls": [{"id": "1", "path": "notes.list", "input": {}, "headers": {...}, "metadata": {...}}]}`.
 - `id` is a text of 1 to 128 characters, unique in the batch. Each frame of the call names it.
 - `path` is a text with dots or a list of segments, as in `bodyPathAddressing()`. Without `input`, the input is `{}`.
@@ -277,10 +279,23 @@ The receiver reports the gap in three ways:
 
 A gap before the end frame gives only the warning, and the stream ends. The remote events have the same rule for the `seq` of their events (refer to "Remote events").
 
+### The shape of a frame
+
+Each side examines the shape of each frame before it reads the fields (`checkFrame` in `adapters/websocket/shared/frame.ts`).
+
+- A frame is a JSON object. Its `id`, when it is present, is a text, and its `type` is a text.
+- The fields `metadata`, `status`, `error` and `stream` are JSON objects, or they are absent or `null`.
+- The field `method` has the texts `service` and `operation`, and the field `path` is a list of texts.
+- The server answers a frame of another shape with an `error` frame that has the code `INVALID_REQUEST` and the `id` of the frame. The connection stays open.
+- The client drops a frame of another shape, with a line on the console.
+- An unknown field and an unknown frame type pass the check. The rules of "Reserved frame types" apply to them.
+
 ### The heartbeat
 
 - The client sends `{"type":"ping"}` frames, and the server answers with `{"type":"pong"}`.
 - The server sends WebSocket ping control frames. A connection that misses two pongs one after the other closes.
+- While the send buffer of a connection holds more than its high-water mark (1 MiB by default), the server does not read the frames of the connection. It reads them again when the socket wrote the buffer down to the mark.
+- While the server does not read the frames of a connection, it cannot read a pong. A frame that the server wrote since the last ping then counts as the pong. Thus a peer that reads slowly stays open, and a peer that does not read closes.
 
 ### Reserved frame types
 
@@ -405,6 +420,7 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `topic-not-allowed` | The publisher of the events | The publisher refuses the topic. |
 | `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
 | `write-not-allowed` | The collection procedures | The guard of the collection (`admission.guard`) refuses a write. The storage does not change (CLI-41). |
+| `depth` | The depth limit of the host | The nested call is deeper than the option `maxDepth` of the host. Its handler does not start. |
 | `origin-not-allowed` | The browser checks | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
 | `host-header-not-allowed` | The browser checks | The `Host` of the request is not a loopback name, an IP address or a permitted name (DNS rebinding). The check is on each listener. |
 | `method-not-allowed` | The browser checks of HTTP | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
@@ -442,7 +458,7 @@ A procedure can make more calls with `ctx.client`, for example each step of `cli
 - The cover, the key and the cost of the limit get the call at each depth. `LimitedCall.depth` is 0 for the call of the caller, and 1 or more for a nested call. `LimitedCall.input` is the input of the call at that depth.
 - The procedure gets the refusal as an error with the code, the wait and the cause. When the procedure does not catch the error, the caller gets the same response as a refusal before the run.
 
-A limit with `nested: false` takes units only for the calls of a caller. A limit without the field has the same rule, and the server writes a warning at the start. `@procedures/client` 0.61.0 changes the default to `true`.
+A limit with `nested: false` takes units only for the calls of a caller. A limit without the field has the same rule, and the server writes a warning at the start. `@procedures/client` 0.65.0 changes the default to `true`.
 
 A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
 
