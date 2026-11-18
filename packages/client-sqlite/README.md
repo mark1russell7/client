@@ -515,7 +515,7 @@ const { logs } = await client.exec(
 
 ## The generated procedures
 
-The package has a procedure for each function of `@mark1russell7/sqlite` with JSON inputs and a JSON output. These are 9 of the 25 functions. The generator of `@procedures/compiler` makes them from the types of the library. Thus a procedure cannot drift from its function.
+The package has a procedure for each function of `@mark1russell7/sqlite` with JSON inputs and a JSON output. These are 9 of the 26 functions. The generator of `@procedures/compiler` makes them from the types of the library. Thus a procedure cannot drift from its function.
 
 - `sqlite.openDatabase` opens a database and gives a handle, for example `{ "handle": "h_..." }`. The handle is in the scope of the caller.
 - The other 8 procedures take the handle in the input `db`: `sqlite.userVersion`, `sqlite.schemaVersion`, `sqlite.tableColumns`, `sqlite.addMissingColumns`, `sqlite.checkIntegrity`, `sqlite.checkpoint`, `sqlite.snapshot` and `sqlite.clearDatabase`.

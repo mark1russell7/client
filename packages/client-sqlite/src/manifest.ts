@@ -1,10 +1,10 @@
-// The manifest of @mark1russell7/sqlite 0.3.9, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
+// The manifest of @mark1russell7/sqlite 0.3.11, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
 import type { ExportsManifest } from "@procedures/compiler";
 
 export const manifest: ExportsManifest = {
   "format": "procedures-exports/1",
   "package": "@mark1russell7/sqlite",
-  "version": "0.3.9",
+  "version": "0.3.11",
   "entry": ".",
   "namespace": [
     "sqlite"
@@ -45,13 +45,15 @@ export const manifest: ExportsManifest = {
       "type": "object",
       "properties": {
         "ok": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "This value is `true` when the check found no problem."
         },
         "problems": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "This list has the text of each problem that the check found, up to the limit of the check. A file that is not a database gives one problem. The list is empty when `ok` is `true`."
         }
       },
       "required": [
@@ -97,7 +99,7 @@ export const manifest: ExportsManifest = {
             "NORMAL",
             "OFF"
           ],
-          "description": "This value is the pragma `synchronous`. The default is `FULL`: a commit is on the disk when the call ends. With WAL, `NORMAL` can lose the last commits at a power cut, and the file stays good."
+          "description": "This value is the pragma `synchronous`. The default is `FULL`: a commit is on the disk when the call ends. With WAL, `NORMAL` can lose the last commits at a power cut, and the file stays good. On a connection with `NORMAL`, `syncedTransaction` gives the sync of `FULL` to one commit."
         },
         "busyTimeoutMs": {
           "type": "number",
@@ -117,10 +119,12 @@ export const manifest: ExportsManifest = {
       "type": "object",
       "properties": {
         "path": {
-          "type": "string"
+          "type": "string",
+          "description": "This value is the path of the copy."
         },
         "bytes": {
-          "type": "number"
+          "type": "number",
+          "description": "This value is the size of the copy in bytes."
         }
       },
       "required": [
@@ -729,6 +733,11 @@ export const manifest: ExportsManifest = {
       "detail": "error: Error"
     },
     {
+      "name": "syncedTransaction",
+      "reason": "function-parameter",
+      "detail": "options.onRollbackError: (error: unknown) => void"
+    },
+    {
       "name": "transaction",
       "reason": "function-parameter",
       "detail": "options.onRollbackError: (error: unknown) => void"
@@ -747,6 +756,6 @@ export const manifest: ExportsManifest = {
       "SchemaError"
     ],
     "values": 3,
-    "types": 63
+    "types": 64
   }
 };

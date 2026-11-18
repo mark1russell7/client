@@ -76,7 +76,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/sqlite": "^0.3.9",
+    "@mark1russell7/sqlite": "^0.3.11",
     "@procedures/client": "workspace:*",
     "@procedures/compiler": "workspace:*",
     "zod": "^4.6.5"
