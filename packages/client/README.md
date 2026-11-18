@@ -229,6 +229,7 @@ const registry = createRegistry(jobs);
 - Without `namespaces`, the module forwards each namespace except `client` and `procedure` (`HOST_NAMESPACES`), because each host has them.
 - `prefix` puts a path in front of each local path. With `["jobs"]`, the entry `queue.add` becomes `jobs.queue.add`.
 - The module leaves out each stream without an end. A stub gives the last item of a stream.
+- `signal` stops the read of the manifest, for example `AbortSignal.timeout(5000)` for a peer that does not answer. Each call of a stub takes the signal of its own context.
 - The peer must expose `procedure.manifest`. A host that has the client module (`createRegistry()`) has it. Another registry can register `manifestProcedure`.
 - `forwardedModule(manifest, call, options)` makes the same stubs with another transport.
 

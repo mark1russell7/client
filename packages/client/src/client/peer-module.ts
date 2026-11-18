@@ -28,6 +28,11 @@ export interface PeerModuleOptions extends ForwardOptions {
   readonly address: PeerAddress | (() => PeerAddress | Promise<PeerAddress>);
   /** The fetch function of the requests. The default is the global `fetch`. */
   readonly fetch?: typeof fetch | undefined;
+  /**
+   * The signal of the read of the manifest, for example `AbortSignal.timeout(5000)`. An abort makes
+   * `peerModule` fail. Each call of a stub takes the signal of its own context.
+   */
+  readonly signal?: AbortSignal | undefined;
 }
 
 /** A function that gives the client of the current address. */
@@ -60,12 +65,13 @@ function isManifest(value: unknown): value is ProcedureManifest {
 /**
  * This function reads the manifest of a running peer through its procedure `procedure.manifest`, and
  * gives a module with a stub for each entry. Each stub sends its call to the peer. The function
- * fails when the peer does not answer, or when its answer is not a manifest of the format
- * `procedures.manifest/1`. The peer must expose `procedure.manifest`.
+ * fails when the peer does not answer, when `signal` aborts, or when its answer is not a manifest of
+ * the format `procedures.manifest/1`. The peer must expose `procedure.manifest`.
  */
 export async function peerModule(options: PeerModuleOptions): Promise<ProcedureModule> {
   const clientOf = clientsOf(options);
-  const manifest: unknown = await (await clientOf()).call(pathToMethod(["procedure", "manifest"]), {});
+  const read = options.signal !== undefined ? { signal: options.signal } : undefined;
+  const manifest: unknown = await (await clientOf()).call(pathToMethod(["procedure", "manifest"]), {}, read);
   if (!isManifest(manifest)) throw new Error(`the peer of the module ${options.name} gave no manifest of the format ${MANIFEST_FORMAT}`);
   return forwardedModule(
     manifest,
