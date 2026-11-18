@@ -53,7 +53,7 @@ export interface ServerCreateResult {
 // =============================================================================
 
 export interface ServerStartInput {
-  /** Port to listen on */
+  /** The port to listen on. The port 0 takes a free port, and the result gives it. */
   port?: number | undefined;
   /** Host to bind to */
   host?: string | undefined;

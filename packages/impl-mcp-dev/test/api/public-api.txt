@@ -37,6 +37,7 @@ export interface McpServerConfig {
     } | undefined;
     programCheck?: boolean | undefined;
     fsRoot?: string | undefined;
+    listing?: "each" | "search" | undefined;
 }
 
 ### dist/config.d.ts#loadConfig

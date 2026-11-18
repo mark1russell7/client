@@ -239,6 +239,7 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -268,6 +269,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
@@ -319,11 +323,17 @@ type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
 type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -568,6 +578,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
@@ -639,6 +650,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 seconds: dist/duration.d.ts#seconds
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
@@ -666,6 +680,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateCalls: dist/procedures/policy.d.ts#validateCalls
@@ -914,6 +929,7 @@ PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
 type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -943,6 +959,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
@@ -993,11 +1012,17 @@ RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/stream-metadata.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -1236,6 +1261,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchPath: dist/client/route-resolver.d.ts#matchPath
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
@@ -1306,6 +1332,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 seconds: dist/duration.d.ts#seconds
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
@@ -1333,6 +1362,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateCalls: dist/procedures/policy.d.ts#validateCalls
@@ -1733,6 +1763,9 @@ type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
 type ProcedureRegistryOptions: dist/procedures/registry.d.ts#ProcedureRegistryOptions
 type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
 type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureSearchHit: dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+type ProcedureSearchInput: dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+type ProcedureSearchOutput: dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
 type ProgramDocument: dist/procedures/program.d.ts#ProgramDocument
@@ -1758,8 +1791,14 @@ type RunControlOptions: dist/procedures/program.d.ts#RunControlOptions
 type RunDocumentOptions: dist/procedures/program.d.ts#RunDocumentOptions
 type RunOperandOptions: dist/procedures/program.d.ts#RunOperandOptions
 type RunProgramOptions: dist/procedures/program.d.ts#RunProgramOptions
+SEARCH_LIMIT: dist/procedures/search.d.ts#SEARCH_LIMIT
+SEARCH_MAX_LIMIT: dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type SearchDocument: dist/procedures/search.d.ts#SearchDocument
+type SearchHit: dist/procedures/search.d.ts#SearchHit
+type SearchOptions: dist/procedures/search.d.ts#SearchOptions
+type SearchResult: dist/procedures/search.d.ts#SearchResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type StepObserver: dist/procedures/program.d.ts#StepObserver
@@ -1903,6 +1942,7 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+markUntrusted: dist/procedures/untrusted.d.ts#markUntrusted
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mathProcedures: dist/procedures/core/math.d.ts#mathProcedures
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
@@ -1950,6 +1990,9 @@ runProgram: dist/procedures/program.d.ts#runProgram
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 scopeOfNames: dist/procedures/program.d.ts#scopeOfNames
+searchDocuments: dist/procedures/search.d.ts#searchDocuments
+searchProceduresProcedure: dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+searchWords: dist/procedures/search.d.ts#searchWords
 segmentsToTopic: dist/procedures/segments.d.ts#segmentsToTopic
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
@@ -1968,6 +2011,7 @@ tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typed: dist/procedures/core/schemas.d.ts#typed
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
 untrustedFieldsOf: dist/procedures/untrusted.d.ts#untrustedFieldsOf
+untrustedMarkOf: dist/procedures/untrusted.d.ts#untrustedMarkOf
 untrustedText: dist/procedures/untrusted.d.ts#untrustedText
 untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateProcedure: dist/procedures/define.d.ts#validateProcedure
@@ -2007,6 +2051,7 @@ type ErrorCall: dist/server/error-policy.d.ts#ErrorCall
 type ExposedError: dist/server/error-policy.d.ts#ExposedError
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
+type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -2625,6 +2670,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
     maxPayload?: number;
     clientTracking?: boolean;
     highWaterMark?: number;
+    maxBufferedBytes?: number;
     heartbeat?: {
         interval?: Duration;
         misses?: number;
@@ -4310,6 +4356,7 @@ export declare function withHintImages<T extends object>(event: T, images: HintI
 export interface CollectionPartitions<T = unknown> {
     storageOf(partition: string): CollectionStorage<T>;
     resolve: PartitionResolver;
+    close?(): Promise<void> | void;
 }
 
 ### dist/procedures/collection/partition.d.ts#CollectionTopicCollisionError
@@ -4756,6 +4803,28 @@ export interface DefineProcedureOutput {
     replaced: boolean;
 }
 
+### dist/procedures/define-procedure.d.ts#ProcedureSearchHit
+export interface ProcedureSearchHit {
+    path: ProcedurePath;
+    key: string;
+    description: string | undefined;
+    score: number;
+}
+
+### dist/procedures/define-procedure.d.ts#ProcedureSearchInput
+export interface ProcedureSearchInput {
+    query: string;
+    limit?: number | undefined;
+    namespace?: string | undefined;
+}
+
+### dist/procedures/define-procedure.d.ts#ProcedureSearchOutput
+export interface ProcedureSearchOutput {
+    hits: ProcedureSearchHit[];
+    matched: number;
+    total: number;
+}
+
 ### dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 export declare function clearRuntimeProcedures(registry?: RegistryOf): void;
 
@@ -4805,6 +4874,9 @@ export declare const metaProcedures: AnyProcedure[];
 export declare function runtimeProgramOf(procedure: {
     handler?: unknown;
 }): AggregationDefinition | undefined;
+
+### dist/procedures/define-procedure.d.ts#searchProceduresProcedure
+export declare const searchProceduresProcedure: Procedure<ProcedureSearchInput, ProcedureSearchOutput, ProcedureMetadata>;
 
 ### dist/procedures/define.d.ts#ProcedureBuilder
 export declare class ProcedureBuilder<TInput = unknown, TOutput = unknown, TMeta extends ProcedureMetadata = ProcedureMetadata> {
@@ -5173,7 +5245,7 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 ### dist/procedures/invoke.d.ts#ForbiddenReason
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed" | "depth";
 
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
@@ -5232,6 +5304,7 @@ export interface InvokeOptions {
     strictCalls?: boolean | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     parent?: Invocation | undefined;
+    maxDepth?: number | undefined;
     capability?: Capability | undefined;
     narrow?: CapabilityRequest | undefined;
     onNarrowingNotes?: ((notes: readonly NarrowingNote[]) => void) | undefined;
@@ -5959,6 +6032,45 @@ export declare function validateSchema<T>(schema: ProcedureSchema<T>, value: unk
 ### dist/procedures/schema.d.ts#validateSchemaAsync
 export declare function validateSchemaAsync<T>(schema: ProcedureSchema<T>, value: unknown): Promise<SchemaResult<T>>;
 
+### dist/procedures/search.d.ts#SEARCH_LIMIT
+export declare const SEARCH_LIMIT = 10;
+
+### dist/procedures/search.d.ts#SEARCH_MAX_LIMIT
+export declare const SEARCH_MAX_LIMIT = 100;
+
+### dist/procedures/search.d.ts#SearchDocument
+export interface SearchDocument {
+    readonly name: string;
+    readonly words?: readonly string[] | undefined;
+    readonly description?: string | undefined;
+    readonly tags?: readonly string[] | undefined;
+}
+
+### dist/procedures/search.d.ts#SearchHit
+export interface SearchHit {
+    readonly name: string;
+    readonly description: string | undefined;
+    readonly score: number;
+}
+
+### dist/procedures/search.d.ts#SearchOptions
+export interface SearchOptions {
+    readonly limit?: number | undefined;
+}
+
+### dist/procedures/search.d.ts#SearchResult
+export interface SearchResult {
+    readonly hits: SearchHit[];
+    readonly matched: number;
+    readonly total: number;
+}
+
+### dist/procedures/search.d.ts#searchDocuments
+export declare function searchDocuments(documents: readonly SearchDocument[], query: string, options?: SearchOptions): SearchResult;
+
+### dist/procedures/search.d.ts#searchWords
+export declare function searchWords(text: string): string[];
+
 ### dist/procedures/segments.d.ts#decodeSegment
 export declare function decodeSegment(segment: string): string;
 
@@ -6184,8 +6296,14 @@ export interface UntrustedText {
 ### dist/procedures/untrusted.d.ts#UntrustedValue
 export type UntrustedValue = string | UntrustedText | readonly (string | UntrustedText)[];
 
+### dist/procedures/untrusted.d.ts#markUntrusted
+export declare function markUntrusted<T>(value: T, fields: readonly string[]): T;
+
 ### dist/procedures/untrusted.d.ts#untrustedFieldsOf
 export declare function untrustedFieldsOf(procedure: AnyProcedure): readonly string[];
+
+### dist/procedures/untrusted.d.ts#untrustedMarkOf
+export declare function untrustedMarkOf(value: unknown): readonly string[];
 
 ### dist/procedures/untrusted.d.ts#untrustedText
 export declare function untrustedText(text: string, source?: UntrustedSource): UntrustedText;
@@ -6329,6 +6447,7 @@ export declare function faceRules(options: FaceRulesOptions, policy: Pick<HostPo
 export interface HostPolicy {
     readonly expose: ((path: ProcedurePath) => boolean) | undefined;
     readonly strictCalls: boolean;
+    readonly maxDepth?: number | undefined;
     readonly interceptors: readonly Interceptor[];
     readonly token: string | undefined;
     readonly principalOf?: PrincipalOf | undefined;
@@ -6348,6 +6467,7 @@ export interface HostPolicyOptions {
     expose?: readonly string[] | ToolSurface | ((path: ProcedurePath) => boolean) | undefined;
     exclude?: readonly string[] | undefined;
     strictCalls?: boolean | undefined;
+    maxDepth?: number | undefined;
     timeout?: Duration | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     token?: string | undefined;
@@ -6448,6 +6568,15 @@ export declare function methodToPath(method: Pick<Method, "service" | "operation
 ### dist/server/method.d.ts#pathToMethod
 export declare function pathToMethod(path: readonly string[]): Method;
 
+### dist/server/procedure-server.d.ts#PartitionsHandle
+export interface PartitionsHandle {
+    readonly name: string;
+    readonly collections: readonly string[];
+    readonly partitions: CollectionPartitions<unknown>;
+    connect(signal: AbortSignal): Promise<void> | void;
+    close(): Promise<void>;
+}
+
 ### dist/server/procedure-server.d.ts#ProcedureServer
 export declare class ProcedureServer extends Server implements RepositoryProvider, StopParts {
     readonly publisher: EventPublisher | undefined;
@@ -6485,6 +6614,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     storageHandles(): StorageHandle[];
+    partitionHandles(): PartitionsHandle[];
     start(): Promise<void>;
     stopIntake(): void;
     drain(deadline: number, signal: AbortSignal): Promise<void>;
@@ -6501,6 +6631,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     clock?: Clock | undefined;
     expose?: ((path: ProcedurePath) => boolean) | undefined;
     strictCalls?: boolean | undefined;
+    maxDepth?: number | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     clearanceOrder?: ClearanceOrder | undefined;

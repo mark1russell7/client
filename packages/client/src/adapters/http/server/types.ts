@@ -79,6 +79,10 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
 
   /**
    * Enable CORS.
+   *
+   * Deprecated: the CORS headers on the routes of the app outside the base path. From 0.63.0, the
+   * transport applies CORS only to the base path and the paths under it. An app that needs CORS on
+   * its own routes adds its own CORS function.
    * @default false
    */
   cors?: boolean;
@@ -124,7 +128,8 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
    * Custom CORS options. `origin` is "*", one origin or a list: the response names the
    * request's origin when it is in the list. A response for another origin, or for a request
    * without an origin, gets no `Access-Control-*` header (CLI-59). Each response gets
-   * `Vary: Origin` when `origin` is not "*".
+   * `Vary: Origin` when `origin` is not "*". The default of `credentials` is false when `origin`
+   * is "*", and true for each other origin.
    */
   corsOptions?: {
     origin?: string | string[];

@@ -90,6 +90,12 @@ export interface CollectionPartitions<T = unknown> {
   storageOf(partition: string): CollectionStorage<T>;
   /** The resolver of the partition of a call. */
   resolve: PartitionResolver;
+  /**
+   * This method closes the storage of each partition that `storageOf` gave. The server uses it one time
+   * at its stop (`closeStorages()`), or the runner uses it through `partitionHandles()`.
+   * Without it, the host closes the storages of the partitions.
+   */
+  close?(): Promise<void> | void;
 }
 
 /** The refusal of a partition. */

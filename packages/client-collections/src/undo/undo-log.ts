@@ -1,3 +1,4 @@
+import { canonicalJson } from "@mark1russell7/rigor-generators";
 import { applyPatch, type StoragePatch, type StoragePatchOperations } from "@procedures/client/query";
 import type { CollectionStorage } from "../storage/interface.js";
 import { inversePatch, touchedValues } from "./inverse.js";
@@ -83,24 +84,16 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The JSON text of a value with the keys of each object in order. A missing item is `undefined`. */
-function canonical(value: unknown): string {
-  if (value === undefined || value === null) return "null";
-  if (Array.isArray(value)) return `[${value.map((item) => (item === undefined ? "null" : canonical(item))).join(",")}]`;
-  if (isObject(value)) {
-    const keys = Object.keys(value).filter((key) => value[key] !== undefined).sort();
-    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "null";
-}
-
 /**
  * The fingerprint of an item: a 64-bit hash of its canonical JSON text, in hexadecimal. A missing
  * item and `null` have the same fingerprint. Two items with the same fields in another order have
- * the same fingerprint.
+ * the same fingerprint. A Date, a RegExp, a Map, a Set and a bigint get a tag with their value
+ * (`canonicalJson` of `@mark1russell7/rigor-generators`, CLI-128).
+ *
+ * @throws TypeError when the item holds a function, a symbol or a cycle
  */
 export function fingerprintOf(item: unknown): string {
-  const text = canonical(item);
+  const text = canonicalJson(item, { form: "json", tags: "typed" });
   // Two 32-bit FNV-1a hashes with different offsets: no dependency, and the same in each runtime
   let a = 0x811c9dc5;
   let b = 0x01000193 ^ 0x5bd1e995;

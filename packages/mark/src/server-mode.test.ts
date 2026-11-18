@@ -22,12 +22,17 @@ describe("the server options of argv", () => {
     expect(extractPort(["server", "start"])).toBeNull();
   });
 
-  it("refuses a --port without a value, and a port that is not from 1 to 65535", () => {
+  it("refuses a --port without a value, and a port that is not from 0 to 65535", () => {
     expect(() => extractPort(["--port"])).toThrow("--port needs a value");
-    expect(() => parsePort("0")).toThrow(/Invalid port/);
-    expect(() => parsePort("70000")).toThrow(/Invalid port/);
+    expect(() => parsePort("70000")).toThrow(/Invalid port.*from 0 to 65535/);
+    expect(() => parsePort("-1")).toThrow(/Invalid port/);
     expect(() => parsePort("80a")).toThrow(/Invalid port/);
     expect(parsePort("65535")).toBe(65535);
+  });
+
+  it("accepts the port 0: the listener takes a free port", () => {
+    expect(parsePort("0")).toBe(0);
+    expect(extractPort(["--port=0"])).toBe(0);
   });
 
   it("reads a host from --host x and from --host=x, and gives null without one", () => {

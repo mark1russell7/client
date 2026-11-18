@@ -136,7 +136,7 @@ export interface CallLimit {
    * (`LimitedCall.depth`). False: the limit takes the units of the calls of a caller only.
    *
    * The default is false, and the server writes a warning for a limit without this field.
-   * `@procedures/client` 0.61.0 changes the default to true.
+   * `@procedures/client` 0.64.0 changes the default to true.
    *
    * An in-flight bound with `nested: true` counts a call and its nested calls at the same time. Thus
    * a call with nested calls holds more than one unit. Give the bound a limit over the depth of the calls.

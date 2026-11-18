@@ -1,12 +1,12 @@
 /**
  * The types of the metadata fields that the framework reads (`ProcedureMetadata`).
  *
- * `register()` examines the metadata of each procedure with this schema, from code, from
- * `procedure.define` or from a store. The framework reads these fields with their types:
+ * `register()` applies the schema to each procedure, from code, from `procedure.define` or from a
+ * store. So a field with a wrong type stops at the registry, before a reader gets it:
  * `procedure.list` reads `description` and `tags` with its output schema, the MCP tools read
- * `description` as a text, and the call policy reads `tags` as a list. A field with a wrong type
- * gets a warning in this version. Version 0.60.0 refuses it. A custom field keeps any value: the
- * framework does not read it. The registry examines `calls` and `toolHints` with their own rules.
+ * `description` as a text, and the call policy reads `tags` as a list. The input schema of
+ * `procedure.define` uses the same schema. A custom field keeps any value: the framework does not
+ * read it. The registry examines `calls` and `toolHints` with their own rules.
  */
 
 import * as z from "zod";
@@ -90,4 +90,14 @@ export function metadataFieldProblems(metadata: unknown): MetadataFieldProblem[]
     problems.push({ field, typedField: top !== undefined ? `metadata.${top}` : "metadata", needs, message: issue.message });
   }
   return problems;
+}
+
+/**
+ * This function gives the refusal of metadata whose typed fields have a wrong type, or undefined.
+ * The refusal names the first wrong field and the type that its typed field needs.
+ */
+export function metadataFieldRefusal(metadata: unknown): string | undefined {
+  const [problem] = metadataFieldProblems(metadata);
+  if (!problem) return undefined;
+  return `The field ${problem.field} has a wrong type: ${problem.message}. The field ${problem.typedField} needs ${problem.needs}.`;
 }

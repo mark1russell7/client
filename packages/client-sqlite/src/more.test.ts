@@ -1,6 +1,7 @@
 /**
  * sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate and sqlite.backup (roadmap R44), against real
- * SQLite files (sql.js) in temporary folders.
+ * SQLite files in temporary folders. The tests make their files through the engine of `@mark1russell7/sqlite`.
+ * `sqlite.transaction` and `sqlite.migrate` need the guard: `confine.test.ts` tests a Node.js without it.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,11 +9,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRegistry, invokePath, outputValue, type Effects, type ProcedurePath } from "@procedures/client";
+import { openDatabase } from "@mark1russell7/sqlite";
+import { loadSqlite } from "./load.js";
 import { sqliteModule } from "./module.js";
-import { controlsTransaction } from "./procedures/db/shared.js";
+import { controlsTransaction, isConfineAvailable } from "./procedures/db/shared.js";
 import type { DbBackupOutput, DbMigrateOutput, DbQueryOutput, DbSchemaOutput, DbTablesOutput, DbTransactionOutput } from "./types.js";
 
 const registry = createRegistry(sqliteModule);
+const guard = isConfineAvailable(await loadSqlite());
 const dirs: string[] = [];
 
 afterEach(() => {
@@ -30,12 +34,32 @@ async function call<T>(key: string, input: unknown): Promise<T> {
   return outputValue(await invokePath<T>(path, input, { registry }), path);
 }
 
+/** This function runs SQL on a file through the engine of the home package, with no procedure. */
+function runSql(dbPath: string, sql: string): void {
+  const db = openDatabase(dbPath, { wal: false });
+  try {
+    db.exec(sql);
+  } finally {
+    db.close();
+  }
+}
+
+/** The rows of a query on a file, through the engine of the home package. */
+function rowsOf(dbPath: string, sql: string): unknown[] {
+  const db = openDatabase(dbPath, { wal: false, readOnly: true });
+  try {
+    return db.prepare(sql).all();
+  } finally {
+    db.close();
+  }
+}
+
 /** A database with two tables, an index, a foreign key and a view. */
-async function sampleDb(): Promise<string> {
+function sampleDb(): string {
   const dbPath = join(tempDir(), "sample.db");
-  await call("sqlite.execute", {
+  runSql(
     dbPath,
-    sql: `
+    `
       CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE);
       CREATE TABLE users (
         id INTEGER PRIMARY KEY,
@@ -47,7 +71,7 @@ async function sampleDb(): Promise<string> {
       CREATE VIEW scores AS SELECT email, score FROM users;
       INSERT INTO teams (name) VALUES ('red');
     `,
-  });
+  );
   return dbPath;
 }
 
@@ -80,7 +104,7 @@ describe("the names of the module (0.6.0 removed the db.* aliases)", () => {
 
 describe("sqlite.tables (R44)", () => {
   it("lists the tables and the views, and only reads the file", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     const before = readFileSync(dbPath);
     const result = await call<DbTablesOutput>("sqlite.tables", { dbPath });
     expect(result.tables.map((table) => [table.name, table.type])).toEqual([
@@ -103,7 +127,7 @@ describe("sqlite.tables (R44)", () => {
 
 describe("sqlite.schema (R44)", () => {
   it("gives the columns, the indexes and the foreign keys of a table", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     const users = await call<DbSchemaOutput>("sqlite.schema", { dbPath, table: "users" });
     expect(users.type).toBe("table");
     expect(users.columns).toEqual([
@@ -122,7 +146,7 @@ describe("sqlite.schema (R44)", () => {
   });
 
   it("fails for a missing table, also a name with SQL in it", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     await expect(call("sqlite.schema", { dbPath, table: "nope" })).rejects.toThrow(/no table or view named "nope"/);
     await expect(call("sqlite.schema", { dbPath, table: "users'); DROP TABLE users; --" })).rejects.toThrow(/no table or view/);
     expect((await call<DbTablesOutput>("sqlite.tables", { dbPath })).tables).toHaveLength(3);
@@ -130,9 +154,9 @@ describe("sqlite.schema (R44)", () => {
   });
 });
 
-describe("sqlite.transaction (R44)", () => {
+describe.runIf(guard)("sqlite.transaction (R44)", () => {
   it("runs the statements in one transaction, and gives the rows of a statement that gives rows", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     const result = await call<DbTransactionOutput>("sqlite.transaction", {
       dbPath,
       statements: [
@@ -152,7 +176,7 @@ describe("sqlite.transaction (R44)", () => {
   });
 
   it("rolls back every statement when one fails, and leaves the file as it was", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     const before = readFileSync(dbPath);
     await expect(
       call("sqlite.transaction", {
@@ -166,7 +190,7 @@ describe("sqlite.transaction (R44)", () => {
   });
 
   it("refuses the statements that control a transaction, and params for several statements", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     const before = readFileSync(dbPath);
     for (const sql of ["COMMIT", "  -- a comment\n  BEGIN", "/* x */ ROLLBACK", "SAVEPOINT s", "INSERT INTO teams (name) VALUES ('x'); COMMIT"]) {
       await expect(call("sqlite.transaction", { dbPath, statements: [{ sql }] })).rejects.toThrow(/BEGIN, COMMIT, ROLLBACK, SAVEPOINT and RELEASE are refused/);
@@ -178,7 +202,9 @@ describe("sqlite.transaction (R44)", () => {
     await expect(call("sqlite.transaction", { dbPath, statements: [] })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     expect(readFileSync(dbPath).equals(before)).toBe(true);
   });
+});
 
+describe("controlsTransaction", () => {
   it("knows the statements that control a transaction", () => {
     expect(["BEGIN", "begin immediate", "COMMIT", "END", "ROLLBACK TO s", "RELEASE s", "--x\nSAVEPOINT a", "/* unclosed"].map(controlsTransaction)).toEqual([
       true, true, true, true, true, true, true, false,
@@ -187,7 +213,7 @@ describe("sqlite.transaction (R44)", () => {
   });
 });
 
-describe("sqlite.migrate (R44)", () => {
+describe.runIf(guard)("sqlite.migrate (R44)", () => {
   function migrationsFolder(files: Record<string, string>): string {
     const folder = join(tempDir(), "migrations");
     mkdirSync(folder);
@@ -264,6 +290,30 @@ describe("sqlite.migrate (R44)", () => {
     );
   });
 
+  it("continues a file that version 0.60 migrated: the table, the checksums and the times stay", async () => {
+    const dbPath = join(tempDir(), "old.db");
+    // The table and the row that version 0.60 (on sql.js) wrote for the migration 1 `CREATE TABLE a (x)`
+    runSql(
+      dbPath,
+      `CREATE TABLE IF NOT EXISTS "schema_migrations" (version INTEGER PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+       CREATE TABLE a (x);
+       INSERT INTO schema_migrations (version, name, checksum, applied_at)
+         VALUES (1, 'create_a', 'e0782122f01bfe9d4a4df45c1e26dafd152b24305ab01f8b8cdb00ddf4ebc354', '2026-10-01 12:00:00');`,
+    );
+    const migrations = [
+      { version: 1, name: "create_a", sql: "CREATE TABLE a (x)" },
+      { version: 2, name: "create_b", sql: "CREATE TABLE b (y)" },
+    ];
+    expect(await call<DbMigrateOutput>("sqlite.migrate", { dbPath, migrations })).toEqual({ applied: [{ version: 2, name: "create_b" }], skipped: 1, version: 2 });
+    expect(rowsOf(dbPath, "SELECT version, name, checksum FROM schema_migrations ORDER BY version")).toEqual([
+      { version: 1, name: "create_a", checksum: "e0782122f01bfe9d4a4df45c1e26dafd152b24305ab01f8b8cdb00ddf4ebc354" },
+      { version: 2, name: "create_b", checksum: "f4b6200aa9e003dbb498ce43331ba02e5a394202825ee432fba140fd4141800d" },
+    ]);
+    expect(rowsOf(dbPath, "SELECT applied_at FROM schema_migrations WHERE version = 1")).toEqual([{ applied_at: "2026-10-01 12:00:00" }]);
+    // A changed migration 1 is refused, as in version 0.60
+    await expect(call("sqlite.migrate", { dbPath, migrations: [{ version: 1, sql: "CREATE TABLE a (z)" }] })).rejects.toThrow(/changed after it was applied/);
+  });
+
   it("refuses a changed migration, two migrations with one number, and a wrong input", async () => {
     const dbPath = join(tempDir(), "changed.db");
     await call("sqlite.migrate", { dbPath, migrations: [{ version: 1, sql: "CREATE TABLE a (x)" }] });
@@ -280,28 +330,31 @@ describe("sqlite.migrate (R44)", () => {
 
 describe("sqlite.backup (R44)", () => {
   it("copies a database to a new file, and leaves the source as it was", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     const before = readFileSync(dbPath);
     const to = join(tempDir(), "copy.db");
     const result = await call<DbBackupOutput>("sqlite.backup", { dbPath, to });
     expect(result).toEqual({ path: to, bytes: readFileSync(to).length });
-    expect(readFileSync(to).equals(before)).toBe(true);
     expect(readFileSync(dbPath).equals(before)).toBe(true);
+    expect(rowsOf(to, "SELECT name FROM teams")).toEqual([{ name: "red" }]);
+    expect(rowsOf(to, "PRAGMA integrity_check")).toEqual([{ integrity_check: "ok" }]);
     expect((await call<DbTablesOutput>("sqlite.tables", { dbPath: to })).tables).toHaveLength(3);
     expect(readdirSync(join(to, "..")).filter((name) => name.endsWith(".tmp"))).toEqual([]);
   });
 
-  it("compacts the copy with vacuum: true", async () => {
-    const dbPath = await sampleDb();
-    await call("sqlite.execute", { dbPath, sql: "CREATE TABLE big (data TEXT); INSERT INTO big VALUES (hex(randomblob(20000))); DROP TABLE big;" });
+  it("always compacts the copy, and the deprecated option vacuum changes nothing", async () => {
+    const dbPath = sampleDb();
+    runSql(dbPath, "CREATE TABLE big (data TEXT); INSERT INTO big VALUES (hex(randomblob(20000))); DROP TABLE big;");
+    const source = readFileSync(dbPath).length;
     const plain = await call<DbBackupOutput>("sqlite.backup", { dbPath, to: join(tempDir(), "plain.db") });
-    const compact = await call<DbBackupOutput>("sqlite.backup", { dbPath, to: join(tempDir(), "compact.db"), vacuum: true });
-    expect(compact.bytes).toBeLessThan(plain.bytes);
-    expect((await call<DbTablesOutput>("sqlite.tables", { dbPath: compact.path })).tables).toHaveLength(3);
+    const vacuum = await call<DbBackupOutput>("sqlite.backup", { dbPath, to: join(tempDir(), "vacuum.db"), vacuum: true });
+    expect(plain.bytes).toBeLessThan(source);
+    expect(vacuum.bytes).toBe(plain.bytes);
+    expect((await call<DbTablesOutput>("sqlite.tables", { dbPath: plain.path })).tables).toHaveLength(3);
   });
 
   it("does not replace a file, and does not copy a missing database", async () => {
-    const dbPath = await sampleDb();
+    const dbPath = sampleDb();
     const to = join(tempDir(), "taken.db");
     writeFileSync(to, "keep");
     await expect(call("sqlite.backup", { dbPath, to })).rejects.toMatchObject({ code: "EEXIST" });
