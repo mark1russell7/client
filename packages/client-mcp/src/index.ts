@@ -67,7 +67,7 @@ export type {
 // Procedures
 export { mcpServeProcedure, prepareServe, DEFAULT_SERVE_BUNDLE } from "./procedures/mcp/serve.js";
 export type { ServeOptions, ServeSetup } from "./procedures/mcp/serve.js";
-export { exposeRule, mergeSurfaces, importBundles, resolveBundleRegister } from "./surface.js";
+export { exposeRule, mergeInstructions, mergeSurfaces, importBundles, resolveBundleRegister } from "./surface.js";
 export type { ToolSurface, BundleSurfaceModule } from "./surface.js";
 export { mcpListToolsProcedure } from "./procedures/mcp/list-tools.js";
 
