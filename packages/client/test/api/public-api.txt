@@ -5311,7 +5311,7 @@ export interface InvokeOptions {
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
-    admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
+    admitNested?: ((invocation: Invocation) => Promise<(() => Promise<void> | void) | void> | (() => Promise<void> | void) | void) | undefined;
     principal?: Principal | undefined;
 }
 
