@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 585 across 57 namespaces. Loaded 54 package register(s).
+**Total procedures:** 593 across 57 namespaces. Loaded 54 package register(s).
 
 ## Namespaces
 
@@ -16,7 +16,7 @@
 - [`client.*`](#client) — 16 procedure(s)
 - [`csv.*`](#csv) — 2 procedure(s)
 - [`cue.*`](#cue) — 5 procedure(s)
-- [`dag.*`](#dag) — 1 procedure(s)
+- [`dag.*`](#dag) — 9 procedure(s)
 - [`docker.*`](#docker) — 25 procedure(s)
 - [`ecosystem.*`](#ecosystem) — 1 procedure(s)
 - [`env.*`](#env) — 3 procedure(s)
@@ -188,7 +188,15 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `dag.buildLeveledDAG` | This function builds a leveled DAG from nodes, with Kahn's algorithm. |
+| `dag.buildNodeMap` | This function builds a Map of nodes from an array. |
+| `dag.createNode` | This function makes a DAG node from a minimal input. |
+| `dag.filterDAGFromRoot` | This function filters a DAG to the nodes that a root can reach. |
+| `dag.getAncestors` | This function gives all ancestors of a node: the nodes that this node depends on, transitively. |
+| `dag.getDescendants` | This function gives all descendants of a node: the nodes that depend on this node, transitively. |
+| `dag.getTopologicalOrder` | This function gives the topological order: a flat list, leaves first. |
 | `dag.traverse` | Traverse ecosystem packages in dependency order, executing visit procedure for each |
+| `dag.visualizeDAG` | Visualize the DAG structure (for debugging) |
 
 ## docker
 

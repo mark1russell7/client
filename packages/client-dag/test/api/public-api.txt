@@ -26,6 +26,8 @@ buildNodeMap: @mark1russell7/collections/dag#buildNodeMap (external)
 callsGit: dist/procedures/traverse.d.ts#callsGit
 createNode: @mark1russell7/collections/dag#createNode (external)
 createProcessor: @mark1russell7/collections/dag#createProcessor (external)
+dagHomeProcedures: dist/module.d.ts#dagHomeProcedures
+dagManifest: dist/manifest.d.ts#manifest
 dagModule: dist/module.d.ts#dagModule
 dagTraverse: dist/procedures/traverse.d.ts#dagTraverse
 executeDAG: @mark1russell7/collections/dag#executeDAG (external)
@@ -48,16 +50,26 @@ hubBreadthFirstOrder: @mark1russell7/collections/graph#hubBreadthFirstOrder (ext
 
 ## ./module (dist/module.d.ts): names
 
+dagHomeProcedures: dist/module.d.ts#dagHomeProcedures
+dagManifest: dist/manifest.d.ts#manifest
 dagModule: dist/module.d.ts#dagModule
 default: dist/module.d.ts#dagModule
 registerDagProcedures: dist/module.d.ts#registerDagProcedures
 
 ## ./register (dist/register.d.ts): names
 
+dagHomeProcedures: dist/module.d.ts#dagHomeProcedures
+dagManifest: dist/manifest.d.ts#manifest
 dagModule: dist/module.d.ts#dagModule
 registerDagProcedures: dist/module.d.ts#registerDagProcedures
 
 ## Declarations
+
+### dist/manifest.d.ts#manifest
+export declare const manifest: ExportsManifest;
+
+### dist/module.d.ts#dagHomeProcedures
+export declare const dagHomeProcedures: readonly AnyProcedure[];
 
 ### dist/module.d.ts#dagModule
 export declare const dagModule: ProcedureModule;

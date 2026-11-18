@@ -28,6 +28,7 @@ The pure DAG code is in the general package [`@mark1russell7/collections`](https
   - [hubBreadthFirstOrder](#hubbreadthfirstorder)
 - [Use Cases](#use-cases)
 - [Integration](#integration)
+  - [The generated procedures](#the-generated-procedures)
 - [Requirements](#requirements)
 - [License](#license)
 
@@ -458,7 +459,7 @@ await executeDAG(dag, async (mod) => {
 
 ### The procedure `dag.traverse`
 
-The package has one procedure, `dag.traverse`. It came from `client-lib` in version 0.4.0, and its name stays the same. The graph algorithms of the package root do not need it.
+The hand-written procedure `dag.traverse` came from `client-lib` in version 0.4.0, and its name stays the same. The graph algorithms of the package root do not need it.
 
 `dag.traverse` starts the `visit` procedure once for each package, with `cwd` set to the folder of the package. A package starts after the packages that it depends on.
 
@@ -524,6 +525,40 @@ graph TB
     Execute --> P3
 ```
 
+### The generated procedures
+
+The package also has 8 procedures in the namespace `dag` that come from the types of `@mark1russell7/collections/dag`. Each one calls one function of the library with JSON inputs and a JSON output. Each one has no effects: it reads nothing and writes nothing.
+
+- The input is an object with one property for each parameter of the function, by its name.
+- A `Map` of nodes is a list of `[id, node]` pairs, in the input and in the output. A `Set` of ids is a list of ids.
+- The output of `dag.buildLeveledDAG` is the input `dag` of `dag.getTopologicalOrder` and `dag.visualizeDAG`.
+
+`dagManifest` gives the names, the schemas and the effects of each generated procedure. `dagHomeProcedures` gives the procedures. `dagModule` has them, next to `dag.traverse`.
+
+```ts
+import { createRegistry, invokePath, outputValue } from "@procedures/client";
+import { dagModule } from "@procedures/dag";
+
+const registry = createRegistry(dagModule);
+const nodes = [["a", { id: "a", dependencies: [] }], ["b", { id: "b", dependencies: ["a"] }]];
+const dag = await outputValue(await invokePath(["dag", "buildLeveledDAG"], { nodes }, { registry }));
+const order = await outputValue(await invokePath(["dag", "getTopologicalOrder"], { dag }, { registry }));
+```
+
+### The functions with no procedure
+
+3 functions of the library have no procedure: `createProcessor`, `executeDAG` and `executeDAGSequential`. Each one has a function parameter, so JSON cannot give its input. The manifest gives each one with the reason `function-parameter`.
+
+### Update the manifest
+
+After an update of `@mark1russell7/collections`, start this command from the root of the repository:
+
+```bash
+node scripts/wraps.ts generate --package client-dag
+```
+
+The command writes `src/manifest.ts`. It also raises the ratchet of the library in `wraps.coverage.json`. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current, or when the share of the functions with a procedure falls.
+
 ### With client-lib
 
 `client-lib` uses the algorithms of this package for `lib.graph`.
@@ -533,7 +568,7 @@ graph TB
 ## Requirements
 
 - **Node.js** >= 22
-- **Dependencies:** `@procedures/client` and `zod`, for the procedure. The graph algorithms use neither.
+- **Dependencies:** `@procedures/client`, `@procedures/compiler` and `zod`, for the procedures. The graph algorithms use none of them.
 
 ---
 

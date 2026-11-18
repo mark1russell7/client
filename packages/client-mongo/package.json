@@ -94,7 +94,7 @@
     "@mark1russell7/rigor-generators": "^0.2.0",
     "@procedures/client": "workspace:*",
     "@procedures/collections": "workspace:*",
-    "@mark1russell7/service": "^0.8.3",
+    "@mark1russell7/service": "^0.10.0",
     "mongodb": "^7.0.0",
     "zod": "^4.6.5",
     "@mark1russell7/text": "^0.0.5"

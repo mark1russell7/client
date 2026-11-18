@@ -18,6 +18,7 @@
     "check:boundaries": "depcruise --config .dependency-cruiser.ts \"packages/*/src\"",
     "check:paths-and-writes": "node scripts/check-paths-and-writes.ts",
     "check:conventions": "conventions check",
+    "release-train:update": "node scripts/release-train-update.ts",
     "release:bootstrap": "node scripts/npm-bootstrap.mjs"
   },
   "devDependencies": {
