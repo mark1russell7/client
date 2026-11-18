@@ -14,6 +14,9 @@ import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { PROCEDURE_REGISTRY, jsonSchemaOf, pathToKey } from "@procedures/client";
+// The procedures of the server, in the registry of the test process: the test reads their declared output schemas
+import "@procedures/bundle-mcp/register.js";
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,33 +38,42 @@ const { StdioClientTransport } = (await import(pathToFileURL(sdk.resolve("@model
 };
 
 /**
- * The core tools whose result is not an object: a boolean (`not`, `all`, `any`, `none`), any JSON
- * value whose shape depends on the program (`and`, `or`, `conditional`, `reduce`, `identity`,
- * `constant`) or no value (`throw`). They have real output schemas, but MCP gives an
- * `outputSchema` only to an object result.
+ * The core tools whose result is any JSON value. The shape of the value depends on the program (`and`, `or`,
+ * `conditional`, `reduce`, `identity`, `constant`). Their output schemas have no type, so the test cannot tell them
+ * from an object result by the schema. Each new tool of this kind is a decision, so the list names them.
  */
-const NOT_OBJECT_OUTPUT = new Set([
-  "client.all",
+const ANY_VALUE_OUTPUT = new Set([
   "client.and",
-  "client.any",
   "client.conditional",
   "client.constant",
   "client.identity",
-  "client.none",
-  "client.not",
   "client.or",
   "client.reduce",
-  "client.throw",
 ]);
+
+/** The declared output JSON Schema of each procedure, by its tool name. A pass-through schema gives `undefined`. */
+const declaredOutput = new Map(PROCEDURE_REGISTRY.getAll().map((procedure) => [pathToKey(procedure.path), jsonSchemaOf(procedure.output, { io: "output" })]));
+
+/**
+ * This function tells if the procedure of a tool declares a result that is not an object: a type other than `object`
+ * (a boolean, a number, a list), a union (one value or a stream of items), or no value (`not`). MCP gives an
+ * `outputSchema` only to an object result. A generated wrap of a function with a number or a list result is of this
+ * kind, so the test reads the declared schema, not a list of names.
+ */
+function declaresNotObject(name: string): boolean {
+  const json = declaredOutput.get(name) as Record<string, unknown> | undefined;
+  if (json === undefined) return false;
+  const type = json["type"];
+  if (typeof type === "string") return type !== "object";
+  if (Array.isArray(type)) return !type.includes("object");
+  return Array.isArray(json["anyOf"]) || Array.isArray(json["oneOf"]) || json["not"] !== undefined;
+}
 
 /**
  * True when this Node.js has the guard of the SQL procedures: `setAuthorizer` of `DatabaseSync`. `confineToFile` of
  * `@mark1russell7/sqlite` checks the same method, so the suites follow the check of the procedures, not the version.
  */
 const guard = typeof (DatabaseSync.prototype as { setAuthorizer?: unknown }).setAuthorizer === "function";
-
-/** A tool whose output is a union (one value, or a stream of items): no object schema. */
-const UNION_OUTPUT = new Set(["docker.logs"]);
 
 let client: McpClient;
 let tmp: string;
@@ -86,7 +98,7 @@ describe("MCP structured output", () => {
     const missing: string[] = [];
     const undescribed: string[] = [];
     for (const tool of tools) {
-      if (NOT_OBJECT_OUTPUT.has(tool.name) || UNION_OUTPUT.has(tool.name)) continue;
+      if (ANY_VALUE_OUTPUT.has(tool.name) || declaresNotObject(tool.name)) continue;
       if (tool.outputSchema?.type !== "object") {
         missing.push(tool.name);
         continue;
