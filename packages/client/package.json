@@ -131,12 +131,12 @@
     "watch": "tsc -b --watch"
   },
   "dependencies": {
-    "@mark1russell7/algebra": "^0.8.0",
+    "@mark1russell7/algebra": "^0.9.6",
     "@mark1russell7/coeval": "^0.34.0",
     "@mark1russell7/collections": "^0.10.0",
     "@mark1russell7/quantity": "^0.4.0",
     "@mark1russell7/rigor-generators": "^0.2.0",
-    "@mark1russell7/service": "^0.8.3",
+    "@mark1russell7/service": "^0.10.0",
     "@opentelemetry/api": "^1.9.0",
     "@types/ws": "^8.18.1",
     "ws": "^8.18.3",
