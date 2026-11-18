@@ -1,5 +1,26 @@
 # @procedures/predicates
 
+## 0.65.0
+
+### Patch Changes
+
+- f1c599f: The generator of `@procedures/compiler` gives the members of a union a canonical sequence. Before, the sequence came from the type ids of TypeScript, and a new call of the checker changed it.
+  
+  - The `anyOf` and `enum` lists start with the primitive types. The number literals and the bigint literals follow by value. Then come the string literals by code unit. The other types come last, by the code units of their text.
+  - The names of the definitions come from the same sequence. Thus a change in a different part of the generator does not rename a definition.
+  - A manifest keeps only the definitions that its procedures reach through `$ref`. A function that the generator refused kept dead definitions before.
+  
+  The manifests of the wrap packages change only in the sequence of their lists, and lose definitions with no reference. Their schemas accept the same values.
+- Updated dependencies [e7ec32b]
+- Updated dependencies [4e20391]
+- Updated dependencies [abf52af]
+- Updated dependencies [a2a09b7]
+- Updated dependencies [ffb85af]
+- Updated dependencies [420ebdc]
+- Updated dependencies [f1c599f]
+  - @procedures/compiler@0.65.0
+  - @procedures/client@0.65.0
+
 ## 0.64.0
 
 ### Patch Changes
