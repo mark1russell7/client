@@ -48,6 +48,11 @@
       "import": "./dist/runtime.js",
       "default": "./dist/runtime.js"
     },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js",
+      "default": "./dist/api.js"
+    },
     "./generate": {
       "types": "./dist/generate.d.ts",
       "import": "./dist/generate.js",
@@ -93,11 +98,13 @@
       ".",
       "./module",
       "./register",
-      "./runtime"
+      "./runtime",
+      "./api"
     ]
   },
   "dependencies": {
-    "@mark1russell7/coeval": "^0.34.0",
+    "@cfworker/json-schema": "^4.1.6",
+    "@mark1russell7/coeval": "^0.38.1",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
