@@ -1,5 +1,55 @@
 # @procedures/mark
 
+## 0.64.0
+
+### Minor Changes
+
+- 49b516e: The packages use `@mark1russell7/service` 0.10.0 and `@mark1russell7/algebra` 0.9.
+  
+  This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script ended while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
+  
+  - The `realClock` of `@procedures/client` worked this way before. Its timers do not change.
+  - The watch timers of service (checks, the watchdog, the sweeps) do not keep a process alive.
+  - The heartbeat of the WebSocket client uses `unrefClock` of service. Its timers do not keep a process alive: the socket does.
+  - A new end-to-end test runs a command with `main()` of `@procedures/mark` in a script. After the command, no timer keeps the script alive.
+  
+  Migration: a script that must end before a pending timer of service fires stops its work first. Close each client, host and transport, or abort the call. For a timer that only watches other work, give the service a clock made with `unrefClock` of `@mark1russell7/service/clock`.
+
+### Patch Changes
+
+- ce0d511: The dev-tools MCP server forwards the tools of running peers (`MCP_PEERS`, `mark mcp --peers`).
+  
+  - An entry `name=source` names a peer. A source is the base URL of the procedures of the peer, or its discovery file: a JSON object with `url` or `endpoint`, and `token`.
+  - At the start, the server reads the manifest of each peer with `peerModule`, with a time limit of 5 seconds. Each procedure of the peer becomes a tool, and its calls go to the peer.
+  - The server reads a discovery file at each call. Thus the calls follow a peer that starts again with a new port and token.
+  - A peer that does not answer gives no tools until the next start. The server writes the reason to stderr, and `DevToolsHost.peers` gives the state of each peer.
+  - The new exports of `@procedures/mcp-dev-tools` are `parsePeers`, `loadPeers`, `peerAddress`, `readDiscovery`, `DEFAULT_PEER_TIMEOUT_MS` and their types.
+  - `peerModule` of `@procedures/client` has the new option `signal` for the read of the manifest.
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [7d303f3]
+- Updated dependencies [5d5a86b]
+- Updated dependencies [ce0d511]
+- Updated dependencies [c56a6cf]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+  - @procedures/fs@0.64.0
+  - @procedures/mcp-dev-tools@0.64.0
+  - @procedures/algebra@0.64.0
+  - @procedures/optional@0.64.0
+  - @procedures/predicates@0.64.0
+  - @procedures/quantity@0.64.0
+  - @procedures/rational@0.64.0
+  - @procedures/peer@0.64.0
+  - @procedures/server@0.64.0
+  - @procedures/cli-kit@0.64.0
+  - @procedures/cli-run@0.64.0
+  - @procedures/lib@0.64.0
+  - @procedures/pnpm@0.64.0
+  - @procedures/procedure@0.64.0
+  - @procedures/shell@0.64.0
+  - @procedures/vitest@0.64.0
+
 ## 0.63.0
 
 ### Patch Changes

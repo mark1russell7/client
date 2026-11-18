@@ -1,5 +1,17 @@
 # @procedures/fs
 
+## 0.64.0
+
+### Patch Changes
+
+- bdca30d: The warnings of the three old defaults name 0.65.0, the version that changes them. Version 0.64.0 keeps the old defaults: the depth of the nested calls has no limit, a `CallLimit` without the field `nested` counts only the calls of a caller, and `fs.read` loads the whole file without `maxBytes`.
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+
 ## 0.63.0
 
 ### Patch Changes

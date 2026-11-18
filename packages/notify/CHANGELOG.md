@@ -1,5 +1,23 @@
 # @procedures/notify
 
+## 0.64.0
+
+### Patch Changes
+
+- 0e93409: The fake of the Pushover API in `@procedures/notify/testing` has a new option `receiptStates` and a new type `PushoverReceiptReply`.
+  
+  - `receiptStates(index)` gives the replies of receipt `pushoverReceiptOf(index)`, one at each read, in order. After the end, each read gives the last entry again.
+  - Thus a test can acknowledge one message and keep the others pending, or change the state of a receipt between two reads.
+  - Without the option, each read gives `state` and `acknowledgedAt`, as before. An empty list throws a `RangeError`.
+  
+  PATCH: a new optional option and a new type, before 1.0.0.
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+
 ## 0.63.0
 
 ### Patch Changes

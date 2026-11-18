@@ -1,5 +1,43 @@
 # @procedures/client
 
+## 0.64.0
+
+### Minor Changes
+
+- 49b516e: The packages use `@mark1russell7/service` 0.10.0 and `@mark1russell7/algebra` 0.9.
+  
+  This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script ended while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
+  
+  - The `realClock` of `@procedures/client` worked this way before. Its timers do not change.
+  - The watch timers of service (checks, the watchdog, the sweeps) do not keep a process alive.
+  - The heartbeat of the WebSocket client uses `unrefClock` of service. Its timers do not keep a process alive: the socket does.
+  - A new end-to-end test runs a command with `main()` of `@procedures/mark` in a script. After the command, no timer keeps the script alive.
+  
+  Migration: a script that must end before a pending timer of service fires stops its work first. Close each client, host and transport, or abort the call. For a timer that only watches other work, give the service a clock made with `unrefClock` of `@mark1russell7/service/clock`.
+
+### Patch Changes
+
+- 6f8219e: `peerModule` reads the manifest of a running peer through `procedure.manifest`. It gives a module with a stub for each entry, and each stub sends its call to the peer over HTTP. The module reads the address of the peer at each call, so a new port or token after a restart is no problem. `forwardedModule` makes the same stubs from a manifest and a call function of any transport. `HOST_NAMESPACES` names the namespaces that each host has (`client` and `procedure`): a forwarded module leaves them out by default.
+- bdca30d: The warnings of the three old defaults name 0.65.0, the version that changes them. Version 0.64.0 keeps the old defaults: the depth of the nested calls has no limit, a `CallLimit` without the field `nested` counts only the calls of a caller, and `fs.read` loads the whole file without `maxBytes`.
+- 7d303f3: A limit of the server can bound the calls in flight. Give the limit the policy `in-flight` of `@mark1russell7/service` 0.10.0: `{ type: "in-flight", limit, lease, retryAfter }`.
+  
+  - A call holds one unit of the bound until it ends: at its value, its error, the end of its stream or the stop of its reader. Then the server gives the unit back.
+  - A call past the bound gets `RATE_LIMITED` before its work starts, with `retry-after` and the cause `limit`.
+  - A limit with `nested: true` holds a unit of each nested call until the end of that call.
+  - When a later limit refuses a call, the in-flight bounds before it get their units back at once.
+  - When a shared store cannot release the units, the server writes a warning. The units then count until their lease ends.
+  - Set a lease of at least the deadline of a call. A lease has no renewal.
+  
+  `InvokeOptions.admitNested` can give a release function. The invocation calls it one time at the end of the nested call.
+- ce0d511: The dev-tools MCP server forwards the tools of running peers (`MCP_PEERS`, `mark mcp --peers`).
+  
+  - An entry `name=source` names a peer. A source is the base URL of the procedures of the peer, or its discovery file: a JSON object with `url` or `endpoint`, and `token`.
+  - At the start, the server reads the manifest of each peer with `peerModule`, with a time limit of 5 seconds. Each procedure of the peer becomes a tool, and its calls go to the peer.
+  - The server reads a discovery file at each call. Thus the calls follow a peer that starts again with a new port and token.
+  - A peer that does not answer gives no tools until the next start. The server writes the reason to stderr, and `DevToolsHost.peers` gives the state of each peer.
+  - The new exports of `@procedures/mcp-dev-tools` are `parsePeers`, `loadPeers`, `peerAddress`, `readDiscovery`, `DEFAULT_PEER_TIMEOUT_MS` and their types.
+  - `peerModule` of `@procedures/client` has the new option `signal` for the read of the manifest.
+
 ## 0.63.0
 
 ### Minor Changes
