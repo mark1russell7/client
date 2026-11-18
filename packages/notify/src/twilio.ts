@@ -43,7 +43,7 @@ export {
 /** The base of the Twilio REST API. */
 export const TWILIO_API = "https://api.twilio.com/2010-04-01";
 
-/** The limits of the Twilio API: the characters of a text and of a TwiML, and the texts in one page of a list. */
+/** The limits of the Twilio API: the characters of a text and of a TwiML, and the entries in one page of a list. */
 export const TWILIO_LIMITS: { readonly body: 1600; readonly twiml: 4000; readonly pageSize: 1000 } = { body: 1600, twiml: 4000, pageSize: 1000 };
 
 /** The longest time that a queued text waits for its send: 10 hours. After it, Twilio does not send the text. */
@@ -228,6 +228,53 @@ export interface TwilioMessagePage {
   readonly nextPageUri?: string;
 }
 
+/** The filters of a read of the usage records. Twilio adds the usage of each category in the days of the filter. */
+export interface TwilioUsageQuery {
+  /**
+   * Only the records of this category, for example `totalprice`, `calls`, `sms` or `phonenumbers`. Without
+   * it, Twilio gives one record for each category. The documents of Twilio list the categories.
+   */
+  readonly category?: string | undefined;
+  /** The first day of the usage, as a day of GMT in the form `YYYY-MM-DD`. The sum includes this day. */
+  readonly startDate?: string | undefined;
+  /** The last day of the usage, as a day of GMT in the form `YYYY-MM-DD`. The sum includes this day. */
+  readonly endDate?: string | undefined;
+  /** The count of records in one page: 1 to 1000. The default of Twilio is 50. */
+  readonly pageSize?: number | undefined;
+}
+
+/** One usage record: the usage of one category in the days of the query. */
+export interface TwilioUsageRecord {
+  /** The category, for example `totalprice` or `calls`. */
+  readonly category: string;
+  /** The first day of the record, as a day of GMT: `YYYY-MM-DD`. */
+  readonly startDate: string;
+  /** The last day of the record, as a day of GMT: `YYYY-MM-DD`. */
+  readonly endDate: string;
+  /** The price of the usage, in the currency of `priceUnit`. */
+  readonly price: number;
+  /** The price as the decimal text of Twilio. It keeps each digit. */
+  readonly priceText: string;
+  /** The currency of the price, as Twilio gives it: for example `usd`. */
+  readonly priceUnit: string;
+  /** The amount that Twilio bills, in `usageUnit`: for example `minutes`. */
+  readonly usage?: number;
+  readonly usageUnit?: string;
+  /** The count of the events, in `countUnit`: for example `calls`. Some categories do not have it. */
+  readonly count?: number;
+  readonly countUnit?: string;
+  /** The record has the usage up to this time. Twilio adds the usage to the records after a delay. */
+  readonly asOf?: number;
+}
+
+/** One page of the usage records: the answer of `twilioUsageRecordsRequest`, or of `twilioNextPageRequest` for the usage records. */
+export interface TwilioUsagePage {
+  readonly ok: true;
+  readonly records: readonly TwilioUsageRecord[];
+  /** The path of the next page. `twilioNextPageRequest` reads it. The last page does not have it. */
+  readonly nextPageUri?: string;
+}
+
 // =============================================================================
 // Request builders
 // =============================================================================
@@ -350,15 +397,27 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 /** The first millisecond of the year 10000. A date of ISO 8601 has 4 digits of the year. */
 const YEAR_10000_MS = 253_402_300_800_000;
 
+/** This function gives a day in the form `YYYY-MM-DD` that is a real day of the calendar, or it throws. */
+function dayOf(value: string, what: string): string {
+  const at = typeof value === "string" && DAY.test(value) ? Date.parse(`${value}T00:00:00Z`) : Number.NaN;
+  if (!Number.isFinite(at) || new Date(at).toISOString().slice(0, 10) !== value) throw new Error(`The ${what} is not a day in the form YYYY-MM-DD.`);
+  return value;
+}
+
 /** This function gives the value of the filter `DateSent>`, or it throws. */
 function dateSentOf(value: number | string): string {
   if (typeof value === "number") {
     if (!(Number.isFinite(value) && value >= 0 && value < YEAR_10000_MS)) throw new Error("The time of dateSentAfter is not a time from 1970 to 9999.");
     return `${new Date(Math.floor(value / 1000) * 1000).toISOString().slice(0, 19)}Z`;
   }
-  const at = DAY.test(value) ? Date.parse(`${value}T00:00:00Z`) : Number.NaN;
-  if (!Number.isFinite(at) || new Date(at).toISOString().slice(0, 10) !== value) throw new Error("The date of dateSentAfter is not a day in the form YYYY-MM-DD.");
-  return value;
+  return dayOf(value, "date of dateSentAfter");
+}
+
+/** This function sets the field `PageSize` of a list, or it throws when the size is not 1 to 1000. */
+function setPageSize(fields: URLSearchParams, size: number | undefined): void {
+  if (size === undefined) return;
+  if (!(Number.isInteger(size) && size >= 1 && size <= TWILIO_LIMITS.pageSize)) throw new Error(`The page size is not 1 to ${TWILIO_LIMITS.pageSize}.`);
+  fields.set("PageSize", String(size));
 }
 
 /**
@@ -376,13 +435,33 @@ export function twilioMessageListRequest(credentials: TwilioCredentials, query: 
     fields.set("From", query.from);
   }
   if (query.dateSentAfter !== undefined) fields.set("DateSent>", dateSentOf(query.dateSentAfter));
-  if (query.pageSize !== undefined) {
-    const size = query.pageSize;
-    if (!(Number.isInteger(size) && size >= 1 && size <= TWILIO_LIMITS.pageSize)) throw new Error(`The page size is not 1 to ${TWILIO_LIMITS.pageSize}.`);
-    fields.set("PageSize", String(size));
-  }
+  setPageSize(fields, query.pageSize);
   const search = fields.toString();
   return get(credentials, search === "" ? "/Messages.json" : `/Messages.json?${search}`);
+}
+
+/** A usage category of Twilio: lower case letters, digits, dots, underscores and dashes. */
+const CATEGORY = /^[a-z0-9][a-z0-9._-]{0,99}$/;
+
+/**
+ * This function gives the request that reads one page of the usage records of the account. Each record
+ * is the sum of one category in the days of the filter. Twilio counts the days in GMT. It throws an
+ * error when a filter breaks a rule of the API, or when the start date is after the end date.
+ */
+export function twilioUsageRecordsRequest(credentials: TwilioCredentials, query: TwilioUsageQuery = {}): TwilioRequest {
+  const fields = new URLSearchParams();
+  if (query.category !== undefined) {
+    if (!CATEGORY.test(query.category)) throw new Error("The category is not 1 to 100 lower case letters, digits, dots, underscores and dashes.");
+    fields.set("Category", query.category);
+  }
+  const start = query.startDate === undefined ? undefined : dayOf(query.startDate, "start date");
+  const end = query.endDate === undefined ? undefined : dayOf(query.endDate, "end date");
+  if (start !== undefined && end !== undefined && start > end) throw new Error("The start date is after the end date.");
+  if (start !== undefined) fields.set("StartDate", start);
+  if (end !== undefined) fields.set("EndDate", end);
+  setPageSize(fields, query.pageSize);
+  const search = fields.toString();
+  return get(credentials, search === "" ? "/Usage/Records.json" : `/Usage/Records.json?${search}`);
 }
 
 /**
@@ -584,6 +663,57 @@ export function extractTwilioMessages(response: TwilioResponse): TwilioMessagePa
     messages.push(message);
   }
   return { ok: true, messages, ...some("nextPageUri", text(sorted.body["next_page_uri"])) };
+}
+
+/** This function gives a number from a decimal of Twilio, or `undefined`. */
+const decimalNumber = (value: unknown): number | undefined => {
+  const digits = decimal(value);
+  return digits === undefined ? undefined : Number(digits);
+};
+
+/** This function reads one usage record of a list. It gives `undefined` when the record has no category, no days, no price or no currency. */
+function usageRecordOf(entry: unknown): TwilioUsageRecord | undefined {
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return undefined;
+  const fields = entry as Readonly<Record<string, unknown>>;
+  const category = text(fields["category"]);
+  const startDate = text(fields["start_date"]);
+  const endDate = text(fields["end_date"]);
+  const priceText = decimal(fields["price"]);
+  const priceUnit = text(fields["price_unit"]);
+  if (category === undefined || startDate === undefined || !DAY.test(startDate) || endDate === undefined || !DAY.test(endDate)) return undefined;
+  if (priceText === undefined || priceUnit === undefined) return undefined;
+  return {
+    category,
+    startDate,
+    endDate,
+    price: Number(priceText),
+    priceText,
+    priceUnit,
+    ...some("usage", decimalNumber(fields["usage"])),
+    ...some("usageUnit", text(fields["usage_unit"])),
+    ...some("count", decimalNumber(fields["count"])),
+    ...some("countUnit", text(fields["count_unit"])),
+    ...some("asOf", date(fields["as_of"])),
+  };
+}
+
+/**
+ * This function reads the response of `twilioUsageRecordsRequest`, or of `twilioNextPageRequest` for the
+ * usage records. It does not throw. A record with no category, no days, no price or no currency gives a
+ * failure, because a sum without it is not complete.
+ */
+export function extractTwilioUsageRecords(response: TwilioResponse): TwilioUsagePage | TwilioFailure {
+  const sorted = sort(response);
+  if (!sorted.ok) return sorted;
+  const entries = sorted.body["usage_records"];
+  if (!Array.isArray(entries)) return failure("server", response, undefined, "The answer of Twilio has no list usage_records.");
+  const records: TwilioUsageRecord[] = [];
+  for (const entry of entries as readonly unknown[]) {
+    const record = usageRecordOf(entry);
+    if (record === undefined) return failure("server", response, undefined, "A usage record of the list has no category, no days, no price or no currency.");
+    records.push(record);
+  }
+  return { ok: true, records, ...some("nextPageUri", text(sorted.body["next_page_uri"])) };
 }
 
 // =============================================================================
