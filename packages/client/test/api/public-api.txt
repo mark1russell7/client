@@ -461,6 +461,7 @@ checkBrowserRequest: dist/server/browser-guard.d.ts#checkBrowserRequest
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+closeValue: dist/procedures/handles.d.ts#closeValue
 collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
@@ -1175,6 +1176,7 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+closeValue: dist/procedures/handles.d.ts#closeValue
 collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
@@ -1929,6 +1931,7 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+closeValue: dist/procedures/handles.d.ts#closeValue
 collectionChangeTopic: dist/procedures/collection/topic.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/topic.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
@@ -5324,6 +5327,9 @@ export interface HandleScopeOptions {
     readonly idleMs?: number | undefined;
     readonly now?: (() => number) | undefined;
 }
+
+### dist/procedures/handles.d.ts#closeValue
+export declare function closeValue(value: unknown): Promise<void>;
 
 ### dist/procedures/handles.d.ts#handleSchema
 export declare function handleSchema(kind: string): JsonSchema;

@@ -3,7 +3,8 @@
  *
  * It reads the entry `.d.ts` file of a package with the type checker of TypeScript. It gives a
  * procedure for each public function whose inputs and output are JSON, or have a codec
- * (`./codecs.ts`). The schemas come from the types, and the descriptions come from the doc comments.
+ * (`./codecs.ts`). An instance of a class at the top of a parameter or of the output is a handle
+ * (`./handles.ts`). The schemas come from the types, and the descriptions come from the doc comments.
  *
  * TypeScript 7 has no compiler API in JavaScript. So this module reads the compiler API of
  * TypeScript 5 as the package `typescript-api` (`npm:typescript@^5.9.3`), as the site of this
@@ -14,7 +15,9 @@
 import ts from "typescript-api";
 import type * as TS from "typescript-api";
 import type { Effects } from "@procedures/client/browser";
+import { HANDLE_KEYWORD, handleSchema } from "@procedures/client/browser";
 import { BIGINT_PATTERN } from "./codecs.js";
+import { handleKindOf, withHandleEffects } from "./handles.js";
 import {
   CODEC_KEYWORD,
   CONSTRUCT_KEYWORD,
@@ -215,7 +218,10 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       exempt.push(result);
       continue;
     }
-    const effects = functionOverlay?.effects ?? overlay.effects;
+    // A procedure with a handle reads or writes the handle scope of its caller (d40-handles)
+    const properties = (result.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
+    const takes = Object.values(properties).some((schema) => handleKindOf(schema) !== undefined);
+    const effects = withHandleEffects(functionOverlay?.effects ?? overlay.effects, takes, handleKindOf(result.output) !== undefined);
     procedures.push(effects ? { ...result, effects } : result);
   }
 
@@ -249,9 +255,14 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         schema = schemaOf(parameterType, false);
       } catch (error) {
         if (!(error instanceof NotJson)) throw error;
-        // A value that is not JSON can come from a pure function of the package: a constructed input
-        const constructed = error.isFunction ? undefined : constructedSchema(parameterType);
-        if (constructed === undefined || "problem" in constructed) {
+        // An instance of a class has a state: it is a handle in the scope of the caller (d40-handles)
+        const handle = error.isFunction ? undefined : handleSchemaOf(parameterType, false);
+        // Another value that is not JSON can come from a pure function of the package: a constructed input.
+        // A class gets one only when overlay.constructors names its factory
+        const constructed = error.isFunction || (handle !== undefined && !constructorNamed(parameterType)) ? undefined : constructedSchema(parameterType);
+        if (constructed !== undefined && !("problem" in constructed)) schema = constructed;
+        else if (constructed === undefined && handle !== undefined) schema = handle;
+        else {
           const problem = constructed !== undefined ? `. ${constructed.problem}` : "";
           return {
             name,
@@ -259,10 +270,10 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
             detail: `${error.detail(parameterName)}${problem}`,
           };
         }
-        schema = constructed;
       }
       const own = parameterText(parameter);
-      const description = own && CONSTRUCT_KEYWORD in schema ? `${own} ${String(schema["description"])}` : own;
+      const generated = CONSTRUCT_KEYWORD in schema || HANDLE_KEYWORD in schema;
+      const description = own && generated ? `${own} ${String(schema["description"])}` : own;
       properties[parameterName] = description ? { ...schema, description } : schema;
       if (parameterDeclaration.dotDotDotToken) rest = parameterName;
       else params.push(parameterName);
@@ -282,7 +293,10 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       output = returnType.flags & (ts.TypeFlags.Void | ts.TypeFlags.Undefined) ? { type: "null" } : schemaOf(returnType, true);
     } catch (error) {
       if (!(error instanceof NotJson)) throw error;
-      return { name, reason: "output-not-json", detail: error.detail() };
+      // An instance of a class is a handle in the scope of the caller (d40-handles)
+      const handle = handleSchemaOf(returnType, true);
+      if (handle === undefined) return { name, reason: "output-not-json", detail: error.detail() };
+      output = handle;
     }
     // A named type serves inputs and outputs, so a function in it can reach an output as a sub-program
     const programAt = programPath(output);
@@ -357,6 +371,51 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     const { schema, construct } = factoryInput(factory)!;
     const call = `${factory.name}(${construct.params.join(", ")})`;
     return { ...schema, description: `The input of ${factory.name}: the procedure makes the ${typeName} with ${call} before the call.`, [CONSTRUCT_KEYWORD]: construct };
+  }
+
+  /** True when `overlay.constructors` names a factory for the type, without `undefined` and `null`. */
+  function constructorNamed(type: TS.Type): boolean {
+    const members = type.isUnion() ? type.types : [type];
+    const defined = members.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void | ts.TypeFlags.Null)));
+    return defined.length === 1 && overlay.constructors?.[checker.typeToString(defined[0]!)] !== undefined;
+  }
+
+  /**
+   * The schema of a handle (d40-handles): the type is one instance of a class that is not a global
+   * type. The result is undefined for another type. An optional parameter has `T | undefined`.
+   * A member `null`, or `undefined` in an output, gives `anyOf` with `{ "type": "null" }`.
+   */
+  function handleSchemaOf(type: TS.Type, output: boolean): ExportsJsonSchema | undefined {
+    const members = type.isUnion() ? type.types : [type];
+    const empty = (member: TS.Type): boolean => (member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void | ts.TypeFlags.Null)) !== 0;
+    const defined = members.filter((member) => !empty(member));
+    if (defined.length !== 1) return undefined;
+    const made = defined[0]!;
+    const symbol = made.getSymbol();
+    if (!symbol || !(symbol.flags & ts.SymbolFlags.Class) || isGlobal(symbol)) return undefined;
+    // The type of the class itself (typeof C) has a construct signature: it is a function, not an instance
+    if (made.getConstructSignatures().length > 0 || made.getCallSignatures().length > 0) return undefined;
+    const schema = handleSchema(handleKind(symbol));
+    const hasNull = members.some((member) => member.flags & ts.TypeFlags.Null);
+    const hasUndefined = members.some((member) => member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void));
+    return hasNull || (output && hasUndefined) ? { anyOf: [schema, { type: "null" }] } : schema;
+  }
+
+  /**
+   * The kind of the handle of a class: its module and its name, for example `node:sqlite#DatabaseSync`.
+   * The module is the name of an ambient module, the package of a file in `node_modules`, or the
+   * package of the manifest. So two packages that use the same class agree on its kind.
+   */
+  function handleKind(symbol: TS.Symbol): string {
+    const declaration = symbol.declarations?.[0];
+    for (let node: TS.Node | undefined = declaration; node !== undefined; node = node.parent) {
+      if (ts.isModuleDeclaration(node) && ts.isStringLiteral(node.name)) return `${node.name.text}#${symbol.name}`;
+    }
+    const file = declaration?.getSourceFile().fileName.split("\\").join("/") ?? "";
+    const at = file.lastIndexOf("/node_modules/");
+    if (at < 0) return `${options.package}#${symbol.name}`;
+    const [first = "", second = ""] = file.slice(at + "/node_modules/".length).split("/");
+    return `${first.startsWith("@") ? `${first}/${second}` : first}#${symbol.name}`;
   }
 
   /**

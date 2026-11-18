@@ -7,7 +7,18 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { Client, ProcedureRegistry, registerModules, type ProcedureContext } from "@procedures/client/browser";
+import {
+  Client,
+  HandleScope,
+  ProcedureRegistry,
+  handleModule,
+  handleSchema,
+  invokeProcedure,
+  isHandleRef,
+  registerModules,
+  type HandleRef,
+  type ProcedureContext,
+} from "@procedures/client/browser";
 import { generateExportsManifest } from "./generate.js";
 import { exportInputSchema, exportOutputSchema, exportsModule, jsonValue } from "./exports/load.js";
 import { codecDecoder } from "./exports/codecs.js";
@@ -46,18 +57,19 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "anything", "apply", "big", "chain", "choose", "deal", "definite", "depth", "distinct", "drain", "draw", "exactly", "findIndex", "first",
-      "flip", "greet", "identity", "keys", "kindOf", "known", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair", "pick", "present", "read", "rolls",
-      "scale", "sideOf", "sizeOf", "sizes", "sortBy", "stamp", "step", "strict", "sumOf", "tally", "toggle", "total", "useHandler", "weight",
+      "above", "add", "anything", "apply", "big", "bump", "chain", "choose", "countOf", "counter", "deal", "definite", "depth", "distinct", "drain", "draw",
+      "exactly", "findIndex", "first", "flip", "greet", "identity", "keys", "kindOf", "known", "lookup", "maybeCounter", "maybeRoll", "minus", "norm",
+      "nothing", "pair", "pick", "present", "read", "rolls", "scale", "sideOf", "sizeOf", "sizes", "sortBy", "stamp", "step", "strict", "sumOf", "tally",
+      "toggle", "total", "useHandler", "weight",
     ]);
   });
 
   it("gives each other function an exemption with its reason", () => {
     expect(manifest.exempt.map(({ name, reason }) => [name, reason])).toEqual([
       ["bag", "output-not-json"],
+      ["boxed", "output-not-json"],
       ["broken", "input-not-json"],
       ["coin", "output-not-json"],
-      ["counter", "output-not-json"],
       ["curried", "function-parameter"],
       ["deck", "output-not-json"],
       ["die", "input-not-json"],
@@ -563,5 +575,83 @@ describe("codecs", () => {
     const defs = { Chain: { type: "object", properties: { at: bigint, next: { $ref: "#/$defs/Chain" } } } };
     const chain = codecDecoder({ $ref: "#/$defs/Chain" }, defs)!;
     expect(chain({ at: "1", next: { at: "2" } })).toEqual({ at: 1n, next: { at: 2n } });
+  });
+});
+
+describe("handles (d40-handles)", () => {
+  const COUNTER = "fixture#Counter";
+  const procedureOf = (name: string) => manifest.procedures.find((procedure) => procedure.name === name)!;
+  const run = async (functions: Readonly<Record<string, unknown>>, name: string, input: unknown, handles?: HandleScope): Promise<unknown> => {
+    const procedure = exportsModule(manifest, functions).procedures.find((entry) => entry.path[1] === name)!;
+    const result = await invokeProcedure(procedure, input, handles ? { handles } : {});
+    return (result as { value: unknown }).value;
+  };
+
+  it("gives a class instance at the top of a parameter or of the output the schema of a handle, and the effects on the scope", () => {
+    expect(procedureOf("counter")).toMatchObject({ output: handleSchema(COUNTER), effects: { reads: [], writes: ["handles"] } });
+    expect(procedureOf("countOf").input).toMatchObject({
+      properties: { counter: { ...handleSchema(COUNTER), description: `The counter. ${String(handleSchema(COUNTER)["description"])}` } },
+      required: ["counter"],
+    });
+    expect(procedureOf("countOf").effects).toEqual({ reads: ["handles"], writes: [] });
+    expect(procedureOf("bump")).toMatchObject({ output: { type: "null" }, effects: { reads: ["handles"], writes: [] } });
+    expect(procedureOf("maybeCounter").output).toEqual({ anyOf: [handleSchema(COUNTER), { type: "null" }] });
+    // A class instance below the top of a value stays an exemption, and the class stays in the count of the classes
+    expect(manifest.exempt.find((exemption) => exemption.name === "boxed")?.detail).toContain("an instance of the class Counter");
+    expect(manifest.others.classes).toEqual(["Counter"]);
+  });
+
+  it("keeps the object of an output in the scope of the caller, and gives the object of a handle input to the function", async () => {
+    expect(exportsModule(manifest, fixture).requires?.map((module) => module.name)).toEqual([handleModule.name]);
+    const scope = new HandleScope();
+    const ref = (await run(fixture, "counter", {}, scope)) as HandleRef;
+    expect(isHandleRef(ref)).toBe(true);
+    expect(scope.list()).toMatchObject([{ handle: ref.handle, kind: COUNTER }]);
+    expect(await run(fixture, "bump", { counter: ref, by: 2 }, scope)).toBeNull();
+    expect(await run(fixture, "bump", { counter: ref, by: 3 }, scope)).toBeNull();
+    expect(await run(fixture, "countOf", { counter: ref }, scope)).toBe(5);
+    expect(scope.get<fixture.Counter>(ref, COUNTER).count).toBe(5);
+  });
+
+  it("gives null and opens nothing for an absent object", async () => {
+    const scope = new HandleScope();
+    expect(await run(fixture, "maybeCounter", { make: false }, scope)).toBeNull();
+    expect(scope.size).toBe(0);
+    expect(isHandleRef(await run(fixture, "maybeCounter", { make: true }, scope))).toBe(true);
+  });
+
+  it("refuses a call with no scope before the function makes an object", async () => {
+    let made = 0;
+    const counting = { ...fixture, counter: () => (made++, new fixture.Counter()) };
+    await expect(run(counting, "counter", {})).rejects.toMatchObject({ code: "NOT_ACCEPTABLE" });
+    await expect(run(fixture, "countOf", { counter: { handle: "h_0" } })).rejects.toMatchObject({ code: "NOT_ACCEPTABLE" });
+    expect(made).toBe(0);
+  });
+
+  it("refuses a handle of another kind, and closes an object that a full scope refuses", async () => {
+    const scope = new HandleScope({ maxHandles: 1 });
+    const other = scope.open("other#Thing", {});
+    await expect(run(fixture, "countOf", { counter: other }, scope)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    let closed = 0;
+    const closable = { ...fixture, counter: () => Object.assign(new fixture.Counter(), { close: () => void (closed += 1) }) };
+    await expect(run(closable, "counter", {}, scope)).rejects.toMatchObject({ code: "RATE_LIMITED" });
+    expect(closed).toBe(1);
+  });
+
+  it("gives a class a constructed input only when overlay.constructors names its factory", () => {
+    const named = generateExportsManifest({
+      declarations: join(fixtureDir, "fixture.d.ts"),
+      package: "fixture",
+      namespace: ["fixture"],
+      overlay: { effects: PURE, constructors: { Counter: "counter" } },
+    });
+    const countOf = named.procedures.find((procedure) => procedure.name === "countOf")!;
+    expect(countOf.input).toMatchObject({ properties: { counter: { [CONSTRUCT_KEYWORD]: { function: "counter", params: [] } } } });
+    expect(countOf.effects).toEqual(PURE);
+  }, GENERATE_TIMEOUT);
+
+  it("gives a module with no handle no required module", () => {
+    const pure = { ...manifest, procedures: manifest.procedures.filter((procedure) => procedure.name === "add") };
+    expect(exportsModule(pure, fixture).requires).toEqual([]);
   });
 });

@@ -127,6 +127,22 @@ export function counter(): Counter {
   return new Counter();
 }
 
+export function countOf(counter: Counter): number {
+  return counter.count;
+}
+
+export function bump(counter: Counter, by: number): void {
+  counter.add(by);
+}
+
+export function maybeCounter(make: boolean): Counter | undefined {
+  return make ? new Counter() : undefined;
+}
+
+export function boxed(): { readonly counter: Counter } {
+  return { counter: new Counter() };
+}
+
 export function parse(text: string, radix = 10): number {
   return Number.parseInt(text, radix);
 }

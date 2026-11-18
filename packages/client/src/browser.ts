@@ -536,7 +536,7 @@ export type {
 } from "./procedures/elicit.js";
 export type { ProgressUpdate, ReportProgress } from "./procedures/progress.js";
 // The objects with a state of a caller: handles with an owner and an end (d40-handles)
-export { HandleScope, HandleError, HANDLE_KEYWORD, DEFAULT_MAX_HANDLES, handleSchema, isHandleRef, handleScopeOf } from "./procedures/handles.js";
+export { HandleScope, HandleError, HANDLE_KEYWORD, DEFAULT_MAX_HANDLES, handleSchema, isHandleRef, handleScopeOf, closeValue } from "./procedures/handles.js";
 export type { HandleRef, HandleInfo, HandleOpenOptions, HandleScopeOptions, HandleCloseFailure, HandleEndReport } from "./procedures/handles.js";
 export { handleModule, handleListProcedure, handleCloseProcedure } from "./procedures/handle-procedures.js";
 export type { HandleListInput, HandleListOutput, HandleCloseInput } from "./procedures/handle-procedures.js";

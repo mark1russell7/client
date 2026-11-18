@@ -7,7 +7,7 @@ import * as z from "zod";
 import { createRegistry } from "./module.js";
 import { describeRegistry } from "./manifest.js";
 import { forwardedModule } from "./forward.js";
-import { HandleError, HandleScope, HANDLE_KEYWORD, handleSchema, isHandleRef, type HandleRef } from "./handles.js";
+import { HandleError, HandleScope, HANDLE_KEYWORD, closeValue, handleSchema, isHandleRef, type HandleRef } from "./handles.js";
 import { handleModule } from "./handle-procedures.js";
 import { handleScopeOf } from "./handles.js";
 import type { AnyProcedure, ProcedureContext, ProcedureModule } from "./types.js";
@@ -86,6 +86,15 @@ describe("HandleScope", () => {
     for (const ref of refs) expect(await scope.close(ref)).toBe(true);
     expect(calls).toEqual(["asyncDispose", "dispose", "plain", "custom close"]);
     expect(custom.closed).toBe(0);
+  });
+
+  it("closes an object outside a scope with closeValue, in the same order, and ignores a value with no close", async () => {
+    const calls: string[] = [];
+    await closeValue({ [Symbol.dispose]: () => void calls.push("dispose"), close: () => calls.push("close") });
+    await closeValue(new Resource("plain", calls));
+    await closeValue(7);
+    await closeValue(null);
+    expect(calls).toEqual(["dispose", "plain"]);
   });
 
   it("removes a handle whose close fails, and throws the error of the close", async () => {

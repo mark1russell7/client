@@ -1,5 +1,5 @@
 /**
- * Handles: the objects with a state of a caller (d40-handles, kind 5 of direction 40).
+ * This file has the handles: the objects with a state of a caller (d40-handles, kind 5 of direction 40).
  *
  * A SQLite database, a service, a stream or a page of a browser is not JSON. A procedure that opens
  * such an object keeps it in the handle scope of its caller, and gives a handle: `{ "handle": "<id>" }`.
@@ -290,6 +290,15 @@ export class HandleScope {
         .catch(() => undefined);
     }
   }
+}
+
+/**
+ * This function closes an object as a scope closes it: with `Symbol.asyncDispose`, `Symbol.dispose`
+ * or a `close()` method. It does nothing for a value that has none of them. A caller uses it when
+ * `open` refuses an object, because then the caller still owns the object.
+ */
+export async function closeValue(value: unknown): Promise<void> {
+  await defaultClose(value)?.();
 }
 
 /**
