@@ -72,7 +72,7 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.8.3",
+    "@mark1russell7/service": "^0.10.0",
     "@procedures/client": "workspace:*",
     "@procedures/peer": "workspace:*",
     "@procedures/shell": "workspace:*",
