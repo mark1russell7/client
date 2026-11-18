@@ -233,7 +233,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     ...(options.version !== undefined ? { version: options.version } : {}),
     entry: options.entry ?? ".",
     namespace: [...options.namespace],
-    $defs: Object.fromEntries([...defs.entries()].sort(([a], [b]) => compare(a, b))),
+    $defs: Object.fromEntries(reachedDefinitions(defs, procedures).sort(([a], [b]) => compare(a, b))),
     procedures,
     exempt,
     others: { classes, values, types },
@@ -407,6 +407,36 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     const accepted = [...handleClasses].filter(([instance]) => checker.isTypeAssignableTo(instance, made)).map(([, kind]) => kind);
     const kinds = [...new Set(accepted)].sort(compare);
     return kinds.length === 0 ? undefined : nullable(type, handleSchema(kinds), false);
+  }
+
+  /**
+   * This function gives the members of a union in a canonical sequence. TypeScript keeps the members
+   * in the sequence of its type ids. An id comes from the sequence in which the checker made the
+   * types. Thus a change in a different part of the generator can change the sequence. The sequence
+   * is important. The decoder of the codecs takes the first member that accepts a value. The names
+   * of the definitions come in the sequence of the walk.
+   *
+   * The primitive types come first, in the sequence of `PRIMITIVES`. The number literals and the
+   * bigint literals follow by value. Then come the string literals by code unit. The other types
+   * come last, by the code units of their text. Members with the same key keep their sequence.
+   */
+  function canonicalMembers(members: readonly TS.Type[]): TS.Type[] {
+    const keyed = members.map((member, index) => ({ member, index, ...memberKey(member) }));
+    keyed.sort((a, b) => a.rank - b.rank || compareKeys(a.key, b.key) || a.index - b.index);
+    return keyed.map(({ member }) => member);
+  }
+
+  /** The rank and the key of a member of a union, for `canonicalMembers`. */
+  function memberKey(member: TS.Type): { rank: number; key: number | bigint | string } {
+    const primitive = PRIMITIVES.findIndex((flag) => member.flags & flag);
+    if (primitive >= 0) return { rank: 0, key: primitive };
+    if (member.isNumberLiteral()) return { rank: 1, key: member.value };
+    if (member.flags & ts.TypeFlags.BigIntLiteral) {
+      const { negative, base10Value } = (member as TS.BigIntLiteralType).value;
+      return { rank: 2, key: BigInt(`${negative ? "-" : ""}${base10Value}`) };
+    }
+    if (member.isStringLiteral()) return { rank: 3, key: member.value };
+    return { rank: 4, key: checker.typeToString(member, undefined, ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType) };
   }
 
   /** The schema, or `anyOf` with `{ "type": "null" }` for a member `null`, or `undefined` in an output. */
@@ -596,7 +626,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     members = defined;
     // `boolean` is the union `true | false`
     const booleans = members.filter((member) => member.flags & ts.TypeFlags.BooleanLiteral);
-    const others = members.filter((member) => !(member.flags & ts.TypeFlags.BooleanLiteral));
+    const others = canonicalMembers(members.filter((member) => !(member.flags & ts.TypeFlags.BooleanLiteral)));
     const schemas: ExportsJsonSchema[] = booleans.length === 2 ? [{ type: "boolean" }] : booleans.map((member) => schemaOf(member, output));
     for (const member of others) schemas.push(schemaOf(member, output));
     if (hasUndefined && output) schemas.push({ type: "null" });
@@ -876,6 +906,58 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 function firstParagraph(comment: string): string {
   const [first = ""] = comment.split(/\n\s*\n/);
   return first.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * This function gives the definitions that the procedures reach through `$ref`, also through other
+ * definitions. A function whose schema failed is exempt, but the definitions made inside its schema
+ * stay in the map. Thus a definition that no procedure reaches is not in the manifest.
+ */
+function reachedDefinitions(defs: ReadonlyMap<string, ExportsJsonSchema>, procedures: readonly unknown[]): Array<[string, ExportsJsonSchema]> {
+  const reached = new Set<string>();
+  const visit = (node: unknown): void => {
+    if (node === null || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item);
+      return;
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (key !== "$ref" || typeof value !== "string" || !value.startsWith("#/$defs/")) {
+        visit(value);
+        continue;
+      }
+      const name = value.slice("#/$defs/".length);
+      if (reached.has(name)) continue;
+      reached.add(name);
+      visit(defs.get(name));
+    }
+  };
+  visit(procedures);
+  return [...defs].filter(([name]) => reached.has(name));
+}
+
+/**
+ * The primitive types of a union, in the sequence in which the TypeScript checker makes them.
+ * Thus `string` comes before `bigint`, as before the canonical sequence of `canonicalMembers`.
+ */
+const PRIMITIVES: readonly TS.TypeFlags[] = [
+  ts.TypeFlags.Any,
+  ts.TypeFlags.Unknown,
+  ts.TypeFlags.Undefined,
+  ts.TypeFlags.Null,
+  ts.TypeFlags.String,
+  ts.TypeFlags.Number,
+  ts.TypeFlags.BigInt,
+  ts.TypeFlags.Boolean,
+  ts.TypeFlags.ESSymbol,
+  ts.TypeFlags.Void,
+  ts.TypeFlags.Never,
+  ts.TypeFlags.NonPrimitive,
+];
+
+/** A comparison of two keys of the same rank: numbers and bigints by value, strings by code unit. */
+function compareKeys(a: number | bigint | string, b: number | bigint | string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** A comparison of two names by code unit, the same on each platform. */

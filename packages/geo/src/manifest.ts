@@ -151,16 +151,7 @@ export const manifest: ExportsManifest = {
               "type": "null"
             },
             {
-              "$ref": "#/$defs/Polygon"
-            },
-            {
-              "$ref": "#/$defs/MultiPolygon"
-            },
-            {
-              "$ref": "#/$defs/Point"
-            },
-            {
-              "$ref": "#/$defs/MultiPoint"
+              "$ref": "#/$defs/GeometryCollection"
             },
             {
               "$ref": "#/$defs/LineString"
@@ -169,7 +160,16 @@ export const manifest: ExportsManifest = {
               "$ref": "#/$defs/MultiLineString"
             },
             {
-              "$ref": "#/$defs/GeometryCollection"
+              "$ref": "#/$defs/MultiPoint"
+            },
+            {
+              "$ref": "#/$defs/MultiPolygon"
+            },
+            {
+              "$ref": "#/$defs/Point"
+            },
+            {
+              "$ref": "#/$defs/Polygon"
             }
           ]
         },
@@ -254,16 +254,7 @@ export const manifest: ExportsManifest = {
               "type": "null"
             },
             {
-              "$ref": "#/$defs/Polygon"
-            },
-            {
-              "$ref": "#/$defs/MultiPolygon"
-            },
-            {
-              "$ref": "#/$defs/Point"
-            },
-            {
-              "$ref": "#/$defs/MultiPoint"
+              "$ref": "#/$defs/GeometryCollection"
             },
             {
               "$ref": "#/$defs/LineString"
@@ -272,7 +263,16 @@ export const manifest: ExportsManifest = {
               "$ref": "#/$defs/MultiLineString"
             },
             {
-              "$ref": "#/$defs/GeometryCollection"
+              "$ref": "#/$defs/MultiPoint"
+            },
+            {
+              "$ref": "#/$defs/MultiPolygon"
+            },
+            {
+              "$ref": "#/$defs/Point"
+            },
+            {
+              "$ref": "#/$defs/Polygon"
             }
           ]
         },
@@ -348,16 +348,13 @@ export const manifest: ExportsManifest = {
     "GeoJson": {
       "anyOf": [
         {
-          "$ref": "#/$defs/Polygon"
+          "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
         },
         {
-          "$ref": "#/$defs/MultiPolygon"
+          "$ref": "#/$defs/FeatureCollection_Feature_Geometry_null_GeoJsonProperties"
         },
         {
-          "$ref": "#/$defs/Point"
-        },
-        {
-          "$ref": "#/$defs/MultiPoint"
+          "$ref": "#/$defs/GeometryCollection"
         },
         {
           "$ref": "#/$defs/LineString"
@@ -366,13 +363,16 @@ export const manifest: ExportsManifest = {
           "$ref": "#/$defs/MultiLineString"
         },
         {
-          "$ref": "#/$defs/GeometryCollection"
+          "$ref": "#/$defs/MultiPoint"
         },
         {
-          "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
+          "$ref": "#/$defs/MultiPolygon"
         },
         {
-          "$ref": "#/$defs/FeatureCollection_Feature_Geometry_null_GeoJsonProperties"
+          "$ref": "#/$defs/Point"
+        },
+        {
+          "$ref": "#/$defs/Polygon"
         }
       ]
     },
@@ -504,14 +504,14 @@ export const manifest: ExportsManifest = {
     },
     "GeohashDirection": {
       "enum": [
+        "e",
         "n",
         "ne",
-        "e",
-        "se",
+        "nw",
         "s",
+        "se",
         "sw",
-        "w",
-        "nw"
+        "w"
       ]
     },
     "GeohashNeighbors": {
@@ -546,16 +546,7 @@ export const manifest: ExportsManifest = {
     "Geometry": {
       "anyOf": [
         {
-          "$ref": "#/$defs/Polygon"
-        },
-        {
-          "$ref": "#/$defs/MultiPolygon"
-        },
-        {
-          "$ref": "#/$defs/Point"
-        },
-        {
-          "$ref": "#/$defs/MultiPoint"
+          "$ref": "#/$defs/GeometryCollection"
         },
         {
           "$ref": "#/$defs/LineString"
@@ -564,7 +555,16 @@ export const manifest: ExportsManifest = {
           "$ref": "#/$defs/MultiLineString"
         },
         {
-          "$ref": "#/$defs/GeometryCollection"
+          "$ref": "#/$defs/MultiPoint"
+        },
+        {
+          "$ref": "#/$defs/MultiPolygon"
+        },
+        {
+          "$ref": "#/$defs/Point"
+        },
+        {
+          "$ref": "#/$defs/Polygon"
         }
       ]
     },
@@ -977,21 +977,6 @@ export const manifest: ExportsManifest = {
         "coordinates"
       ]
     },
-    "Ok_GeoJson": {
-      "type": "object",
-      "properties": {
-        "tag": {
-          "const": "ok"
-        },
-        "value": {
-          "$ref": "#/$defs/GeoJson"
-        }
-      },
-      "required": [
-        "tag",
-        "value"
-      ]
-    },
     "Point": {
       "type": "object",
       "properties": {
@@ -1070,8 +1055,8 @@ export const manifest: ExportsManifest = {
     },
     "PointLocation": {
       "enum": [
-        "inside",
         "boundary",
+        "inside",
         "outside"
       ]
     },
@@ -1160,17 +1145,17 @@ export const manifest: ExportsManifest = {
     "Region": {
       "anyOf": [
         {
-          "$ref": "#/$defs/Polygon"
+          "$ref": "#/$defs/MultiPolygon"
         },
         {
-          "$ref": "#/$defs/MultiPolygon"
+          "$ref": "#/$defs/Polygon"
         }
       ]
     },
     "RingWinding": {
       "enum": [
-        "counterclockwise",
         "clockwise",
+        "counterclockwise",
         "degenerate"
       ]
     },
@@ -1413,10 +1398,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           },
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           }
         ]
       },
@@ -1466,10 +1451,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           },
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           }
         ]
       },
@@ -1553,10 +1538,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           },
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           }
         ]
       },
@@ -1605,10 +1590,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           },
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           }
         ]
       },
@@ -2036,10 +2021,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               },
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               }
             ]
           }
@@ -2492,10 +2477,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               },
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               }
             ]
           }
@@ -2561,10 +2546,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               },
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               }
             ]
           },
@@ -2603,20 +2588,20 @@ export const manifest: ExportsManifest = {
           "a": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               },
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               }
             ]
           },
           "b": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               },
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               }
             ]
           }
@@ -2651,10 +2636,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               },
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               }
             ]
           }
@@ -2667,10 +2652,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           },
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           }
         ]
       },
