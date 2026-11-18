@@ -52,7 +52,7 @@ client, with round-trip tests; raw HttpServerTransport host now defaults to 127.
   cue at the loader).
 - **WS transport rewrite H5/H6** (Phase 1.4) — per-request queue + intentional-close flag; needs a WS
   round-trip harness. (HTTP C3 is now done.)
-- **`engines >=20` fleet-wide via cue** (Phase 4.3) — `cue-config generate` clobbers custom `exports`
+- **`engines >=20` in all packages via cue** (Phase 4.3) — `cue-config generate` clobbers custom `exports`
   (H33), so running it across 48 packages needs H33 fixed first.
 - **H15 `sideEffects`** — deferred to a deliberate per-package pass (see DECISIONS).
 
@@ -66,7 +66,7 @@ The ecosystem's problem is not lack of ambition — it's **too many half-finishe
 
 ## Phase 0 — Stop the bleeding (P0, ~1 week)
 
-The smallest set of changes that ends active data loss, closes the exposed surface, and makes the fleet build again. Do these first, in this order.
+The smallest set of changes that ends active data loss, closes the exposed surface, and makes all packages build again. Do these first, in this order.
 
 1. **Land or revert the stranded `zodAdapter`/`outputSchema` refactor** (H20, and AUDIT §4.3). **L.**
    ~22 repos have uncommitted trees; ~20 have `dist/` older than `src/`. For each: rebuild (`tsc -b`), verify `tsc --noEmit` passes against the *installed* core, commit `src` + `dist` together, push. Fixes H20/H21 and the `client-logger`/`client-splay`/`client-connection`/`client-server-mongo` build breaks in one sweep. Include the genuine WIP: `client-server`'s new `server.call`/`server.connections` procedures and `cli`'s lockfile/server-mode changes. Decide the fate of `mock-client`/`mock-logger` (their `dist/` deletions are uncommitted) — see Phase 2.
@@ -108,7 +108,7 @@ The `client` package is the foundation; these bugs make its advertised compositi
    `middleware-override.ts`, `consumption.ts`/`sponge.ts` (threading `outputConfig` through would also give generator handlers an execution path, fixing H9), `validation/schemas/`, and the wildcard `collections.*` procedures. For each: wire it end-to-end with a test, or delete it. Deletion is a legitimate and often better answer.
 
 7. **Packaging hygiene** (H15, H16, L1). **S.**
-   Drop `sideEffects:false` (or set `["./dist/register.js"]`) fleet-wide; add the `./middleware`/`./server` export subpaths; export `WebSocketState` as a value.
+   Drop `sideEffects:false` (or set `["./dist/register.js"]`) in all packages; add the `./middleware`/`./server` export subpaths; export `WebSocketState` as a value.
 
 ---
 
@@ -153,7 +153,7 @@ The existing docs mislead; several teach commands that error. Prefer generation 
 
 1. **Generate `PROCEDURES.md` from the registry.** **M.** It's the wrongest doc (phantom `fs.*`/`git.*`/`pnpm.*`/`docker.*`/`s3.*`/`dag.*` procedures; ~150 real procedures omitted, including the entire `client.*` combinator family). The registry is introspectable (`PROCEDURE_REGISTRY.list()`, `ecosystem.procedures`, `mark --help`) — a doc-gen script ends this drift class permanently.
 2. **Correct the load-bearing errors by hand:** the bundle-dev "includes everything" claim (README, ARCHITECTURE, PACKAGES); the `procedure new` signature (ONBOARDING, PACKAGES); `CLAUDE.md`'s `client-dev`→`bundle-dev`. **S.**
-3. **Reconcile the Node engine policy** (>=20 vs >=25 vs unset across the fleet) and apply it via `cue` to all 48 `engines` fields; add a `packageManager` field; update README badges. **S.**
+3. **Reconcile the Node engine policy** (>=20 vs >=25 vs unset across the packages) and apply it via `cue` to all 48 `engines` fields; add a `packageManager` field; update README badges. **S.**
 4. **Refresh `PACKAGES.md`** (add the 10 missing packages, fix counts, 47→48) and mark `SYSTEM_ARCHITECTURE.md` as a dated snapshot or update its Appendix A (+11 packages, the entire MCP layer) and Appendix E (presets). **S.**
 5. **Adopt this audit's `AUDIT-2026-07.md` reality map** as the architecture reference until `ARCHITECTURE.md` is corrected. **—**
 

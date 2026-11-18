@@ -41,20 +41,37 @@ export function startChunks(chunks: readonly ChunkNode[]): string[] {
   return [...start].sort();
 }
 
-/** This function gives each module of a start chunk that matches a lazy pattern. A module id can have Windows separators. */
+/** This function gives the path of a module id with no query and with forward slashes. A module id can have Windows separators. */
+function modulePath(id: string): string {
+  return id.split("?")[0]!.split("\\").join("/");
+}
+
+/** This function gives each module of a start chunk that matches a lazy pattern. */
 export function eagerModules(chunks: readonly ChunkNode[], patterns: readonly RegExp[] = LAZY_MODULES): EagerModule[] {
   const byName = new Map(chunks.map((chunk) => [chunk.fileName, chunk]));
   const found: EagerModule[] = [];
   for (const name of startChunks(chunks)) {
     for (const id of byName.get(name)?.modules ?? []) {
-      const module = id.split("?")[0]!.split("\\").join("/");
+      const module = modulePath(id);
       if (patterns.some((pattern) => pattern.test(module))) found.push({ chunk: name, module });
     }
   }
   return found;
 }
 
-/** This function gives the Vite plugin that stops the build when a start chunk holds a lazy module. */
+/**
+ * This function gives each lazy pattern that matches no module of any chunk. The check cannot read
+ * such a pattern: a renamed or moved module then goes into a start chunk, and the check finds nothing.
+ */
+export function unmatchedPatterns(chunks: readonly ChunkNode[], patterns: readonly RegExp[] = LAZY_MODULES): RegExp[] {
+  const modules = chunks.flatMap((chunk) => chunk.modules.map(modulePath));
+  return patterns.filter((pattern) => !modules.some((module) => pattern.test(module)));
+}
+
+/**
+ * This function gives the Vite plugin that stops the build when a start chunk holds a lazy module.
+ * The plugin also stops the build when a lazy pattern matches no module, because the check then reads nothing.
+ */
 export function startChunksPlugin(): Plugin {
   return {
     name: "site:start-chunks",
@@ -63,6 +80,16 @@ export function startChunksPlugin(): Plugin {
       const chunks = Object.values(bundle).flatMap((chunk) =>
         chunk.type === "chunk" ? [{ fileName: chunk.fileName, isEntry: chunk.isEntry, imports: chunk.imports, modules: Object.keys(chunk.modules) }] : [],
       );
+      const unmatched = unmatchedPatterns(chunks);
+      if (unmatched.length > 0) {
+        this.error(
+          [
+            "The check of the start chunks found no module for these patterns of LAZY_MODULES:",
+            ...unmatched.map((pattern) => `  ${pattern.source}`),
+            "Update LAZY_MODULES in src/build-time/start-chunks-plugin.ts to the new path of each generated module.",
+          ].join("\n"),
+        );
+      }
       const found = eagerModules(chunks);
       if (found.length === 0) return;
       this.error(

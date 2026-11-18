@@ -22,7 +22,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 
 ## The Status page
 
-- `@mark1russell7/site-pages` makes the data of the board at build time. The site template uses the same package, so each site has this page (fleet issue #1).
+- `@mark1russell7/site-pages` makes the data of the board at build time. The site template uses the same package, so each site has this page.
 - The open work comes from `packages/documentation/ROADMAP-2026-10.md`. Each row of a table with an `ID` column and a `Status` column is one item.
 - The words of a status give its class: done, in progress, waiting, blocked, later or open. The page also shows the text of the status.
 - The open pull requests and issues come from the GitHub GraphQL API in one request. The build gives the token in `GITHUB_TOKEN`.

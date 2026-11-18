@@ -62,6 +62,7 @@
   },
   "dependencies": {
     "@mark1russell7/service": "^0.10.0",
+    "@mark1russell7/text": "^0.0.13",
     "@procedures/bundle-mcp": "workspace:*",
     "@procedures/client": "workspace:*",
     "@procedures/compiler": "workspace:*",
