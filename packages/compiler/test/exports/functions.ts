@@ -143,6 +143,19 @@ export function boxed(): { readonly counter: Counter } {
   return { counter: new Counter() };
 }
 
+export interface Countable {
+  readonly count: number;
+  add(value: number): void;
+}
+
+export function reset(countable: Countable): void {
+  countable.add(-countable.count);
+}
+
+export function peek<C extends Countable>(countable: C): number {
+  return countable.count;
+}
+
 export function parse(text: string, radix = 10): number {
   return Number.parseInt(text, radix);
 }

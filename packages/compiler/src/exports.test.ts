@@ -59,8 +59,8 @@ describe("generateExportsManifest", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
       "above", "add", "anything", "apply", "big", "bump", "chain", "choose", "countOf", "counter", "deal", "definite", "depth", "distinct", "drain", "draw",
       "exactly", "findIndex", "first", "flip", "greet", "identity", "keys", "kindOf", "known", "lookup", "maybeCounter", "maybeRoll", "minus", "norm",
-      "nothing", "pair", "pick", "present", "read", "rolls", "scale", "sideOf", "sizeOf", "sizes", "sortBy", "stamp", "step", "strict", "sumOf", "tally",
-      "toggle", "total", "useHandler", "weight",
+      "nothing", "pair", "peek", "pick", "present", "read", "reset", "rolls", "scale", "sideOf", "sizeOf", "sizes", "sortBy", "stamp", "step", "strict",
+      "sumOf", "tally", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
@@ -99,7 +99,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 17 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 18 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -636,6 +636,32 @@ describe("handles (d40-handles)", () => {
     const closable = { ...fixture, counter: () => Object.assign(new fixture.Counter(), { close: () => void (closed += 1) }) };
     await expect(run(closable, "counter", {}, scope)).rejects.toMatchObject({ code: "RATE_LIMITED" });
     expect(closed).toBe(1);
+  });
+
+  it("gives an input of an interface, or of a type parameter of one, the handles of each class of the package that it accepts", async () => {
+    expect(procedureOf("reset")).toMatchObject({ input: { properties: { countable: handleSchema(COUNTER) } }, effects: { reads: ["handles"], writes: [] } });
+    expect(procedureOf("peek")).toMatchObject({ input: { properties: { countable: handleSchema(COUNTER) } }, generics: ["C"] });
+    // An interface that no class of the package accepts stays an exemption
+    for (const name of ["measure", "opens"]) expect(manifest.exempt.find((exemption) => exemption.name === name)?.reason).toBe("input-not-json");
+    const scope = new HandleScope();
+    const ref = (await run(fixture, "counter", {}, scope)) as HandleRef;
+    await run(fixture, "bump", { counter: ref, by: 4 }, scope);
+    expect(await run(fixture, "peek", { countable: ref }, scope)).toBe(4);
+    expect(await run(fixture, "reset", { countable: ref }, scope)).toBeNull();
+    expect(await run(fixture, "countOf", { counter: ref }, scope)).toBe(0);
+  });
+
+  it("takes a handle of each kind of a list, and refuses an output with more than one kind", async () => {
+    const two = { ...handleSchema(["fixture#Counter", "other#Counter"]) };
+    const reset = { ...procedureOf("reset"), input: { ...procedureOf("reset").input, properties: { countable: two } } };
+    const scope = new HandleScope();
+    const other = scope.open("other#Counter", new fixture.Counter());
+    const procedure = exportsModule({ ...manifest, procedures: [reset] }, fixture).procedures[0]!;
+    expect((await invokeProcedure(procedure, { countable: other }, { handles: scope })) as unknown).toMatchObject({ value: null });
+    const page = scope.open("other#Page", {});
+    await expect(invokeProcedure(procedure, { countable: page }, { handles: scope })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    const counter = { ...procedureOf("counter"), output: two };
+    expect(() => exportsModule({ ...manifest, procedures: [counter] }, fixture)).toThrow("an output has one kind");
   });
 
   it("gives a class a constructed input only when overlay.constructors names its factory", () => {
