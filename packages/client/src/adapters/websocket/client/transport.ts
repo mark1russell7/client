@@ -8,7 +8,7 @@
 import { ClientError, type Transport, type Message, type ResponseItem } from "../../../client/types.js";
 import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler, WebSocketClass } from "./types.js";
 import { WebSocketState } from "./types.js";
-import { withoutInternalKeys } from "../../metadata.js";
+import { wireMetadata, withoutInternalKeys } from "../../metadata.js";
 import { IncomingCalls } from "../shared/rpc.js";
 import { checkFrame } from "../shared/frame.js";
 import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
@@ -17,7 +17,7 @@ import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
-import { realClock, type Cancel, type Clock } from "../../../clock.js";
+import { realClock, unrefClock, type Cancel, type Clock } from "../../../clock.js";
 import { heartbeat, type Heartbeat } from "@mark1russell7/service/heartbeat";
 import { backoffDelay } from "@mark1russell7/service/backoff";
 import type { MachineTransition } from "../../../machines.js";
@@ -531,7 +531,8 @@ export class WebSocketTransport implements Transport {
   /**
    * Start the heartbeat of the connection: a ping each interval on the clock, one ping at a time.
    * A ping without a pong at its timeout is a miss. The connection drops after `misses` misses in
-   * sequence. A ping whose send throws is a miss too.
+   * sequence. A ping whose send throws is a miss too. The timers of the heartbeat do not keep a Node
+   * process alive: the socket does.
    */
   private startHeartbeat(): void {
     this.stopHeartbeat();
@@ -539,7 +540,7 @@ export class WebSocketTransport implements Transport {
       interval: this.options.heartbeat.interval,
       timeout: this.options.heartbeat.timeout,
       misses: this.options.heartbeat.misses,
-      clock: this.clock,
+      clock: unrefClock(this.clock),
       due: () => this.state === WebSocketState.CONNECTED && this.ws !== null,
       ping: () => {
         const ping: WebSocketMessage = {
@@ -588,7 +589,8 @@ export class WebSocketTransport implements Transport {
         id: frame.id,
         method: frame.method!,
         payload: frame.payload === undefined ? {} : frame.payload,
-        metadata: withoutInternalKeys(frame.metadata),
+        // A frame of the network sets no credentials, so its key `auth` stays out too (roadmap R18)
+        metadata: wireMetadata(frame.metadata),
         signal,
         credentials: NETWORK_WITHOUT_CREDENTIALS,
       }),
@@ -758,6 +760,8 @@ export class WebSocketTransport implements Transport {
     const window = this.options.streamWindow;
 
     // Create WebSocket message. The internal metadata keys stay in this process (deep dive TRN-11).
+    // The key `auth` still goes in the frame, and the server drops it (roadmap R18). This is
+    // deprecated: a later MINOR stops sending it. The token of a connection goes in its upgrade.
     const wsMessage: WebSocketMessage<TReq> = {
       id: wireId,
       type: "request",

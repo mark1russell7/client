@@ -22,6 +22,7 @@ import {
   ProcedureServer,
   createRegistry,
   registerClientProcedures,
+  registerModules,
   type HostPolicy,
   type ProcedureModule,
   type ProcedureRegistry,
@@ -36,10 +37,14 @@ import {
   type McpHostFaces,
 } from "@procedures/mcp-server";
 import { programCheckInterceptor } from "@procedures/compiler";
+import { errorMessage } from "@mark1russell7/text";
 import { createServer } from "node:http";
+import { isAbsolute, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { ephemeral, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
 import { httpTransport, type HttpKnobs, type HttpTransport } from "@mark1russell7/service/http";
 import { loadConfig, type McpServerConfig } from "./config.js";
+import { loadPeers, type PeerState } from "./peers.js";
 import { ms, seconds } from "@procedures/client";
 
 /** The exports of a bundle's `module` entry: its module and the lists of its tools. */
@@ -63,20 +68,67 @@ export interface LoadedBundles {
   global: boolean;
 }
 
-/** This function loads the module entry of each bundle (it registers nothing). */
+/**
+ * This function tells if an entry of `MCP_BUNDLES` names a module file. A module file is a `file:`
+ * URL, an absolute path, or a path that starts with `./` or `../`. Each other entry names a bundle package.
+ */
+export function isModuleFile(bundle: string): boolean {
+  return bundle.startsWith("file:") || isAbsolute(bundle) || /^\.\.?[\\/]/.test(bundle);
+}
+
+/** This function gives the URL of a module file. A relative path starts from `cwd`. */
+export function moduleFileUrl(bundle: string, cwd: string = process.cwd()): string {
+  return bundle.startsWith("file:") ? bundle : pathToFileURL(resolve(cwd, bundle)).href;
+}
+
+/** The first segment of each path of the own procedures of a module, not of its `requires`. */
+function namespacesOf(module: ProcedureModule): string[] {
+  return [...new Set(module.procedures.map((procedure) => procedure.path[0]).filter((name): name is string => name !== undefined))].sort();
+}
+
+/**
+ * This function loads a module file of `MCP_BUNDLES`: a file outside this package, for example
+ * the module of the tools of another repository. Its default export is the module. Its
+ * `mcpNamespaces` give its tools. Without them, its tools are the namespaces of its own
+ * procedures, so the modules in its `requires` add no tool. A file that does not load stops the
+ * host: the global registry cannot serve a file.
+ */
+export async function loadModuleFile(bundle: string, cwd: string = process.cwd()): Promise<BundleModuleExports & { default: ProcedureModule }> {
+  let exports: BundleModuleExports;
+  try {
+    exports = (await import(moduleFileUrl(bundle, cwd))) as BundleModuleExports;
+  } catch (error) {
+    throw new Error(`MCP_BUNDLES: the module file ${bundle} did not load: ${errorMessage(error)}`, { cause: error });
+  }
+  const module = exports.default;
+  if (typeof module !== "object" || module === null || !Array.isArray(module.procedures)) {
+    throw new Error(`MCP_BUNDLES: the module file ${bundle} has no default export with a list of procedures`);
+  }
+  return { ...exports, default: module, mcpNamespaces: exports.mcpNamespaces ?? namespacesOf(module) };
+}
+
+/** This function loads the module entry of each bundle and each module file (it registers nothing). */
 export async function loadBundles(bundles: readonly string[]): Promise<LoadedBundles> {
   const modules: ProcedureModule[] = [];
   const hostModules: ProcedureModule[] = [];
   const surfaces: BundleSurfaceModule[] = [];
+  const files = bundles.filter(isModuleFile);
   for (const bundle of bundles) {
+    if (isModuleFile(bundle)) {
+      const exports = await loadModuleFile(bundle);
+      modules.push(exports.default);
+      hostModules.push(...(exports.mcpHostModules ?? []));
+      surfaces.push(exports);
+      continue;
+    }
     let exports: BundleModuleExports;
     try {
       // The import resolves from this package, which depends on its bundles
       exports = (await import(`${bundle}/module`)) as BundleModuleExports;
     } catch {
-      return loadBundlesGlobally(bundles);
+      return loadBundlesGlobally(bundles, files);
     }
-    if (!exports.default) return loadBundlesGlobally(bundles);
+    if (!exports.default) return loadBundlesGlobally(bundles, files);
     modules.push(exports.default);
     hostModules.push(...(exports.mcpHostModules ?? []));
     surfaces.push(exports);
@@ -87,7 +139,10 @@ export async function loadBundles(bundles: readonly string[]): Promise<LoadedBun
 }
 
 /** The old way, for a bundle without a module entry: import each `register.js`. */
-async function loadBundlesGlobally(bundles: readonly string[]): Promise<LoadedBundles> {
+async function loadBundlesGlobally(bundles: readonly string[], files: readonly string[]): Promise<LoadedBundles> {
+  if (files.length > 0) {
+    throw new Error(`MCP_BUNDLES: the module file ${files[0]} needs the module entry of each bundle, and a bundle has none`);
+  }
   // The global registry gets the control flow only from this call (ARCHITECTURE-PROPOSALS-2026-10, P9)
   registerClientProcedures();
   const surfaces: BundleSurfaceModule[] = [];
@@ -109,6 +164,8 @@ export interface DevToolsHost {
   refusedUnderRoot?: string[] | undefined;
   /** The MCP host: `mcp.start()` starts its face (stdio, or Streamable HTTP with `config.http`). */
   mcp: McpHost;
+  /** The state of each peer of `config.peers`: its count of forwarded procedures, or its error. */
+  peers: PeerState[];
 }
 
 /**
@@ -126,7 +183,10 @@ function facesOf(config: McpServerConfig): McpHostFaces {
 /** This function builds the host. It starts no transport. */
 export async function createDevToolsHost(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
   const loaded = await loadBundles(config.bundles);
-  const registry = loaded.global ? PROCEDURE_REGISTRY : createRegistry(...loaded.modules);
+  // MCP_PEERS (d40-tool-surface, step 2): a stub for each procedure of each running peer. A path of a
+  // peer that the host already has stops the start, with the error of the registry.
+  const peers = await loadPeers(config.peers ?? []);
+  const registry = loaded.global ? registerModules(PROCEDURE_REGISTRY, peers.modules) : createRegistry(...loaded.modules, ...peers.modules);
   // MCP_FS_ROOT (roadmap R33): each procedure of the registry keeps its paths in the root, also
   // in the nested calls, or the root refuses it. It adds no procedure: the tools stay the same.
   let fsRoot: string | undefined;
@@ -135,8 +195,11 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     const { confineToRoot } = await import("@procedures/fs/module");
     ({ root: fsRoot, refused: refusedUnderRoot } = confineToRoot(registry, config.fsRoot));
   }
-  // Bundles without mcpNamespaces say nothing about their tools: then every procedure is a tool
-  const surface = mergeSurfaces(loaded.surfaces);
+  // Bundles without mcpNamespaces say nothing about their tools: then every procedure is a tool,
+  // also each stub of a peer. Else the namespaces of each peer add to the tools of the bundles.
+  const bundleSurface = mergeSurfaces(loaded.surfaces);
+  const peerSurfaces = peers.modules.map((module) => ({ mcpNamespaces: namespacesOf(module) }));
+  const surface = bundleSurface && peerSurfaces.length > 0 ? mergeSurfaces([...loaded.surfaces, ...peerSurfaces]) : bundleSurface;
   // Read only: the tools are the procedures that the capability permits, so the list shows only
   // what a call can start (CAPABILITIES-2026-10). The check before the run (roadmap R22): a
   // program with an error does not start, so a refusal in step 3 comes before the write of step 1.
@@ -151,6 +214,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     version: config.serverVersion,
     debug: config.debug,
     faces: facesOf(config),
+    ...(config.listing ? { listing: config.listing } : {}),
   });
   return {
     registry,
@@ -158,6 +222,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     policy: mcp.policy,
     server: mcp.server,
     mcp,
+    peers: peers.states,
     ...(fsRoot !== undefined ? { fsRoot, refusedUnderRoot } : {}),
   };
 }
@@ -216,6 +281,11 @@ export async function runDevToolsServer(config: McpServerConfig = loadConfig(), 
   const life = await svc.run(run);
   const face = host.mcp.state().faces[0];
   if (config.debug) console.error(`[mcp-server] Started with ${face?.toolCount ?? 0} tools`);
+  // A peer that did not answer gives no tools: the line tells why, so the gap is not silent
+  for (const peer of host.peers) {
+    if ("error" in peer) console.error(`[mcp-server] The peer ${peer.name} (${peer.source}) gives no tools until the next start: ${peer.error}`);
+    else if (config.debug) console.error(`[mcp-server] The peer ${peer.name} gives ${peer.procedures} procedures`);
+  }
   if (host.fsRoot !== undefined) console.error(`[mcp-server] Each tool refuses a path outside ${host.fsRoot}. Refused under the root: ${String(host.refusedUnderRoot)}`);
   let url: string | undefined;
   const bound = listener?.server.address();

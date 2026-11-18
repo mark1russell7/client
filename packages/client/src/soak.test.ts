@@ -21,6 +21,12 @@
  * Before O99, the gate measured from a cold start: the cost of the first steps counted as growth,
  * and a change that added to that cost turned the gate red with no leak. The record keeps the
  * growth from the cold start (`heapBeforeMb`, `heapAfterMb`).
+ *
+ * The middle (roadmap O99): the loops also stop at the middle of the time after the warm-up, and
+ * the heap is measured at rest (`heapMidMb`). The record gives the growth of each half
+ * (`firstHalfMb`, `secondHalfMb`). A leak that grows with the time gives two halves of the same
+ * size. A state with a bound gives its growth in the first half, and the second half stays near 0.
+ * The gate stays on `leakMb`: the halves of 5 nightly runs decide the next limit.
  */
 
 import { describe, it, expect } from "vitest";
@@ -84,6 +90,10 @@ const LIMITS = {
 const heapOverride = process.env["SOAK_HEAP_MB"] ? Number(process.env["SOAK_HEAP_MB"]) : undefined;
 /** The warm-up is this part of the time of a soak (O99) */
 const WARMUP_SHARE = 0.1;
+/** This function gives the middle of the time from the end of the warm-up to the end (O99). */
+const middleOf = (warmEnd: number, end: number) => warmEnd + (end - warmEnd) / 2;
+/** This function gives the growth of each half from three measures at rest, in megabytes (O99). */
+const halves = (warm: number, middle: number, last: number) => ({ heapMidMb: middle, firstHalfMb: middle - warm, secondHalfMb: last - middle });
 /** The CPU model of the runner, for the record: a limit covers the CPU models of its runs */
 const cpu = cpus()[0]?.model.trim() ?? "unknown";
 const CLIENTS = 4;
@@ -267,6 +277,8 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     };
     await Promise.all(clients.map((_, index) => loop(index, warmEnd)));
     const heapWarm = await rest();
+    await Promise.all(clients.map((_, index) => loop(index, middleOf(warmEnd, end))));
+    const heapMid = await rest();
     await Promise.all(clients.map((_, index) => loop(index, end)));
     const heapEnd = await rest();
 
@@ -284,7 +296,14 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     }).channels;
     const serverMaps = [...channels.values()].map((channel) => channel.incoming.size + channel.incoming.credits.size + channel.outgoing.size);
     // One line that the nightly keeps in its artifact soak-measure-<run> (O85)
-    const heap = { heapBeforeMb: heapBefore, heapWarmMb: heapWarm, heapEndMb: heapEnd, heapAfterMb: heapAfter, leakMb: heapEnd - heapWarm };
+    const heap = {
+      heapBeforeMb: heapBefore,
+      heapWarmMb: heapWarm,
+      heapEndMb: heapEnd,
+      heapAfterMb: heapAfter,
+      leakMb: heapEnd - heapWarm,
+      ...halves(heapWarm, heapMid, heapEnd),
+    };
     console.log(`soak-measure ws ${JSON.stringify({ ...counts, ...heap, cpu, pending, serverMaps, events })}`);
 
     for (const transport of transports) await transport.close();
@@ -373,11 +392,19 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
     };
     await Promise.all(clients.map((_, index) => loop(index, warmEnd)));
     const heapWarm = await rest();
+    await Promise.all(clients.map((_, index) => loop(index, middleOf(warmEnd, end))));
+    const heapMid = await rest();
     await Promise.all(clients.map((_, index) => loop(index, end)));
     const heapAfter = await rest();
     // The requests in progress of the procedure handler of the transport (CLI-3 moved them there)
     const openRequests = transport.inFlight();
-    const heap = { heapBeforeMb: heapBefore, heapWarmMb: heapWarm, heapAfterMb: heapAfter, leakMb: heapAfter - heapWarm };
+    const heap = {
+      heapBeforeMb: heapBefore,
+      heapWarmMb: heapWarm,
+      heapAfterMb: heapAfter,
+      leakMb: heapAfter - heapWarm,
+      ...halves(heapWarm, heapMid, heapAfter),
+    };
     const report = { ...counts, ...heap, cpu, openRequests, timersLive: timers.live, timersStarted: timers.started, callsInFlight: host.callsInFlight };
     console.log(`soak-measure http ${JSON.stringify(report)}`);
 

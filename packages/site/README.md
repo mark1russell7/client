@@ -22,7 +22,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 
 ## The Status page
 
-- `@mark1russell7/site-pages` makes the data of the board at build time. The site template uses the same package, so each site has this page (fleet issue #1).
+- `@mark1russell7/site-pages` makes the data of the board at build time. The site template uses the same package, so each site has this page.
 - The open work comes from `packages/documentation/ROADMAP-2026-10.md`. Each row of a table with an `ID` column and a `Status` column is one item.
 - The words of a status give its class: done, in progress, waiting, blocked, later or open. The page also shows the text of the status.
 - The open pull requests and issues come from the GitHub GraphQL API in one request. The build gives the token in `GITHUB_TOKEN`.
@@ -33,7 +33,10 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 ## How it works
 
 - `scripts/gen-data.ts` reads the workspace: each `package.json`, and the procedures of each built package. It writes `src/data/generated/`. Git ignores that folder.
-- Each page loads the procedures without their schemas. The page of a procedure loads the schemas of its package only (`src/data/schemas.ts`).
+- Each page loads `src/data/site.ts`: the facts of the build, the counts and the examples of the home page.
+- The catalog grows with each library that becomes procedures. Thus only the pages that show procedures or packages load it (`src/data/index.ts`).
+- The build stops when a chunk that each page loads holds the catalog (`src/build-time/start-chunks-plugin.ts`).
+- The catalog has the procedures without their schemas. The page of a procedure loads the schemas of its package only (`src/data/schemas.ts`).
 - The site depends on each package that registers procedures, so `pnpm -r build` builds them first. The script stops with an error when a package is not built or does not load. `SITE_ALLOW_LOAD_FAILURES=1` lets a local build continue, and the footer then names the packages that did not load.
 - `scripts/core-fields.ts` reads the input fields of the core procedures from their TypeScript source. Their runtime schemas do not list fields.
 - The Composer imports `@procedures/client/browser`. That entry point has no Node server code.

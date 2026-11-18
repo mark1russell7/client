@@ -60,6 +60,8 @@ const McpServeInputSchema = z.object({
   readOnly: z.boolean().default(false).describe("True: the tools are only the procedures that change nothing, and each call has that capability."),
   /** The instructions of the server: the MCP client gives them to the model. */
   instructions: z.string().optional().describe("The instructions of the server: the MCP client gives them to the model."),
+  /** How the server lists its tools: each tool (the default), or three search tools (direction 40). */
+  listing: z.enum(["each", "search"]).optional().describe("How the server lists its tools: each tool (the default), or three search tools (direction 40)."),
 });
 
 type McpServeInput = z.infer<typeof McpServeInputSchema>;
@@ -97,6 +99,8 @@ export interface ServeOptions {
   version?: string | undefined;
   /** The instructions of the server. */
   instructions?: string | undefined;
+  /** How the server lists its tools: `"each"` (the default) or `"search"`. */
+  listing?: "each" | "search" | undefined;
   /** True: debug lines go to stderr. */
   debug?: boolean | undefined;
   /** The faces of the host. The default is stdio. */
@@ -155,6 +159,7 @@ export async function prepareServe(
     ...(input.name !== undefined ? { name: input.name } : {}),
     ...(input.version !== undefined ? { version: input.version } : {}),
     ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+    ...(input.listing !== undefined ? { listing: input.listing } : {}),
     ...(input.debug !== undefined ? { debug: input.debug } : {}),
     faces: input.faces ?? { stdio: true },
   });

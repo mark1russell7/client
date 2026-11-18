@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/notify",
-  "version": "0.60.0",
+  "version": "0.63.0",
   "description": "Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged, and Twilio texts and voice calls.",
   "keywords": [
     "notification",
@@ -46,6 +46,11 @@
       "types": "./dist/twilio-serverless.d.ts",
       "import": "./dist/twilio-serverless.js",
       "default": "./dist/twilio-serverless.js"
+    },
+    "./webhook": {
+      "types": "./dist/webhook.d.ts",
+      "import": "./dist/webhook.js",
+      "default": "./dist/webhook.js"
     },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
@@ -113,7 +118,8 @@
     "browser": [
       "./pushover",
       "./twilio",
-      "./twilio-serverless"
+      "./twilio-serverless",
+      "./webhook"
     ],
     "procedures": "./dist/register.js"
   }

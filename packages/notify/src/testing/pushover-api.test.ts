@@ -76,6 +76,29 @@ describe("pushoverApi", () => {
     expect(await callPushover(expired.fetch, pushoverReceiptRequest(TOKEN, pushoverReceiptOf(0)), extractPushoverReceipt, LIMIT)).toMatchObject({ ok: true, acknowledged: false, expired: true, expiresAt: 1_800_000_000_000 });
   });
 
+  it("gives the replies of each receipt in order, then the last reply again", async () => {
+    const acknowledgedAt = 1_800_000_000_000;
+    const { server: fake, fetch } = await start({
+      receipts: 2,
+      receiptStates: (index) => (index === 0 ? [{ state: "pending" }, { state: "acknowledged", acknowledgedAt }] : [{ state: "expired" }]),
+    });
+    const read = async (index: number) => callPushover(fetch, pushoverReceiptRequest(TOKEN, pushoverReceiptOf(index)), extractPushoverReceipt, LIMIT);
+    expect(await read(0)).toMatchObject({ ok: true, acknowledged: false, expired: false });
+    expect(await read(1)).toMatchObject({ ok: true, acknowledged: false, expired: true });
+    expect(await read(0)).toMatchObject({ ok: true, acknowledged: true, acknowledgedAt, expired: false });
+    expect(await read(0)).toMatchObject({ ok: true, acknowledged: true, acknowledgedAt, expired: false });
+    expect(await read(1)).toMatchObject({ ok: true, acknowledged: false, expired: true });
+    expect(pushoverLedgerOf(fake.requests).counts).toMatchObject({ reads: 5, other: 0 });
+  });
+
+  it("gives state and acknowledgedAt at each read without receiptStates", async () => {
+    const acknowledgedAt = 1_800_000_000_000;
+    const { fetch } = await start({ state: "acknowledged", acknowledgedAt });
+    for (let count = 0; count < 2; count += 1) {
+      expect(await callPushover(fetch, pushoverReceiptRequest(TOKEN, pushoverReceiptOf(0)), extractPushoverReceipt, LIMIT)).toMatchObject({ ok: true, acknowledged: true, acknowledgedAt, expired: false });
+    }
+  });
+
   it("refuses a cancel of a tag that it does not know, unless the tags are any", async () => {
     const strict = await start({ tags: [TAG] });
     expect(await callPushover(strict.fetch, pushoverCancelByTagRequest(TOKEN, "other"), extractPushoverCancelled, LIMIT)).toMatchObject({ ok: false, kind: "refused", status: 404 });
@@ -88,6 +111,11 @@ describe("pushoverApi", () => {
   it("throws for a count of receipts below 1", () => {
     expect(() => pushoverApi({ receipts: 0 })).toThrow(RangeError);
     expect(() => pushoverReceiptOf(-1)).toThrow(RangeError);
+  });
+
+  it("throws for an empty list of replies of a receipt", () => {
+    expect(() => pushoverApi({ receiptStates: () => [] })).toThrow(RangeError);
+    expect(() => pushoverApi({ receipts: 2, receiptStates: (index) => (index === 1 ? [] : [{ state: "pending" }]) })).toThrow(/receipt 1/);
   });
 });
 

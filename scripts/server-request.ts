@@ -49,6 +49,13 @@
  * cases have the same counts. `profileAnalysisOf()` of `server-request-profile.ts` compares the two
  * profiles. The script writes the record (`server-request-profile/1`) and its Markdown to the folder.
  * The profile mode does no timed rounds.
+ *
+ * With `--profile-kind heap`, the host child starts the sampling heap profiler instead, with a mean
+ * interval of `HEAP_INTERVAL_BYTES`. The profile keeps the objects that the garbage collector freed,
+ * so it gives all the bytes that each function allocates. The profile goes to
+ * `<folder>/<case>/host.heapprofile`, `heapAnalysisOf()` compares the two profiles, and the record has
+ * the format `server-request-heap/1`. The record and its Markdown have the same file names as for the
+ * CPU kind.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -61,7 +68,18 @@ import { bootstrapLeastSquares, bootstrapMedianRatio, leastSquares, type Interva
 import { runnerContext } from "./bench-context.ts";
 import { bandOf, roundRatios, type Band } from "./bench-paired.ts";
 import { aaId, measureIsolated, quantileOf, type PairedInput, type PairedReport } from "./lib/paired-time.ts";
-import { PROFILE_FORMAT, profileAnalysisOf, profileMarkdownOf, type CpuProfile, type ProfileRecord } from "./server-request-profile.ts";
+import {
+  HEAP_PROFILE_FORMAT,
+  PROFILE_FORMAT,
+  heapAnalysisOf,
+  heapMarkdownOf,
+  profileAnalysisOf,
+  profileMarkdownOf,
+  type CpuProfile,
+  type HeapProfile,
+  type HeapRecord,
+  type ProfileRecord,
+} from "./server-request-profile.ts";
 
 /** The format of the record. The format 3 adds the bytes of each case and the fit (O94). */
 export const FORMAT = "server-request/3";
@@ -144,6 +162,15 @@ export const FIT_BOOTSTRAP = { runs: 10_000, seed: 1, level: 0.95 } as const;
 /** The sampling interval of the CPU profiler of the profile mode, in microseconds, as `--cpu-prof-interval 100`. */
 export const PROFILE_INTERVAL_US = 100;
 
+/** The mean bytes between two samples of the sampling heap profiler of the heap kind. The default of V8 is 32 KiB: a smaller interval names more functions of a small case. */
+export const HEAP_INTERVAL_BYTES = 16_384;
+
+/** The kinds of the profile mode: the CPU profiler, or the sampling heap profiler that keeps the objects that the garbage collector freed. */
+export const PROFILE_KINDS = ["cpu", "heap"] as const;
+
+/** A kind of the profile mode. */
+export type ProfileKind = (typeof PROFILE_KINDS)[number];
+
 /** The default counts of the profile mode: the untimed calls before the profiler starts, and the calls in each profile. */
 export const PROFILE_DEFAULTS = { warmup: 1000, calls: 1000 } as const;
 
@@ -152,15 +179,17 @@ export interface ProfileOptions {
   readonly cases: readonly [RequestId, RequestId];
   readonly warmup: number;
   readonly calls: number;
+  readonly kind: ProfileKind;
 }
 
 /**
  * This function gives the options of the profile mode from the values of `--profile`,
- * `--profile-warmup` and `--profile-calls`. It throws for a value that is not valid. The option
- * `--profile` names two different cases of `REQUESTS`. The warm-up is a whole number of 0 or more,
- * and the calls are a whole number above 0.
+ * `--profile-warmup`, `--profile-calls` and `--profile-kind`. It throws for a value that is not valid.
+ * The option `--profile` names two different cases of `REQUESTS`. The warm-up is a whole number of 0
+ * or more, the calls are a whole number above 0, and the kind is one of `PROFILE_KINDS` (`cpu` when
+ * it is absent).
  */
-export function profileOptionsOf(profile: string, warmup: string | undefined, calls: string | undefined): ProfileOptions {
+export function profileOptionsOf(profile: string, warmup: string | undefined, calls: string | undefined, kind?: string): ProfileOptions {
   const cases = profile.split(",").map((id) => id.trim());
   if (cases.length !== 2 || cases[0] === cases[1] || !cases.every((id) => id in REQUESTS)) {
     throw new Error(`The option --profile names two different cases of ${Object.keys(REQUESTS).join(", ")}, not "${profile}".`);
@@ -169,7 +198,9 @@ export function profileOptionsOf(profile: string, warmup: string | undefined, ca
   const n = calls === undefined ? PROFILE_DEFAULTS.calls : Number(calls);
   if (!Number.isInteger(w) || w < 0) throw new Error(`The option --profile-warmup is a whole number of 0 or more, not "${warmup}".`);
   if (!Number.isInteger(n) || n <= 0) throw new Error(`The option --profile-calls is a whole number above 0, not "${calls}".`);
-  return { cases: cases as [RequestId, RequestId], warmup: w, calls: n };
+  const k = kind ?? "cpu";
+  if (!(PROFILE_KINDS as readonly string[]).includes(k)) throw new Error(`The option --profile-kind is one of ${PROFILE_KINDS.join(", ")}, not "${kind}".`);
+  return { cases: cases as [RequestId, RequestId], warmup: w, calls: n, kind: k as ProfileKind };
 }
 
 /** The model of the fit. The times are in milliseconds for each call. */
@@ -473,7 +504,7 @@ async function measureBytes(tree: string): Promise<Record<string, CaseBytes>> {
  * The host child: it starts the host, writes its address as one line of JSON, and runs until a signal.
  * With a profile file, the child also obeys the lines of `controlProfiler()` on its stdin.
  */
-async function serve(tree: string, profileFile: string | undefined): Promise<void> {
+async function serve(tree: string, profileFile: string | undefined, kind: ProfileKind): Promise<void> {
   const c = await load(tree, "packages/client/dist/index.js");
   const peer = await load(tree, "packages/client-server/dist/index.js");
   const server = await load(tree, "packages/server/dist/index.js");
@@ -485,28 +516,34 @@ async function serve(tree: string, profileFile: string | undefined): Promise<voi
   });
   const endpoint = running.host.info.endpoints().find((e: { type: string }) => e.type === "http");
   console.log(JSON.stringify({ address: endpoint.address }));
-  if (profileFile !== undefined) controlProfiler(profileFile);
+  if (profileFile !== undefined) controlProfiler(profileFile, kind);
 }
 
 /**
- * The profiler control of the host child. The line `start` starts the CPU profiler of
- * `node:inspector` in this process, with the interval `PROFILE_INTERVAL_US`. The line `stop` stops it
- * and writes the profile to the file. The child answers each line with one line of JSON: `started`,
+ * The profiler control of the host child. The line `start` starts the profiler of the kind in this
+ * process, through `node:inspector`: the CPU profiler with the interval `PROFILE_INTERVAL_US`, or the
+ * sampling heap profiler with the interval `HEAP_INTERVAL_BYTES` and the objects that the garbage
+ * collector frees. The line `stop` stops it and writes the profile to the file. The child answers each line with one line of JSON: `started`,
  * `stopped` or `failed`. The profile has only the calls between the two lines, not the startup.
  */
-function controlProfiler(file: string): void {
+function controlProfiler(file: string, kind: ProfileKind): void {
   const session = new Session();
   const answer = (profiler: string, more: Record<string, unknown> = {}) => console.log(JSON.stringify({ profiler, ...more }));
   createInterface({ input: process.stdin }).on("line", (line) => {
     const step = async () => {
       if (line === "start") {
         session.connect();
-        await session.post("Profiler.enable");
-        await session.post("Profiler.setSamplingInterval", { interval: PROFILE_INTERVAL_US });
-        await session.post("Profiler.start");
+        if (kind === "heap") {
+          await session.post("HeapProfiler.enable");
+          await session.post("HeapProfiler.startSampling", { samplingInterval: HEAP_INTERVAL_BYTES, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+        } else {
+          await session.post("Profiler.enable");
+          await session.post("Profiler.setSamplingInterval", { interval: PROFILE_INTERVAL_US });
+          await session.post("Profiler.start");
+        }
         answer("started");
       } else if (line === "stop") {
-        const { profile } = await session.post("Profiler.stop");
+        const { profile } = kind === "heap" ? await session.post("HeapProfiler.stopSampling") : await session.post("Profiler.stop");
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, JSON.stringify(profile));
         session.disconnect();
@@ -602,8 +639,8 @@ async function profileCase(tree: string, id: RequestId, options: ProfileOptions,
   const c = await load(tree, "packages/client/dist/index.js");
   const { pathToMethod } = await load(tree, "packages/client/dist/server/index.js");
   const { path, input }: RequestCase = REQUESTS[id];
-  const file = join(out, id, "host.cpuprofile");
-  const host = await startHost(tree, ["--profile-file", file]);
+  const file = join(out, id, options.kind === "heap" ? "host.heapprofile" : "host.cpuprofile");
+  const host = await startHost(tree, ["--profile-file", file, "--profile-kind", options.kind]);
   const expect = (reply: Record<string, unknown>, profiler: string) => {
     if (reply.profiler !== profiler) throw new Error(`The host gave ${JSON.stringify(reply)}, not the profiler state ${profiler}.`);
   };
@@ -631,17 +668,38 @@ function runOf(): ServerRequestRecord["run"] {
   };
 }
 
-/** The profile mode: one profile of each of the two cases, then the analysis. It writes the record and its Markdown to the folder. */
-async function profile(tree: string, options: ProfileOptions, outArg: string, head: string): Promise<ProfileRecord> {
+/** The profile mode: one profile of each of the two cases, then the analysis of the kind. It writes the record and its Markdown to the folder. */
+async function profile(tree: string, options: ProfileOptions, outArg: string, head: string): Promise<ProfileRecord | HeapRecord> {
   const out = resolve(outArg);
   mkdirSync(out, { recursive: true });
   const files: Record<string, string> = {};
-  const sides = [];
+  const sides: { id: RequestId; profile: unknown; calls: number }[] = [];
   for (const id of options.cases) {
     const file = await profileCase(tree, id, options, out);
     files[id] = relative(out, file).replace(/\\/g, "/");
-    sides.push({ id, profile: JSON.parse(readFileSync(file, "utf8")) as CpuProfile, calls: options.calls });
+    sides.push({ id, profile: JSON.parse(readFileSync(file, "utf8")) as unknown, calls: options.calls });
   }
+  const write = (record: ProfileRecord | HeapRecord, markdown: string) => {
+    writeFileSync(join(out, "server-request-profile.json"), `${JSON.stringify(record, null, 2)}\n`);
+    writeFileSync(join(out, "server-request-profile.md"), markdown);
+    return record;
+  };
+  if (options.kind === "heap") {
+    const heap = sides.map((s) => ({ ...s, profile: s.profile as HeapProfile }));
+    const record: HeapRecord = {
+      format: HEAP_PROFILE_FORMAT,
+      refs: { head },
+      node: process.version,
+      run: runOf(),
+      samplingIntervalBytes: HEAP_INTERVAL_BYTES,
+      warmup: options.warmup,
+      calls: options.calls,
+      files,
+      analysis: heapAnalysisOf(heap[0]!, heap[1]!, realpathSync(tree)),
+    };
+    return write(record, heapMarkdownOf(record));
+  }
+  const cpu = sides.map((s) => ({ ...s, profile: s.profile as CpuProfile }));
   const record: ProfileRecord = {
     format: PROFILE_FORMAT,
     refs: { head },
@@ -651,11 +709,9 @@ async function profile(tree: string, options: ProfileOptions, outArg: string, he
     warmup: options.warmup,
     calls: options.calls,
     files,
-    analysis: profileAnalysisOf(sides[0]!, sides[1]!, realpathSync(tree)),
+    analysis: profileAnalysisOf(cpu[0]!, cpu[1]!, realpathSync(tree)),
   };
-  writeFileSync(join(out, "server-request-profile.json"), `${JSON.stringify(record, null, 2)}\n`);
-  writeFileSync(join(out, "server-request-profile.md"), profileMarkdownOf(record));
-  return record;
+  return write(record, profileMarkdownOf(record));
 }
 
 /** The parent: the rounds of `measureIsolated()` in mode `fresh`, with one sample process for each case and arm. */
@@ -680,33 +736,45 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
   const treeArg = optionOf(argv, "--tree");
   if (treeArg === undefined) {
     console.error("Usage: node scripts/server-request.ts --tree <folder> [--ref <sha>] [--rounds <n>] --out <file.json>");
-    console.error("       node scripts/server-request.ts --tree <folder> [--ref <sha>] --profile <case-a>,<case-b> [--profile-calls <n>] [--profile-warmup <n>] --profile-out <folder>");
+    console.error("       node scripts/server-request.ts --tree <folder> [--ref <sha>] --profile <case-a>,<case-b> [--profile-calls <n>] [--profile-warmup <n>] [--profile-kind cpu|heap] --profile-out <folder>");
     process.exit(2);
   }
   const tree = resolve(treeArg);
   const sampleArm = optionOf(argv, "--sample");
   const profileArg = optionOf(argv, "--profile");
   if (argv.includes("--serve")) {
-    await serve(tree, optionOf(argv, "--profile-file"));
+    await serve(tree, optionOf(argv, "--profile-file"), optionOf(argv, "--profile-kind") === "heap" ? "heap" : "cpu");
   } else if (profileArg !== undefined) {
     const outArg = optionOf(argv, "--profile-out");
     let options: ProfileOptions;
     try {
       if (outArg === undefined) throw new Error("The option --profile-out is missing.");
-      options = profileOptionsOf(profileArg, optionOf(argv, "--profile-warmup"), optionOf(argv, "--profile-calls"));
+      options = profileOptionsOf(profileArg, optionOf(argv, "--profile-warmup"), optionOf(argv, "--profile-calls"), optionOf(argv, "--profile-kind"));
     } catch (error) {
       console.error((error as Error).message);
       process.exit(2);
     }
     const record = await profile(tree, options, outArg!, optionOf(argv, "--ref") ?? tree);
-    const { a, b, totalExcessUs, outcomes } = record.analysis;
-    for (const t of [a, b]) console.log(`${t.id}: ${t.samples} samples, ${t.perCallUs.toFixed(1)} µs of self time per call, median interval ${t.medianDeltaUs} µs`);
-    console.log(`excess: ${totalExcessUs.toFixed(1)} µs per call; top ${outcomes.top} (${(outcomes.topShare * 100).toFixed(1)} %); zod ${(outcomes.zodShare * 100).toFixed(1)} %`);
-    console.log(`outcomes: (a) host side ${outcomes.topOnHostSide}, (b) top 25 % or more ${outcomes.topShareAtLeast25}, (c) zod under 20 % ${outcomes.zodUnder20}`);
-    // A probe that gives no number fails the run (the 10-30 rule: gates and probes fail closed)
-    if (outcomes.topOnHostSide === null) {
-      console.error("The profile is not valid: the total excess is not above 0.");
-      process.exitCode = 1;
+    if (record.format === HEAP_PROFILE_FORMAT) {
+      const { a, b, totalExcessBytes, functions, groups } = record.analysis;
+      for (const t of [a, b]) console.log(`${t.id}: ${t.functions} functions with bytes, ${Math.round(t.perCallBytes)} bytes per call`);
+      const top = functions[0];
+      console.log(`excess: ${Math.round(totalExcessBytes)} bytes per call; top ${top?.key ?? "none"} (${((top?.share ?? Number.NaN) * 100).toFixed(1)} %); top group ${groups[0]?.group ?? "none"}`);
+      // A probe that gives no number fails the run (the 10-30 rule: gates and probes fail closed)
+      if (!(totalExcessBytes > 0)) {
+        console.error("The heap profile is not valid: the total excess is not above 0.");
+        process.exitCode = 1;
+      }
+    } else {
+      const { a, b, totalExcessUs, outcomes } = record.analysis;
+      for (const t of [a, b]) console.log(`${t.id}: ${t.samples} samples, ${t.perCallUs.toFixed(1)} µs of self time per call, median interval ${t.medianDeltaUs} µs`);
+      console.log(`excess: ${totalExcessUs.toFixed(1)} µs per call; top ${outcomes.top} (${(outcomes.topShare * 100).toFixed(1)} %); zod ${(outcomes.zodShare * 100).toFixed(1)} %`);
+      console.log(`outcomes: (a) host side ${outcomes.topOnHostSide}, (b) top 25 % or more ${outcomes.topShareAtLeast25}, (c) zod under 20 % ${outcomes.zodUnder20}`);
+      // A probe that gives no number fails the run (the 10-30 rule: gates and probes fail closed)
+      if (outcomes.topOnHostSide === null) {
+        console.error("The profile is not valid: the total excess is not above 0.");
+        process.exitCode = 1;
+      }
     }
   } else if (sampleArm !== undefined) {
     const id = optionOf(argv, "--input");

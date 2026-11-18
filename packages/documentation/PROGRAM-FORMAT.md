@@ -127,6 +127,8 @@ A deferred call is data also in a list and as an operand of each control-flow pr
 
 A runner is a procedure that hydrates a deferred call itself and gives a context name. One runner exists: `dag.traverse` (`client-dag`) gives `"dag.traverse"`. The control flow `client.tryCatch` is not a runner: it starts its operands itself and gives no name. A `$name` is not a context name. A deferred call is data at all depths. The test is "a ref deferred to a name is data at every depth" in `ref.hydrate.test.ts`.
 
+A `$never` call is also the form of a sub-program. A sub-program gives a function parameter of a wrapped package, for example the statistic of a bootstrap. The procedure gets the call as data and compiles it into a function. The function reads the parameters of the callback with `$ref`. The README of `@procedures/compiler` gives the rules, in the section "A function parameter is a sub-program".
+
 ## 6. `$literal`: data that looks like a call
 
 `{ "$literal": value }` gives `value` without hydration. The object must have `$literal` as its only key.

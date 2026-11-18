@@ -35,6 +35,7 @@ import { urlAddressing, type Addressing } from "./addressing.js";
 import { BodyError, readJsonBody } from "./body.js";
 import { BATCH_HEADER, batchFrames, batchOptionsOf, isBatchPreflight, isBatchRequest, parseBatch, type HandlerBatchOptions, type BatchRun } from "./batch.js";
 import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
+import { isWireMetadataKey } from "../../metadata.js";
 import { retryAfterSeconds } from "@mark1russell7/service/limiter";
 
 /** The parts of a request that a URL strategy of `procedureHandler` reads. */
@@ -174,8 +175,6 @@ export interface HandlerCompat {
   readonly methodOf?: ((req: IncomingMessage) => Method | null) | undefined;
   /** The JSON response of the framework (`res.status(status).json(body)` of Express). */
   readonly sendJson?: ((res: NodeResponse, status: number, body: unknown) => void) | undefined;
-  /** True: the shim applies CORS to each request of its app, so the handler does not. */
-  readonly corsOutside?: boolean | undefined;
   /** True: the framework matched the path already, so the handler takes each request that it gets. */
   readonly matchAll?: boolean | undefined;
   /** The name of the face and of its CORS origin option, for the error of `assertNamedOrigins`. */
@@ -312,7 +311,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   // A list of origins or a function: the default sends the credentials. "*" with credentials is invalid.
   // An origin that is not permitted gets no CORS header, and each response still varies by the origin (CLI-56)
   const cors: CorsPolicy | undefined =
-    corsOptions === undefined || compat.corsOutside ? undefined : { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true };
+    corsOptions === undefined ? undefined : { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true };
   const guard: BrowserGuardOptions = {
     allowedOrigins: options.allowedOrigins ?? corsOrigins(corsOptions),
     allowedHosts: options.allowedHosts,
@@ -431,14 +430,15 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
 
     // The metadata of the headers and of the query. The query parameters cannot replace headers,
     // query or params. The secret headers go into the credentials, not into the metadata, so a
-    // handler and a nested call do not see them (roadmap R18)
+    // handler and a nested call do not see them (roadmap R18). The key `auth` holds credentials, so
+    // no source of the request sets it: not the query, a header or X-Metadata (isWireMetadataKey)
     const metadata: Metadata = {
       headers: withoutSecretHeaders(headers as Record<string, unknown>, secretHeaders),
       query,
       params,
     };
     for (const [key, value] of Object.entries(query)) {
-      if (!RESERVED_METADATA.has(key) && !key.startsWith("__")) setMetadata(metadata, key, value);
+      if (isWireMetadataKey(key, RESERVED_METADATA)) setMetadata(metadata, key, value);
     }
 
     // The custom headers at the root of the metadata, as the client's metadataToHeaders() sends
@@ -447,7 +447,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       const lower = key.toLowerCase();
       if (STANDARD_HEADERS.has(lower) || isSecretHeader(lower, secretHeaders) || typeof value !== "string" || lower === NARROWING_METADATA_KEY) continue;
       const normalizedKey = HEADER_MAPPINGS[lower] ?? key;
-      if (!RESERVED_METADATA.has(normalizedKey) && !normalizedKey.startsWith("__")) metadata[normalizedKey] = value;
+      if (isWireMetadataKey(normalizedKey, RESERVED_METADATA)) metadata[normalizedKey] = value;
     }
     // Each value of the narrowing header is one source, also each line of a repeated header. No
     // source replaces another: a gateway's header and the client's key of X-Metadata both apply (CLI-30)
@@ -456,7 +456,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     // The custom metadata of the HTTP client: any JSON value, any key (deep dive TRN-11)
     for (const custom of call.custom) {
       for (const [key, value] of Object.entries(custom)) {
-        if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) setMetadata(metadata, key, value);
+        if (isWireMetadataKey(key, RESERVED_METADATA)) setMetadata(metadata, key, value);
       }
     }
 

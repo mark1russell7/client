@@ -41,6 +41,7 @@ import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
 import { NARROWING_METADATA_KEY, narrowWithin, narrowingOf, type NarrowingNote } from "./narrowing.js";
 import { timeoutAfterMs } from "./interceptors.js";
+import { carryUntrustedMarks, markUntrusted, untrustedFieldsOf } from "./untrusted.js";
 import type { Elicit } from "./elicit.js";
 import type { ReportProgress } from "./progress.js";
 import type { EventBus } from "../events/types.js";
@@ -125,7 +126,7 @@ function checkDepth(invocation: Invocation, maxDepth: number | undefined): void 
   depthWarned = true;
   console.warn(
     `[procedures] The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls. ` +
-      `@procedures/client 0.64.0 refuses a call over the depth ${String(DEPTH_WARNING)}. Set the option maxDepth to keep a larger limit.`,
+      `@procedures/client 0.65.0 refuses a call over the depth ${String(DEPTH_WARNING)}. Set the option maxDepth to keep a larger limit.`,
   );
 }
 
@@ -235,8 +236,12 @@ export interface InvokeOptions {
    * The admission of each nested call: an invocation at the depth 1 or more. It runs after the
    * check of the capability and before the validation of the input. It throws to refuse the call. A
    * server gives its limits here. The nested calls get it too.
+   *
+   * The admission can give a release (CLI-132). The invocation calls it one time at the end of the
+   * nested call: at its value, its error, the end of its stream or the stop of its reader. The
+   * release must not reject: the host reports its own failures.
    */
-  admitNested?: ((invocation: Invocation) => Promise<void> | void) | undefined;
+  admitNested?: ((invocation: Invocation) => Promise<(() => Promise<void> | void) | void> | (() => Promise<void> | void) | void) | undefined;
   /**
    * The principal of the call, from the authentication of the host. It goes to `ctx.principal`,
    * to the invocation and to the nested calls.
@@ -316,7 +321,8 @@ async function validateOutput(procedure: AnyProcedure, output: unknown): Promise
       procedure.path,
     );
   }
-  return result.value;
+  // The check makes new objects: the marks of the untrusted fields go to them
+  return carryUntrustedMarks(output, result.value);
 }
 
 /**
@@ -355,7 +361,7 @@ function nextOrAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal, path: P
  * stream of the server uses it. Thus a face that refuses a stream before its first item ends the
  * call, its storages and its source (audit s21).
  */
-export function closableUnread<T>(generator: AsyncGenerator<T, void, undefined>, source: AsyncIterable<unknown>, end?: () => void): AsyncGenerator<T, void, undefined> {
+export function closableUnread<T>(generator: AsyncGenerator<T, void, undefined>, source: AsyncIterable<unknown>, end?: () => void | Promise<void>): AsyncGenerator<T, void, undefined> {
   let started = false;
   const next = generator.next.bind(generator);
   const close = generator.return.bind(generator);
@@ -370,11 +376,26 @@ export function closableUnread<T>(generator: AsyncGenerator<T, void, undefined>,
     try {
       await source[Symbol.asyncIterator]().return?.();
     } finally {
-      end?.();
+      await end?.();
     }
     return result;
   };
   return generator;
+}
+
+/**
+ * The items of a stream. At the end of the stream, or when its reader stops, `release` runs one
+ * time. A reader that stops before the first item also releases it (audit s21).
+ */
+export function releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void | Promise<void>): AsyncGenerator<T, void, undefined> {
+  const released = (async function* () {
+    try {
+      yield* items;
+    } finally {
+      await release();
+    }
+  })();
+  return closableUnread(released, items, release);
 }
 
 /**
@@ -388,6 +409,7 @@ async function* validatedItems(
 ): AsyncGenerator<unknown, void, undefined> {
   const iterator = source[Symbol.asyncIterator]();
   const own = signal && streamSignal(signal);
+  const untrusted = untrustedFieldsOf(procedure);
   let done = false;
   let aborted = false;
   try {
@@ -405,7 +427,8 @@ async function* validatedItems(
         done = true;
         return;
       }
-      yield await validateOutput(procedure, step.value);
+      // Each item carries the mark of its untrusted fields, as a single value does
+      yield markUntrusted(await validateOutput(procedure, step.value), untrusted);
     }
   } finally {
     if (!done) {
@@ -512,10 +535,9 @@ function usesRegistry(procedure: AnyProcedure): boolean {
   return names(effects?.reads) || names(effects?.writes);
 }
 
-/** The end of the chain: the validation, the context, the handler and the output. */
+/** The end of the chain: the admission of the call, then its run (`runAdmitted`). */
 async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOptions): Promise<ProcedureOutput<TOutput>> {
-  const { procedure, path, input } = invocation;
-  const handler = procedure.handler!;
+  const { procedure, path } = invocation;
   if (options.signal?.aborted) throw abortError(path);
 
   // The admission: before the input validation, so a refused call learns nothing from its input
@@ -527,12 +549,40 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
   }
   // The admission of a nested call by the host, for example its limits. A call of the host passed
   // the admission of its face. Without a promise, the handler starts before an await.
+  let release: (() => Promise<void> | void) | void = undefined;
   if (parent && options.admitNested) {
     const admitted = options.admitNested(invocation);
-    if (admitted) await admitted;
-    if (options.signal?.aborted) throw abortError(path);
+    release = typeof admitted === "function" || !admitted ? admitted : await admitted;
+    if (options.signal?.aborted) {
+      if (release) await release();
+      throw abortError(path);
+    }
   }
+  if (!release) return runAdmitted<TOutput>(invocation, options);
+  return releasedAfter(runAdmitted<TOutput>(invocation, options), release);
+}
 
+/**
+ * The output of a call whose admission gave a release (CLI-132). The release runs one time: at the
+ * value, at the error, or at the end of the stream.
+ */
+async function releasedAfter<TOutput>(running: Promise<ProcedureOutput<TOutput>>, release: () => Promise<void> | void): Promise<ProcedureOutput<TOutput>> {
+  let output: ProcedureOutput<TOutput>;
+  try {
+    output = await running;
+  } catch (error) {
+    await release();
+    throw error;
+  }
+  if (output.kind === "stream") return { kind: "stream", items: releasedAtEnd(output.items, release) };
+  await release();
+  return output;
+}
+
+/** The run of an admitted call: the validation, the context, the handler and the output. */
+async function runAdmitted<TOutput>(invocation: Invocation, options: InvokeOptions): Promise<ProcedureOutput<TOutput>> {
+  const { procedure, path, input } = invocation;
+  const handler = procedure.handler!;
   let data: unknown = input;
   if (!options.inputValidated) {
     // A synchronous schema gives its result at once, so the handler starts before an await
@@ -568,7 +618,8 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
       items: (admit ? closableUnread(admittedItems(items, admit, invocation), items) : items) as AsyncGenerator<TOutput, void, undefined>,
     };
   }
-  const value = await validateOutput(procedure, result);
+  // The mark of the untrusted fields goes with the value, also into the output of a caller
+  const value = markUntrusted(await validateOutput(procedure, result), untrustedFieldsOf(procedure));
   if (admit && !(await admit(value, invocation))) {
     throw new InvocationError("FORBIDDEN", `The clearance of the call does not permit the output of ${pathToKey(path)}`, path, "clearance");
   }

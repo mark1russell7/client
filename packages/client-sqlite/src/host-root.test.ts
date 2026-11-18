@@ -2,7 +2,8 @@
  * The sqlite procedures under the root of a host (roadmap R33): the database file, the folder of
  * the migrations and the file of a backup must be in the root. A relative path starts at the
  * root. Under a root, a call must give `dbPath`, because the default database is in the home
- * folder. `:memory:` is not a path. The tests use temporary folders.
+ * folder. `:memory:` is not a path. The tests use temporary folders. The procedures that run the SQL of a caller need
+ * the guard: `confine.test.ts` tests a Node.js without it.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -11,8 +12,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
+import { openDatabase } from "@mark1russell7/sqlite";
+import { loadSqlite } from "./load.js";
 import { sqliteModule } from "./module.js";
-import type { DbQueryOutput } from "./types.js";
+import { isConfineAvailable } from "./procedures/db/shared.js";
+import type { DbQueryOutput, DbTablesOutput } from "./types.js";
+
+const guard = isConfineAvailable(await loadSqlite());
 
 let base: string;
 let root: string;
@@ -48,7 +54,18 @@ describe("the sqlite procedures under the root of a host", () => {
     expect([...new Set(sqliteModule.procedures.map((procedure) => rootDecisionOf(procedure).kind))]).toEqual(["confined"]);
   });
 
-  it("work on a database in the root, with relative paths that start at the root", async () => {
+  it("read and copy a database in the root, with relative paths that start at the root", async () => {
+    const db = openDatabase(join(root, "plain.db"), { wal: false });
+    db.exec("CREATE TABLE t (x INTEGER)");
+    db.close();
+    expect((await call<DbTablesOutput>("sqlite.tables", { dbPath: "plain.db" })).tables.map((table) => table.name)).toEqual(["t"]);
+    await call("sqlite.backup", { dbPath: "plain.db", to: "plain-copy.db" });
+    expect(existsSync(join(root, "plain-copy.db"))).toBe(true);
+    await call("logs.store", { dbPath: "logs.db", level: "info", message: "x" });
+    expect(existsSync(join(root, "logs.db"))).toBe(true);
+  });
+
+  it.runIf(guard)("work on a database in the root, with relative paths that start at the root", async () => {
     await call("sqlite.migrate", { dbPath: "data.db", folder: "migrations" });
     await call("sqlite.execute", { dbPath: "data.db", sql: "INSERT INTO t (x) VALUES (1)" });
     expect(existsSync(join(root, "data.db"))).toBe(true);
@@ -71,7 +88,7 @@ describe("the sqlite procedures under the root of a host", () => {
     expect(readdirSync(outside)).toEqual(["migrations"]);
   });
 
-  it("work on a database outside the folder without a root", async () => {
+  it.runIf(guard)("work on a database outside the folder without a root", async () => {
     const plain = createRegistry(sqliteModule);
     await call("sqlite.migrate", { dbPath: join(outside, "data.db"), folder: join(outside, "migrations") }, plain);
     expect(existsSync(join(outside, "data.db"))).toBe(true);

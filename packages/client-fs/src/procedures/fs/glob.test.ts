@@ -2,7 +2,7 @@
  * fs.glob: `ignore`, `absolute`, `dot` and `cwd` (deep dive DATA-7).
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -31,6 +31,15 @@ describe("fs.glob", () => {
   it("matches relative to cwd, with / separators, sorted", async () => {
     const result = await run({ pattern: "**/*.{ts,tsx}", cwd: root });
     expect(result.matches).toEqual(["a/node_modules/x/p.ts", "a/q.ts", "b/r.tsx", "dist/d.ts"]);
+  });
+
+  it("matches relative to the working folder when cwd is not given", async () => {
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(root);
+    try {
+      expect((await run({ pattern: "b/*.tsx" })).matches).toEqual(["b/r.tsx"]);
+    } finally {
+      cwd.mockRestore();
+    }
   });
 
   it("keeps the ignore option (the schema stripped it before)", () => {
@@ -66,5 +75,25 @@ describe("fs.glob", () => {
     const ignore = ["**/{.git,node_modules}/**", "{.env,.npmrc}", "{.github,docs,.hidden}/**"];
     const result = await run({ pattern: "**/*", cwd: root, dot: true, ignore });
     expect(result.matches).toEqual(["a", "a/q.ts", "b", "b/.dot.ts", "b/r.tsx", "dist", "dist/d.ts"]);
+  });
+
+  it("gives the folder of a pattern b/** with dot: true, as fs.glob without dot does", async () => {
+    expect((await run({ pattern: "b/**", cwd: root, dot: true })).matches).toEqual(["b", "b/.dot.ts", "b/r.tsx"]);
+    expect((await run({ pattern: "b/**", cwd: root })).matches).toEqual(["b", "b/r.tsx"]);
+  });
+
+  it("keeps the walk out of a folder only when an ignore pattern matches the folder or each entry in it", async () => {
+    const result = await run({ pattern: "**", cwd: root, dot: true, ignore: ["**/.*"] });
+    expect(result.matches).toEqual([
+      "a", "a/node_modules", "a/node_modules/x", "a/node_modules/x/p.ts", "a/q.ts",
+      "b", "b/r.tsx", "dist", "dist/d.ts", "docs", "docs/b.md",
+    ]);
+    // "a/*" also matches "a/", thus it ignores the folder a. "b/?????" ignores only b/r.tsx.
+    const below = await run({ pattern: "**", cwd: root, dot: true, ignore: ["b/?????", "a/*"] });
+    expect(below.matches.filter((path) => path.startsWith("a") || path.startsWith("b"))).toEqual(["b", "b/.dot.ts"]);
+  });
+
+  it("matches a pattern that starts with ./ with dot: true", async () => {
+    expect((await run({ pattern: "./b/*", cwd: root, dot: true })).matches).toEqual(["b/.dot.ts", "b/r.tsx"]);
   });
 });

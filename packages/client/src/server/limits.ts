@@ -6,8 +6,13 @@
  * the clock of the server. The server takes the cost of the call from each limit that covers it,
  * after the authentication and before the run. Thus the key can read the principal of the call. The
  * cost is one unit, or the `cost` of the limit (roadmap CLI-122). The server takes the units in the
- * sequence of the limits, and the first refusal stops the call. A limit before the refusal keeps its
- * units: the server does not give them back.
+ * sequence of the limits, and the first refusal stops the call. A rate limit before the refusal keeps
+ * its units: the server does not give them back.
+ *
+ * An in-flight bound (CLI-132) counts the calls that run now. The server holds the units of a call
+ * until the call ends: at its value, its error, the end of its stream or the stop of its reader. Then
+ * the server gives the units back. An in-flight bound before a refusal gets its units back at once.
+ * When a release fails, the units count until their lease ends, and the server writes a warning.
  *
  * A wait refusal is `RATE_LIMITED` (retryable), with the wait in the metadata key `retry-after` (in
  * milliseconds) and the cause in `reason` (`limit`, `cap` or `store`). The HTTP face answers 429
@@ -25,6 +30,7 @@ import {
   keyedLimiter,
   memoryStore,
   retryAfterSeconds,
+  type Decision,
   type KeyedLimiter,
   type LimitPolicy,
   type LimiterEviction,
@@ -105,7 +111,10 @@ export interface CallLimit {
   readonly keyName?: string | undefined;
   /** The calls that the limit covers: the fields of `CallLimitCovers`, or a function of the call. Without it, each call. */
   readonly covers?: CallLimitCovers | ((call: LimitedCall) => boolean) | undefined;
-  /** The policy: a token bucket or a sliding window. */
+  /**
+   * The policy: a token bucket, a sliding window or an in-flight bound (CLI-132). An in-flight bound
+   * holds the units of each call until the call ends. Its lease is the longest hold.
+   */
   readonly policy: LimitPolicy;
   /**
    * The store of the counts. `{ kind: "local" }`: the memory of this replica. `{ kind: "shared",
@@ -127,7 +136,10 @@ export interface CallLimit {
    * (`LimitedCall.depth`). False: the limit takes the units of the calls of a caller only.
    *
    * The default is false, and the server writes a warning for a limit without this field.
-   * `@procedures/client` 0.64.0 changes the default to true.
+   * `@procedures/client` 0.65.0 changes the default to true.
+   *
+   * An in-flight bound with `nested: true` counts a call and its nested calls at the same time. Thus
+   * a call with nested calls holds more than one unit. Give the bound a limit over the depth of the calls.
    */
   readonly nested?: boolean | undefined;
 }
@@ -139,6 +151,20 @@ export interface CallLimitRefusal {
   readonly refused: Refused;
 }
 
+/**
+ * The release of the units that one call holds in the in-flight bounds. The first call gives the
+ * units back, and each later call gives the same promise. It rejects only when `onReleaseFailure` throws.
+ */
+export type CallLimitRelease = () => Promise<void>;
+
+/**
+ * The entry of a call into the limits: the refusal of one limit, or the call goes in. A call that
+ * holds units of an in-flight bound also gets their release. Call it at the end of the call.
+ */
+export type CallEntry =
+  | { readonly refused: CallLimitRefusal; readonly release?: undefined }
+  | { readonly refused?: undefined; readonly release?: CallLimitRelease | undefined };
+
 /** The limits of one server, as runtime: one keyed limiter for each limit. */
 export interface CallLimiter {
   /** The keyed limiters, in the sequence of the limits. A host declares each one with `svc.limiter(name, spec)`. */
@@ -147,10 +173,14 @@ export interface CallLimiter {
   readonly coversNested: boolean;
   /**
    * This method takes the cost of the call from each limit that covers it, in the sequence of the
-   * limits. It gives the first refusal, or undefined. A limit before the refusal keeps its units.
-   * A nested call (a depth over 0) gets only the limits with `nested: true`.
+   * limits. It gives the first refusal, or the entry of the call. A nested call (a depth over 0)
+   * gets only the limits with `nested: true`.
+   * - A rate limit before a refusal keeps its units, because its policy counts each take.
+   * - An in-flight bound before a refusal gets its units back at once. The refused call does not run.
+   * - A key, a cover, a cost or a store that throws rejects the entry. The in-flight bounds then get their units back.
+   * - The entry of a call with units of an in-flight bound has a release. A call with no such units has none.
    */
-  admit(call: LimitedCall): Promise<CallLimitRefusal | undefined>;
+  enter(call: LimitedCall): Promise<CallEntry>;
 }
 
 /** The options of `callLimiter()`. */
@@ -159,6 +189,24 @@ export interface CallLimiterOptions {
   readonly clock: Clock;
   /** The stores that the replicas share, by the name of their dependency. */
   readonly stores?: Readonly<Record<string, LimiterStore>> | undefined;
+  /**
+   * This function gets each failed release: the name of the limit and the error. The units of that
+   * release count until their lease ends. The server writes a warning. The default calls `console.warn`.
+   */
+  readonly onReleaseFailure?: ((limit: string, error: unknown) => void) | undefined;
+}
+
+/** The units that one call holds in one in-flight bound: the decision of the take, with its key. */
+interface Held {
+  readonly limiter: KeyedLimiter;
+  readonly key: string;
+  readonly decision: Decision;
+}
+
+/** The default report of a failed release. */
+function warnReleaseFailure(limit: string, error: unknown): void {
+  const text = error instanceof Error ? error.message : String(error);
+  console.warn(`[callLimiter] The limit ${limit} cannot release the units of a call: ${text}. The units count until their lease ends.`);
 }
 
 /** The metadata key of the wait of a refusal, in milliseconds (the same key as `retry-after` of wire v1). */
@@ -259,19 +307,43 @@ export function callLimiter(limits: readonly CallLimit[], options: CallLimiterOp
     const limiter = keyedLimiter(limit.name, { key: keyNameOf(limit), policy: limit.policy, store: limit.store, evict: limit.evict }, storeOf(limit, local, stores));
     return { limiter, keyOf, covers, costOf, nested: limit.nested === true };
   });
+  const onReleaseFailure = options.onReleaseFailure ?? warnReleaseFailure;
+  // Each release starts before the first await: a memory store gives the units back at once
+  const releaseAll = async (held: readonly Held[]): Promise<void> => {
+    if (held.length === 0) return;
+    const results = await Promise.allSettled(held.map(({ limiter, key, decision }) => limiter.release(key, decision)));
+    results.forEach((result, index) => {
+      if (result.status === "rejected") onReleaseFailure(held[index]!.limiter.name, result.reason);
+    });
+  };
   return {
     limiters: entries.map((entry) => entry.limiter),
     coversNested: entries.some((entry) => entry.nested),
-    async admit(call) {
-      for (const { limiter, keyOf, covers, costOf, nested } of entries) {
-        if (call.depth > 0 && !nested) continue;
-        if (!covers(call)) continue;
-        const key = keyOf(call);
-        if (key === undefined) continue;
-        const decision = await limiter.take(key, costOf(call));
-        if (!decision.allowed) return { limit: limiter.name, refused: decision };
+    async enter(call) {
+      const held: Held[] = [];
+      try {
+        for (const { limiter, keyOf, covers, costOf, nested } of entries) {
+          if (call.depth > 0 && !nested) continue;
+          if (!covers(call)) continue;
+          const key = keyOf(call);
+          if (key === undefined) continue;
+          const decision = await limiter.take(key, costOf(call));
+          if (!decision.allowed) {
+            // The refused call does not run: the in-flight bounds before the refusal get their units back
+            await releaseAll(held);
+            return { refused: { limit: limiter.name, refused: decision } };
+          }
+          // A rate policy gives no lease: only an in-flight bound holds units until the end of the call
+          if (decision.lease !== undefined) held.push({ limiter, key, decision });
+        }
+      } catch (error) {
+        // A second release of a decision gives back nothing, thus this release after a failed one is safe
+        await releaseAll(held);
+        throw error;
       }
-      return undefined;
+      if (held.length === 0) return {};
+      let released: Promise<void> | undefined;
+      return { release: () => (released ??= releaseAll(held)) };
     },
   };
 }

@@ -7,39 +7,23 @@
  */
 
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expandHome, findUp } from "@mark1russell7/files";
 import { isMark1Russell7Ref } from "./git/index.js";
 
 /**
- * Expand a leading `~/` to the home directory
+ * This function replaces a leading `~` with the home folder: `~`, `~/a` and `~\a`. Its home is
+ * `@mark1russell7/files`.
  */
-export function expandHome(p: string): string {
-  if (p === "~") {
-    return homedir();
-  }
-  if (p.startsWith("~/") || p.startsWith("~\\")) {
-    return join(homedir(), p.slice(2));
-  }
-  return p;
-}
+export { expandHome };
 
 /**
  * Find the nearest folder at or above `start` that holds pnpm-workspace.yaml
  */
 export function findWorkspaceRoot(start: string): string | null {
-  let dir = resolve(start);
-  for (;;) {
-    if (existsSync(join(dir, "pnpm-workspace.yaml"))) {
-      return dir;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) {
-      return null;
-    }
-    dir = parent;
-  }
+  const file = findUp("pnpm-workspace.yaml", start);
+  return file === null ? null : dirname(file);
 }
 
 /**

@@ -226,9 +226,10 @@ const loggingMiddleware: ServerMiddleware = (next) => async (context) => {
   return response;
 };
 
-// Auth middleware
+// Auth middleware. The token comes from the credentials of the request: a network face keeps the
+// metadata key `auth` out of the metadata (roadmap R18)
 const authMiddleware: ServerMiddleware = (next) => async (context) => {
-  const token = context.request.metadata.auth?.token;
+  const token = context.request.credentials?.bearer;
 
   if (!token) {
     return {

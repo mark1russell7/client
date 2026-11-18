@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/dag",
-  "version": "0.60.0",
-  "description": "Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. The procedure dag.traverse visits workspace packages in dependency order.",
+  "version": "0.63.0",
+  "description": "Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. The procedure dag.traverse visits workspace packages in dependency order. It also has a procedure for each function of @mark1russell7/collections/dag with JSON inputs.",
   "keywords": [
     "dag",
     "graph",
@@ -82,8 +82,9 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-    "@mark1russell7/collections": "^0.10.0",
+    "@mark1russell7/collections": "^0.11.3",
     "@procedures/client": "workspace:*",
+    "@procedures/compiler": "workspace:*",
     "zod": "^4.6.5"
   },
   "client": {

@@ -6,13 +6,22 @@
 
 ## . (dist/index.d.ts): names
 
+DEFAULT_PEER_TIMEOUT_MS: dist/peers.d.ts#DEFAULT_PEER_TIMEOUT_MS
 type DevToolsHost: dist/host.d.ts#DevToolsHost
+type LoadPeersOptions: dist/peers.d.ts#LoadPeersOptions
 type LoadedBundles: dist/host.d.ts#LoadedBundles
+type LoadedPeers: dist/peers.d.ts#LoadedPeers
 type McpServerConfig: dist/config.d.ts#McpServerConfig
+type PeerConfig: dist/config.d.ts#PeerConfig
+type PeerState: dist/peers.d.ts#PeerState
 type RunningDevToolsServer: dist/host.d.ts#RunningDevToolsServer
 createDevToolsHost: dist/host.d.ts#createDevToolsHost
 loadBundles: dist/host.d.ts#loadBundles
 loadConfig: dist/config.d.ts#loadConfig
+loadPeers: dist/peers.d.ts#loadPeers
+parsePeers: dist/config.d.ts#parsePeers
+peerAddress: dist/peers.d.ts#peerAddress
+readDiscovery: dist/peers.d.ts#readDiscovery
 runDevToolsServer: dist/host.d.ts#runDevToolsServer
 
 ## bin: 1 commands
@@ -37,10 +46,21 @@ export interface McpServerConfig {
     } | undefined;
     programCheck?: boolean | undefined;
     fsRoot?: string | undefined;
+    listing?: "each" | "search" | undefined;
+    peers?: readonly PeerConfig[] | undefined;
+}
+
+### dist/config.d.ts#PeerConfig
+export interface PeerConfig {
+    readonly name: string;
+    readonly source: string;
 }
 
 ### dist/config.d.ts#loadConfig
 export declare function loadConfig(): McpServerConfig;
+
+### dist/config.d.ts#parsePeers
+export declare function parsePeers(value: string | undefined): PeerConfig[];
 
 ### dist/host.d.ts#DevToolsHost
 export interface DevToolsHost {
@@ -51,6 +71,7 @@ export interface DevToolsHost {
     fsRoot?: string | undefined;
     refusedUnderRoot?: string[] | undefined;
     mcp: McpHost;
+    peers: PeerState[];
 }
 
 ### dist/host.d.ts#LoadedBundles
@@ -76,3 +97,39 @@ export declare function loadBundles(bundles: readonly string[]): Promise<LoadedB
 
 ### dist/host.d.ts#runDevToolsServer
 export declare function runDevToolsServer(config?: McpServerConfig, run?: RunOptions): Promise<RunningDevToolsServer>;
+
+### dist/peers.d.ts#DEFAULT_PEER_TIMEOUT_MS
+export declare const DEFAULT_PEER_TIMEOUT_MS = 5000;
+
+### dist/peers.d.ts#LoadPeersOptions
+export interface LoadPeersOptions {
+    readonly timeoutMs?: number | undefined;
+    readonly fetch?: typeof fetch | undefined;
+    readonly cwd?: string | undefined;
+}
+
+### dist/peers.d.ts#LoadedPeers
+export interface LoadedPeers {
+    readonly modules: ProcedureModule[];
+    readonly states: PeerState[];
+}
+
+### dist/peers.d.ts#PeerState
+export type PeerState = {
+    readonly name: string;
+    readonly source: string;
+    readonly procedures: number;
+} | {
+    readonly name: string;
+    readonly source: string;
+    readonly error: string;
+};
+
+### dist/peers.d.ts#loadPeers
+export declare function loadPeers(peers: readonly PeerConfig[], options?: LoadPeersOptions): Promise<LoadedPeers>;
+
+### dist/peers.d.ts#peerAddress
+export declare function peerAddress(source: string, cwd?: string): PeerAddress | (() => Promise<PeerAddress>);
+
+### dist/peers.d.ts#readDiscovery
+export declare function readDiscovery(file: string): Promise<PeerAddress>;

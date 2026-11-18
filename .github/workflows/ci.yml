@@ -159,6 +159,26 @@ jobs:
         run: |
           node --test scripts/check-declared-imports.test.ts
           node scripts/check-declared-imports.ts
+      # Each wrap package (direction 40) has the manifest that the generator gives now from the
+      # types of its home, so each public function of the home has a procedure or an exemption.
+      # The share of the functions with a procedure does not fall below the ratchet in
+      # wraps.coverage.json. The step needs the build of @procedures/compiler. First the tests of
+      # the check and of the script release-train:update, then the check.
+      - name: Check the wraps of the homes
+        if: ${{ !cancelled() }}
+        run: |
+          node --test scripts/wraps.test.ts scripts/release-train-update.test.ts
+          node scripts/wraps.ts check
+      # The release train starts the script release-train:update after each update of a general
+      # package. The step changes the version in a wrap manifest, so the check of the wraps fails and
+      # the script starts the generator. Then each file must be the file of the commit again.
+      - name: The script release-train:update writes a changed manifest again
+        if: ${{ !cancelled() }}
+        run: |
+          sed -i 's/^  "version": "[^"]*",$/  "version": "0.0.0-fault",/' packages/rational/src/manifest.ts
+          if git diff --quiet packages/rational/src/manifest.ts; then echo "The fault did not change the manifest."; exit 1; fi
+          pnpm run release-train:update
+          git diff --stat --exit-code
       # The paths, the topics and the storage writes (invariants I3 and I5, CLI-84). A path, a key, a
       # method or a topic goes through the codec of @procedures/client, and not through a join or a
       # split on ".". Only the storage files write a MongoDB collection. The step parses the src/
@@ -496,7 +516,7 @@ jobs:
     # The check deploys nothing. On a public repository, each read of the build works with read access.
     permissions:
       contents: read
-    uses: mark1russell7/template/.github/workflows/reusable-pages-check.yml@8e44f07b96860e61207d3955817276af52b2a148 # main
+    uses: mark1russell7/template/.github/workflows/reusable-pages-check.yml@94adcfe753a1ec7d03cc03f445f1f0559d5c205f # main
     with:
       timeout-minutes: 25
 
