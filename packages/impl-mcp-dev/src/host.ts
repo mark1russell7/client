@@ -30,6 +30,7 @@ import {
 } from "@procedures/client";
 import {
   createMcpHost,
+  mergeInstructions,
   mergeSurfaces,
   redirectConsoleToStderr,
   type BundleSurfaceModule,
@@ -156,6 +157,8 @@ async function loadBundlesGlobally(bundles: readonly string[], files: readonly s
 export interface DevToolsHost {
   registry: ProcedureRegistry;
   surface: ToolSurface | undefined;
+  /** The instructions of the server for the model: the joined `mcpInstructions` of the bundles, or undefined. */
+  instructions?: string | undefined;
   policy: HostPolicy;
   server: ProcedureServer;
   /** The absolute path of the root of the files (`MCP_FS_ROOT`), or undefined. */
@@ -200,6 +203,9 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
   const bundleSurface = mergeSurfaces(loaded.surfaces);
   const peerSurfaces = peers.modules.map((module) => ({ mcpNamespaces: namespacesOf(module) }));
   const surface = bundleSurface && peerSurfaces.length > 0 ? mergeSurfaces([...loaded.surfaces, ...peerSurfaces]) : bundleSurface;
+  // The instructions of the bundles and module files (d40-tool-surface): a module file of the tools of
+  // another repository keeps the instructions of its own server, for example the tool to read first
+  const instructions = mergeInstructions(loaded.surfaces);
   // Read only: the tools are the procedures that the capability permits, so the list shows only
   // what a call can start (CAPABILITIES-2026-10). The check before the run (roadmap R22): a
   // program with an error does not start, so a refusal in step 3 comes before the write of step 1.
@@ -212,6 +218,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     ...(config.programCheck === false ? {} : { interceptors: ({ expose }) => [programCheckInterceptor({ registry, expose })] }),
     name: config.serverName,
     version: config.serverVersion,
+    ...(instructions !== undefined ? { instructions } : {}),
     debug: config.debug,
     faces: facesOf(config),
     ...(config.listing ? { listing: config.listing } : {}),
@@ -219,6 +226,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
   return {
     registry,
     surface,
+    ...(instructions !== undefined ? { instructions } : {}),
     policy: mcp.policy,
     server: mcp.server,
     mcp,
