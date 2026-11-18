@@ -10,7 +10,7 @@ import {
 } from "./twilio.js";
 
 // The keys and the SIDs are made up. The bodies have the shapes of the API documentation
-// (twilio.com/docs/usage/api/usage-record), read on 2026-11-18. The documents give `price` as a
+// (twilio.com/docs/usage/api/usage-record), read on 2026-11-17. The documents give `price` as a
 // decimal text in one example and as a number in another, so the tests use both.
 const ACCOUNT = `AC${"0123456789abcdef".repeat(2)}`;
 const KEY = `SK${"fedcba9876543210".repeat(2)}`;
