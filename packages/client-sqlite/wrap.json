@@ -1,0 +1,93 @@
+{
+  "home": "@mark1russell7/sqlite",
+  "entry": ".",
+  "namespace": [
+    "sqlite"
+  ],
+  "manifest": "src/manifest.ts",
+  "overlay": {
+    "effects": {
+      "reads": [
+        "fs"
+      ],
+      "writes": [],
+      "idempotent": true
+    },
+    "fsRoot": {},
+    "functions": {
+      "openDatabase": {
+        "effects": {
+          "reads": [
+            "fs"
+          ],
+          "writes": [
+            "fs"
+          ],
+          "destructive": false,
+          "idempotent": false
+        },
+        "fsRoot": {
+          "paths": [
+            "path"
+          ],
+          "values": [
+            ":memory:"
+          ]
+        }
+      },
+      "addMissingColumns": {
+        "effects": {
+          "reads": [
+            "fs"
+          ],
+          "writes": [
+            "fs"
+          ],
+          "destructive": false,
+          "idempotent": true
+        }
+      },
+      "checkpoint": {
+        "effects": {
+          "reads": [
+            "fs"
+          ],
+          "writes": [
+            "fs"
+          ],
+          "destructive": false,
+          "idempotent": true
+        }
+      },
+      "clearDatabase": {
+        "effects": {
+          "reads": [
+            "fs"
+          ],
+          "writes": [
+            "fs"
+          ],
+          "destructive": true,
+          "idempotent": true
+        }
+      },
+      "snapshot": {
+        "effects": {
+          "reads": [
+            "fs"
+          ],
+          "writes": [
+            "fs"
+          ],
+          "destructive": true,
+          "idempotent": true
+        },
+        "fsRoot": {
+          "paths": [
+            "path"
+          ]
+        }
+      }
+    }
+  }
+}

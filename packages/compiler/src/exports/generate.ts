@@ -14,7 +14,7 @@
 
 import ts from "typescript-api";
 import type * as TS from "typescript-api";
-import type { Effects } from "@procedures/client/browser";
+import type { Effects, FsRootRules } from "@procedures/client/browser";
 import { HANDLE_KEYWORD, handleSchema } from "@procedures/client/browser";
 import { BIGINT_PATTERN } from "./codecs.js";
 import { handleKindsOf, withHandleEffects } from "./handles.js";
@@ -36,6 +36,11 @@ import {
 export interface ExportsOverlay {
   /** The effects of each procedure. Absent: unknown. A package of pure functions gives `{ reads: [], writes: [] }`. */
   readonly effects?: Effects;
+  /**
+   * The rules of each procedure under the root of a host: the inputs that name a file or a folder.
+   * An empty object confines a procedure that names no path, for example one that reads a handle.
+   */
+  readonly fsRoot?: FsRootRules;
   /** The changes for single functions, by the name of the export. */
   readonly functions?: Readonly<Record<string, ExportsFunctionOverlay>>;
   /**
@@ -49,6 +54,8 @@ export interface ExportsOverlay {
 export interface ExportsFunctionOverlay {
   /** The effects of this function, in place of the effects of the package. */
   readonly effects?: Effects;
+  /** The rules of this function under the root of a host, in place of the rules of the package. */
+  readonly fsRoot?: FsRootRules;
   /** The reason why this function has no procedure. */
   readonly exempt?: string;
 }
@@ -224,7 +231,9 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     const properties = (result.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
     const takes = Object.values(properties).some((schema) => handleKindsOf(schema) !== undefined);
     const effects = withHandleEffects(functionOverlay?.effects ?? overlay.effects, takes, handleKindsOf(result.output) !== undefined);
-    procedures.push(effects ? { ...result, effects } : result);
+    const fsRoot = functionOverlay?.fsRoot ?? overlay.fsRoot;
+    if (fsRoot !== undefined) checkRootInputs(name, fsRoot, result);
+    procedures.push({ ...result, ...(effects ? { effects } : {}), ...(fsRoot !== undefined ? { fsRoot } : {}) });
   }
 
   return {
@@ -954,6 +963,18 @@ const PRIMITIVES: readonly TS.TypeFlags[] = [
   ts.TypeFlags.Never,
   ts.TypeFlags.NonPrimitive,
 ];
+
+/**
+ * This function throws when the root rules of a function name an input that the function does not
+ * have. Then the overlay is older or newer than the package, and the host cannot confine the path.
+ */
+function checkRootInputs(name: string, rules: FsRootRules, procedure: ExportProcedure): void {
+  const named = [...(rules.cwd !== undefined ? [rules.cwd] : []), ...(rules.paths ?? []), ...(rules.names ?? []), ...(rules.required ?? [])];
+  const unknown = named.filter((input) => !procedure.params.includes(input) && procedure.rest !== input);
+  if (unknown.length > 0) {
+    throw new Error(`The root rules of ${name} name the inputs ${unknown.join(", ")}, but the function has no parameters with these names`);
+  }
+}
 
 /** A comparison of two keys of the same rank: numbers and bigints by value, strings by code unit. */
 function compareKeys(a: number | bigint | string, b: number | bigint | string): number {
