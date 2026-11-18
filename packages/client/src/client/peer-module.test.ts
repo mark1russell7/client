@@ -137,6 +137,15 @@ describe("peerModule", () => {
     await expect(peerModule({ name: "jobs", address: { ...peer.address, token: "wrong" } })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  it("fails when the signal of the read aborts, for a peer that does not answer", async () => {
+    const controller = new AbortController();
+    const hang: typeof fetch = (_input, init) =>
+      new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("the request stops")), { once: true }));
+    const read = peerModule({ name: "jobs", address: { url: "http://127.0.0.1:9/api" }, fetch: hang, signal: controller.signal });
+    setTimeout(() => controller.abort(), 20);
+    await expect(read).rejects.toThrow();
+  });
+
   it("fails when the answer of the peer is not a manifest", async () => {
     const registry = new ProcedureRegistry();
     registry.register({ path: ["procedure", "manifest"], input: z.object({}), output: z.unknown(), metadata: { effects: { reads: [], writes: [] } }, handler: async () => ({ format: "other" }) } as AnyProcedure);

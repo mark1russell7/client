@@ -22,6 +22,7 @@ import {
   ProcedureServer,
   createRegistry,
   registerClientProcedures,
+  registerModules,
   type HostPolicy,
   type ProcedureModule,
   type ProcedureRegistry,
@@ -43,6 +44,7 @@ import { pathToFileURL } from "node:url";
 import { ephemeral, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
 import { httpTransport, type HttpKnobs, type HttpTransport } from "@mark1russell7/service/http";
 import { loadConfig, type McpServerConfig } from "./config.js";
+import { loadPeers, type PeerState } from "./peers.js";
 import { ms, seconds } from "@procedures/client";
 
 /** The exports of a bundle's `module` entry: its module and the lists of its tools. */
@@ -162,6 +164,8 @@ export interface DevToolsHost {
   refusedUnderRoot?: string[] | undefined;
   /** The MCP host: `mcp.start()` starts its face (stdio, or Streamable HTTP with `config.http`). */
   mcp: McpHost;
+  /** The state of each peer of `config.peers`: its count of forwarded procedures, or its error. */
+  peers: PeerState[];
 }
 
 /**
@@ -179,7 +183,10 @@ function facesOf(config: McpServerConfig): McpHostFaces {
 /** This function builds the host. It starts no transport. */
 export async function createDevToolsHost(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
   const loaded = await loadBundles(config.bundles);
-  const registry = loaded.global ? PROCEDURE_REGISTRY : createRegistry(...loaded.modules);
+  // MCP_PEERS (d40-tool-surface, step 2): a stub for each procedure of each running peer. A path of a
+  // peer that the host already has stops the start, with the error of the registry.
+  const peers = await loadPeers(config.peers ?? []);
+  const registry = loaded.global ? registerModules(PROCEDURE_REGISTRY, peers.modules) : createRegistry(...loaded.modules, ...peers.modules);
   // MCP_FS_ROOT (roadmap R33): each procedure of the registry keeps its paths in the root, also
   // in the nested calls, or the root refuses it. It adds no procedure: the tools stay the same.
   let fsRoot: string | undefined;
@@ -188,8 +195,11 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     const { confineToRoot } = await import("@procedures/fs/module");
     ({ root: fsRoot, refused: refusedUnderRoot } = confineToRoot(registry, config.fsRoot));
   }
-  // Bundles without mcpNamespaces say nothing about their tools: then every procedure is a tool
-  const surface = mergeSurfaces(loaded.surfaces);
+  // Bundles without mcpNamespaces say nothing about their tools: then every procedure is a tool,
+  // also each stub of a peer. Else the namespaces of each peer add to the tools of the bundles.
+  const bundleSurface = mergeSurfaces(loaded.surfaces);
+  const peerSurfaces = peers.modules.map((module) => ({ mcpNamespaces: namespacesOf(module) }));
+  const surface = bundleSurface && peerSurfaces.length > 0 ? mergeSurfaces([...loaded.surfaces, ...peerSurfaces]) : bundleSurface;
   // Read only: the tools are the procedures that the capability permits, so the list shows only
   // what a call can start (CAPABILITIES-2026-10). The check before the run (roadmap R22): a
   // program with an error does not start, so a refusal in step 3 comes before the write of step 1.
@@ -212,6 +222,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     policy: mcp.policy,
     server: mcp.server,
     mcp,
+    peers: peers.states,
     ...(fsRoot !== undefined ? { fsRoot, refusedUnderRoot } : {}),
   };
 }
@@ -270,6 +281,11 @@ export async function runDevToolsServer(config: McpServerConfig = loadConfig(), 
   const life = await svc.run(run);
   const face = host.mcp.state().faces[0];
   if (config.debug) console.error(`[mcp-server] Started with ${face?.toolCount ?? 0} tools`);
+  // A peer that did not answer gives no tools: the line tells why, so the gap is not silent
+  for (const peer of host.peers) {
+    if ("error" in peer) console.error(`[mcp-server] The peer ${peer.name} (${peer.source}) gives no tools until the next start: ${peer.error}`);
+    else if (config.debug) console.error(`[mcp-server] The peer ${peer.name} gives ${peer.procedures} procedures`);
+  }
   if (host.fsRoot !== undefined) console.error(`[mcp-server] Each tool refuses a path outside ${host.fsRoot}. Refused under the root: ${String(host.refusedUnderRoot)}`);
   let url: string | undefined;
   const bound = listener?.server.address();

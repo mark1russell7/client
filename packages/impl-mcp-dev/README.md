@@ -50,8 +50,9 @@ When the client closes the input of stdio, the server stops: the calls in flight
 | `MCP_PROGRAM_CHECK` | `true` | With `false`, a program starts without the check before the run |
 | `MCP_FS_ROOT` | not set | The root of the files: each tool keeps its paths in this folder, or the host refuses it. Refer to "The root of the files". |
 | `MCP_LISTING` | `each` | With `search`, the list has three tools: `search_tools`, `describe_tool` and `call_tool`. Refer to "The cost of the search listing". |
+| `MCP_PEERS` | not set | The running peers, as `name=source` entries separated by commas. The server forwards the calls of their tools. Refer to "The procedures of running peers". |
 
-`mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token`, `--max-sessions`, `--fs-root` and `--listing`.
+`mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--peers`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token`, `--max-sessions`, `--fs-root` and `--listing`.
 
 The server operates under `run()` of `@mark1russell7/service` (CLI-11). The runner owns the signals, the stop in stages and the exit of the process.
 
@@ -124,6 +125,24 @@ export { vexModule as default } from "@mark1russell7/vex-mcp";
 
 `src/module-file.test.ts` loads a module file with no imports next to `bundle-mcp`, and starts its tool through the server.
 
+## The procedures of running peers
+
+A process with a state, for example a daemon, keeps its procedures in its own process. A second copy of its module in this server has a different state. Thus the server forwards the calls. Put the peer in `MCP_PEERS`:
+
+```json
+"env": { "MCP_PEERS": "jobs=/path/to/jobs-daemon.json,files=http://127.0.0.1:4000/api" }
+```
+
+- The name of a peer has lowercase letters, digits and hyphens, and it starts with a letter.
+- A source is the base URL of the procedures of the peer, or its discovery file. A URL sends no token.
+- A discovery file is a JSON object with the URL in `url` or `endpoint`, and a bearer token in `token`. A peer that starts again writes a new port and token in the file. The server reads the file at each call, so the calls follow the peer.
+- At the start, the server reads the manifest of each peer through `procedure.manifest`, with a time limit of 5 seconds. Each procedure of the manifest becomes a tool, with its description, its JSON Schemas and its effects. `client.*` and `procedure.*` stay out.
+- The peer examines each input with its own schemas, and applies its own policy. `MCP_READ_ONLY` keeps only the procedures that declare no writes.
+- A peer that does not answer at the start gives no tools until the next start. The server writes the reason to stderr, and `host.peers` gives the state of each peer.
+- When a path of a peer is also a path of the server or of another peer, the server does not start. The message names the path.
+
+`src/peers.test.ts` starts peers on free ports of `127.0.0.1`, with and without a token, and calls their tools through the server.
+
 ## The tool list
 
 `tools.snapshot.txt` has the names of the 94 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
@@ -151,4 +170,5 @@ The bytes are a measure of the tokens. A task is the search listing, one result 
 - **No tools in Claude.** Build the monorepo, and examine the path in the configuration. Start the server with `MCP_DEBUG=true` and read stderr.
 - **Old tools or old behavior.** Restart the MCP server after a rebuild.
 - **A bundle fails to load.** The server stops with the error of the import. Build the bundle, and examine the name in `MCP_BUNDLES`.
+- **A peer gives no tools.** The server writes `The peer <name> (<source>) gives no tools until the next start` and the reason to stderr. Start the peer, and then start the server again.
 - **A module file fails to load.** The server stops with `MCP_BUNDLES: the module file <path> did not load` and the reason. Examine the path, and install the packages that the file imports.

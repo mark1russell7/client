@@ -628,6 +628,8 @@ server: only the tools of the bundles, strict nested calls, and a time limit for
 
 Options:
   --bundles <list>      Comma-separated bundles (default: MCP_BUNDLES, or @procedures/bundle-mcp)
+  --peers <list>        Running peers as name=source, with commas. A source is the URL of the
+                        procedures of a peer, or its discovery file (default: MCP_PEERS)
   --tool-timeout <ms>   The time limit of each tool call (default: MCP_TOOL_TIMEOUT_MS, or 600000)
   --read-only           Only the tools that change nothing (default: MCP_READ_ONLY)
   --http <port>         Serve over Streamable HTTP on this port, not over stdio (MCP_HTTP_PORT)
@@ -651,7 +653,7 @@ The MCP server serves no remote events: MCP carries only the tool calls.
  * writes nothing to stdout, and the server sends console.log to stderr.
  */
 async function startMcp(args: string[], fsRoot?: string): Promise<void> {
-  const { loadConfig, runDevToolsServer } = await import("@procedures/mcp-dev-tools");
+  const { loadConfig, parsePeers, runDevToolsServer } = await import("@procedures/mcp-dev-tools");
   const config = loadConfig();
   // `mark --fs-root <folder> mcp` replaces MCP_FS_ROOT, and `mark mcp --fs-root` replaces both
   if (fsRoot !== undefined) config.fsRoot = fsRoot;
@@ -670,6 +672,8 @@ async function startMcp(args: string[], fsRoot?: string): Promise<void> {
       return;
     } else if (name === "--bundles") {
       config.bundles = value().split(",").map((bundle) => bundle.trim()).filter(Boolean);
+    } else if (name === "--peers") {
+      config.peers = parsePeers(value());
     } else if (name === "--tool-timeout") {
       const ms = Number(value());
       if (!Number.isFinite(ms) || ms < 0) throw new Error(`--tool-timeout needs a number of milliseconds`);

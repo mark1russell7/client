@@ -3309,6 +3309,7 @@ export interface PeerAddress {
 export interface PeerModuleOptions extends ForwardOptions {
     readonly address: PeerAddress | (() => PeerAddress | Promise<PeerAddress>);
     readonly fetch?: typeof fetch | undefined;
+    readonly signal?: AbortSignal | undefined;
 }
 
 ### dist/client/peer-module.d.ts#peerModule
