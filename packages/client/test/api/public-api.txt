@@ -131,11 +131,14 @@ type ExposedError: dist/server/error-policy.d.ts#ExposedError
 type FaceRules: dist/server/face-rules.d.ts#FaceRules
 type FaceRulesOptions: dist/server/face-rules.d.ts#FaceRulesOptions
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
+type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
+type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
 type GuardedHeaders: dist/server/browser-guard.d.ts#GuardedHeaders
 type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
+HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -240,6 +243,8 @@ type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
+type PeerAddress: dist/client/peer-module.d.ts#PeerAddress
+type PeerModuleOptions: dist/client/peer-module.d.ts#PeerModuleOptions
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -509,6 +514,7 @@ faceRules: dist/server/face-rules.d.ts#faceRules
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+forwardedModule: dist/procedures/forward.d.ts#forwardedModule
 fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
@@ -620,6 +626,7 @@ parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
+peerModule: dist/client/peer-module.d.ts#peerModule
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
@@ -824,8 +831,11 @@ type ExposedError: dist/server/error-policy.d.ts#ExposedError
 type FaceRules: dist/server/face-rules.d.ts#FaceRules
 type FaceRulesOptions: dist/server/face-rules.d.ts#FaceRulesOptions
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
+type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
+type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 HIDDEN_ERROR_MESSAGE: dist/server/error-policy.d.ts#HIDDEN_ERROR_MESSAGE
+HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -930,6 +940,8 @@ type PackageDefinition: dist/procedures/module.d.ts#PackageDefinition
 type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
 type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PartitionsHandle: dist/server/procedure-server.d.ts#PartitionsHandle
+type PeerAddress: dist/client/peer-module.d.ts#PeerAddress
+type PeerModuleOptions: dist/client/peer-module.d.ts#PeerModuleOptions
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -1196,6 +1208,7 @@ faceRules: dist/server/face-rules.d.ts#faceRules
 flattenRoute: dist/client/call-types.d.ts#flattenRoute
 formatError: dist/client/errors/factory.d.ts#formatError
 formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+forwardedModule: dist/procedures/forward.d.ts#forwardedModule
 fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
@@ -1303,6 +1316,7 @@ parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
+peerModule: dist/client/peer-module.d.ts#peerModule
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
@@ -1473,6 +1487,8 @@ type MockTransportOptions: dist/adapters/mock/client/types.d.ts#MockTransportOpt
 type PaginationOptions: dist/client/middleware/pagination.d.ts#PaginationOptions
 type PathInput: dist/client/typed.d.ts#PathInput
 type PathOutput: dist/client/typed.d.ts#PathOutput
+type PeerAddress: dist/client/peer-module.d.ts#PeerAddress
+type PeerModuleOptions: dist/client/peer-module.d.ts#PeerModuleOptions
 type ProcedureDef: dist/client/typed.d.ts#ProcedureDef
 type ProcedureNamespace: dist/client/typed.d.ts#ProcedureNamespace
 type ProcedurePaths: dist/client/typed.d.ts#ProcedurePaths
@@ -1547,6 +1563,7 @@ ms: dist/duration.d.ts#ms
 narrowDeadline: dist/client/deadline.d.ts#narrowDeadline
 normalizeCallOptions: dist/client/context.d.ts#normalizeCallOptions
 paginateAll: dist/client/middleware/pagination.d.ts#paginateAll
+peerModule: dist/client/peer-module.d.ts#peerModule
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 resilience: dist/client/middleware/resilience.d.ts#resilience
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
@@ -1700,7 +1717,10 @@ type EnvelopeLiteral: dist/procedures/envelope.d.ts#EnvelopeLiteral
 type EnvelopePath: dist/procedures/envelope.d.ts#EnvelopePath
 type EnvelopeProgram: dist/procedures/envelope.d.ts#EnvelopeProgram
 type EnvelopeRef: dist/procedures/envelope.d.ts#EnvelopeRef
+type ForwardCall: dist/procedures/forward.d.ts#ForwardCall
+type ForwardOptions: dist/procedures/forward.d.ts#ForwardOptions
 type FsRootRules: dist/procedures/types.d.ts#FsRootRules
+HOST_NAMESPACES: dist/procedures/forward.d.ts#HOST_NAMESPACES
 type HintImages: dist/procedures/collection/hint-filter.d.ts#HintImages
 type HintRowState: dist/procedures/collection/hint-filter.d.ts#HintRowState
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
@@ -1902,6 +1922,7 @@ executeRef: dist/procedures/program.d.ts#executeRef
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
 exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
 extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+forwardedModule: dist/procedures/forward.d.ts#forwardedModule
 fromEnvelopeProgram: dist/procedures/envelope.d.ts#fromEnvelopeProgram
 fromJson: dist/procedures/ref.d.ts#fromJson
 getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
@@ -3277,6 +3298,21 @@ export declare function extractTracingInfo(metadata: Record<string, unknown>): {
     spanId?: string;
     parentSpanId?: string;
 } | null;
+
+### dist/client/peer-module.d.ts#PeerAddress
+export interface PeerAddress {
+    readonly url: string;
+    readonly token?: string | undefined;
+}
+
+### dist/client/peer-module.d.ts#PeerModuleOptions
+export interface PeerModuleOptions extends ForwardOptions {
+    readonly address: PeerAddress | (() => PeerAddress | Promise<PeerAddress>);
+    readonly fetch?: typeof fetch | undefined;
+}
+
+### dist/client/peer-module.d.ts#peerModule
+export declare function peerModule(options: PeerModuleOptions): Promise<ProcedureModule>;
 
 ### dist/client/route-resolver.d.ts#ResolvedRoute
 export interface ResolvedRoute {
@@ -5120,6 +5156,22 @@ export declare function isEnvelopeProgram(value: unknown): value is EnvelopeProg
 
 ### dist/procedures/envelope.d.ts#toEnvelopeProgram
 export declare function toEnvelopeProgram(program: AnyProcedureRef): EnvelopeProgram;
+
+### dist/procedures/forward.d.ts#ForwardCall
+export type ForwardCall = (path: ProcedurePath, input: unknown, signal: AbortSignal | undefined) => Promise<unknown>;
+
+### dist/procedures/forward.d.ts#ForwardOptions
+export interface ForwardOptions {
+    readonly name: string;
+    readonly namespaces?: readonly string[] | undefined;
+    readonly prefix?: ProcedurePath | undefined;
+}
+
+### dist/procedures/forward.d.ts#HOST_NAMESPACES
+export declare const HOST_NAMESPACES: readonly string[];
+
+### dist/procedures/forward.d.ts#forwardedModule
+export declare function forwardedModule(manifest: ProcedureManifest, call: ForwardCall, options: ForwardOptions): ProcedureModule;
 
 ### dist/procedures/hints.d.ts#ToolHintOverride
 export interface ToolHintOverride {
