@@ -28,7 +28,7 @@
     "@mark1russell7/boundaries": "^0.2.0",
     "@mark1russell7/conventions": "^0.45.1",
     "@mark1russell7/cue": "^2.1.1",
-    "@mark1russell7/rigor-bench": "^0.2.53",
+    "@mark1russell7/rigor-bench": "^0.2.60",
     "@mark1russell7/rigor-generators": "^0.2.0",
     "@mark1russell7/rigor-statistics": "^0.1.22",
     "@mark1russell7/ste-lint": "^0.3.0",
