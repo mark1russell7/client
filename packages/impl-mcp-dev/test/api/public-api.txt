@@ -66,6 +66,7 @@ export declare function parsePeers(value: string | undefined): PeerConfig[];
 export interface DevToolsHost {
     registry: ProcedureRegistry;
     surface: ToolSurface | undefined;
+    instructions?: string | undefined;
     policy: HostPolicy;
     server: ProcedureServer;
     fsRoot?: string | undefined;
