@@ -348,6 +348,41 @@ An instance of a class is not JSON, and it can have a state, for example an open
 - Only a parameter or the output gets a handle, not a class instance inside an object. An output of an interface has no kind, so it stays exempt.
 - A class instance is a handle, also when a pure function gives the class. Only when the field `constructors` of the overlay names a factory of the class does the parameter get a constructed input.
 
+## An HTTP API operation as data
+
+The entry `@procedures/compiler/api` reads the format `api-operation/1`. One document gives one operation of an HTTP API: the service, the input schema, the request and the response. Each value is a term of the formula kit of `@mark1russell7/coeval`, with its standard operations (`STD_OPS`).
+
+```typescript
+import { buildApiRequest, extractApiResponse, type ApiOperation } from "@procedures/compiler/api";
+
+const ref = (...path: string[]) => ({ type: "ref", value: ["names", ...path] });
+const op = (name: string, ...args: unknown[]) => ({ type: ["ops", name], value: args });
+
+const getItem: ApiOperation = {
+  format: "api-operation/1",
+  service: { origin: "https://api.example.com", auth: { scheme: "bearer", secret: "example", token: ref("credential", "token") } },
+  input: { type: "object", required: ["id"], properties: { id: { type: "string", pattern: "^[a-z0-9-]+$" } } },
+  request: { method: "GET", path: op("concat", "/v1/items/", ref("input", "id")), headers: [["accept", "application/json"]] },
+  response: { fields: [["name", ref("body", "name"), "text"], ["updatedAt", ref("body", "updated_at"), "date"]] },
+};
+
+const built = buildApiRequest(getItem, { id: "a-1" }, { example: { token } });
+if (built.ok) {
+  const response = await fetch(built.request.url, built.request);
+  const read = extractApiResponse(getItem, { status: response.status, text: await response.text(), headers: response.headers });
+}
+```
+
+- `buildApiRequest(operation, input, credentials)` checks the input against the input schema. It then evaluates the terms of the path, the query, the headers and the body. A term reads the names `input` and `credential`.
+- The validator of `@cfworker/json-schema` checks each schema. The `$schema` of a schema sets the draft: 4, 7, 2019-09 or 2020-12 (the default). Each error gives the JSON Pointer of its place and its cause. For `anyOf` and `oneOf`, the error tells how many branches fit.
+- The authentication names a credential binding. Its record is the name `credential`. The errors of a credential that does not fit its schema give only the paths, not the values.
+- A term that gives `#N/A`, for example a reference to an absent optional input, leaves out its field. A form, a query and a header take a text, a finite number or a truth value.
+- The path is a slash and segments of RFC 3986, with no dot segment. A header value has no control character. The builder refuses each other value.
+- `extractApiResponse(operation, response)` does not throw. A status outside the success range gives the kind of the first status rule that holds it. The kinds are `server`, `rate-limited`, `auth` and `refused`, and the fetch adds `network` and `timeout`.
+- The message and the code of an error answer come from terms of the error envelope. The retry rule gives the wait from the header `Retry-After`.
+- A success body that is not JSON, or does not fit the response schema, gives a failure of the kind `server`. Each field has a decoder: `text`, `integer`, `count`, `number`, `bool`, `date` or `any`.
+- `apiOperationIssues(operation)` gives the problems of the structure of a document. Both functions throw for a document with a problem.
+
 ## The procedures
 
 ```typescript

@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 67. **Procedures:** 593. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 67. **Procedures:** 604. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -40,7 +40,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/shell` | `packages/client-shell` | Safe command execution for TypeScript: shell.run with argv and no shell, shell.stream line streaming with backpressure, process-tree kill, timeouts and output caps. | `shell.*` (4) | `client` |
 | `@procedures/snapshot` | `packages/client-snapshot` | Snapshot and restore development environments with S3: git state, packages and files, with streamed archives and a safe restore. | `snapshot.*` (5) | `client`, `fs`, `git`, `pnpm`, `s3` |
 | `@procedures/splay` | `packages/client-splay` | Render procedure results with splay: a bridge between the client procedures and the splay recursive renderer, with stream helpers. | `splay.*` (2) | `client`, `@mark1russell7/splay` *(general)* |
-| `@procedures/sqlite` | `packages/client-sqlite` | SQLite procedures on node:sqlite through @mark1russell7/sqlite: queries, tables and schemas, transactions, migrations, backups and structured logs, and SqliteStorage, a durable collection storage with a change log. | `sqlite.*` (7), `logs.*` (2) | `@mark1russell7/sqlite` *(general)*, `client` |
+| `@procedures/sqlite` | `packages/client-sqlite` | SQLite procedures on node:sqlite through @mark1russell7/sqlite: queries, tables and schemas, transactions, migrations, backups, structured logs, generated procedures on database handles, and SqliteStorage, a durable collection storage with a change log. | `handle.*` (2), `sqlite.*` (16), `logs.*` (2) | `@mark1russell7/sqlite` *(general)*, `client`, `compiler` |
 | `@procedures/store` | `packages/client-store` | A program store for procedure-as-data: save the programs that procedure.define makes, load them back after a restart, in memory, a JSON file, IndexedDB or a remote collection storage. | `procedure.*` (5) | `@mark1russell7/service` *(general)*, `client`, `collections` |
 | `@procedures/vite` | `packages/client-vite` | Vite as procedures: dev server, build, preview and stop, with no shell and managed processes. | `vite.*` (4) | `client`, `shell` |
 | `@procedures/vitest` | `packages/client-vitest` | Vitest as procedures: run the tests with results and coverage, watch, and stop the managed watch processes. | `vitest.*` (5) | `client`, `shell` |
