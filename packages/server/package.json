@@ -72,7 +72,6 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.10.0",
     "@procedures/client": "workspace:*",
     "@procedures/peer": "workspace:*",
     "@procedures/shell": "workspace:*",
@@ -81,12 +80,14 @@
   "devDependencies": {
     "@mark1russell7/cue": "^2.1.1",
     "@mark1russell7/rigor-testkit": "^0.1.13",
+    "@mark1russell7/service": "^0.11.0",
     "@procedures/fs": "workspace:*",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },
   "peerDependencies": {
+    "@mark1russell7/service": "^0.11.0",
     "@procedures/fs": "workspace:^"
   },
   "peerDependenciesMeta": {
