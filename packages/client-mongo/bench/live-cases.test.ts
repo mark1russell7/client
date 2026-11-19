@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { keptUp, plannedSets, writersOf } from "./live-cases.js";
+import { DEFAULT_WRITES_IN_FLIGHT } from "../src/storage/document-storage.js";
+import { BOUND_LIMIT, keptUp, plannedSets, replyRate, writersOf } from "./live-cases.js";
 
 describe("the cases of the live state bench", () => {
   it("reads the number of writers of a case", () => {
@@ -19,5 +20,21 @@ describe("the cases of the live state bench", () => {
     expect(keptUp({ ...pass, replied: 94 })).toBe(false);
     expect(keptUp({ ...pass, failures: 1 })).toBe(false);
     expect(keptUp({ ...pass, readerP99Ms: 1000.5 })).toBe(false);
+  });
+
+  it("gives the replies for each second from the start of the load to the last reply", () => {
+    // Without a bound, the queue replies in the grace too: 6,900 replies in 23 seconds
+    expect(replyRate({ replied: 6900, lastReplyMs: 23_000 })).toBe(300);
+    // With a bound, the replies end soon after the load: 6,060 replies in 20.2 seconds
+    expect(replyRate({ replied: 6060, lastReplyMs: 20_200 })).toBeCloseTo(300, 9);
+    expect(replyRate({ replied: 0, lastReplyMs: null })).toBeNull();
+    expect(replyRate({ replied: 10 })).toBeNull();
+    expect(replyRate({ replied: 1, lastReplyMs: 0 })).toBeNull();
+    expect(replyRate({ replied: 1, lastReplyMs: Number.NaN })).toBeNull();
+  });
+
+  it("bounds more writes than the write queue runs at one time, so the queue keeps writes that wait", () => {
+    expect(Number.isInteger(BOUND_LIMIT)).toBe(true);
+    expect(BOUND_LIMIT).toBeGreaterThan(DEFAULT_WRITES_IN_FLIGHT);
   });
 });

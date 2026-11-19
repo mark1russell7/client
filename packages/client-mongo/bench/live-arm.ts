@@ -1,5 +1,5 @@
 /**
- * One arm of the live state bench, in its own process: `--arm store|live --case w<writers> --job <n> --counts <file>`.
+ * One arm of the live state bench, in its own process: `--arm <arm> --case w<writers> --job <n> --counts <file>`.
  * The server, the writers and the reader share this process, over real WebSocket connections. The child prints the JSON
  * line of `freshRun`: its time is the reader p99.
  */
@@ -23,12 +23,13 @@ import {
   liveTopic,
   pathToMethod,
   seconds,
+  type CallLimit,
   type LiveEvent,
 } from "@procedures/client";
 import { WebSocketServerTransport } from "@procedures/client/node";
 import { MongoClient } from "mongodb";
 import { MongoDocumentStorage } from "../src/storage/document-storage.js";
-import { GRACE_MS, LOAD_MS, SETS_PER_SECOND, plannedSets, writersOf, type LiveArm, type LiveCount } from "./live-cases.js";
+import { BOUND_LIMIT, GRACE_MS, LIVE_ARMS, LOAD_MS, SETS_PER_SECOND, plannedSets, writersOf, type LiveArm, type LiveCount } from "./live-cases.js";
 
 /** The name of the collection and of the live topic. */
 const NAME = "bench_presence";
@@ -46,8 +47,8 @@ interface BenchValue {
 
 const { values } = parseArgs({ options: { arm: { type: "string" }, case: { type: "string" }, job: { type: "string" }, counts: { type: "string" } } });
 const { arm, case: caseName, job, counts } = values;
-if ((arm !== "store" && arm !== "live" && arm !== "storequiet" && arm !== "storefilter") || caseName === undefined || job === undefined || counts === undefined) {
-  throw new RangeError("this child needs --arm store|live|storequiet|storefilter, --case, --job and --counts");
+if (!(LIVE_ARMS as readonly (string | undefined)[]).includes(arm) || caseName === undefined || job === undefined || counts === undefined) {
+  throw new RangeError(`this child needs --arm ${LIVE_ARMS.join("|")}, --case, --job and --counts`);
 }
 const url = process.env["MONGO_TEST_URL"];
 if (url === undefined) throw new RangeError("this child needs MONGO_TEST_URL");
@@ -62,9 +63,22 @@ const storage = new MongoDocumentStorage<BenchValue>({ collection: NAME, db: () 
 
 const registry = createRegistry();
 registry.registerAll(createCollectionProcedures(NAME, arm === "storefilter" ? { admission: { admit: () => true } } : {}));
+
+/** The in-flight bound of the arm `storebound`: one key for each procedure, so all the sets share the bound. The reads have no bound. */
+const WRITES_IN_FLIGHT: CallLimit = {
+  name: "writes-in-flight",
+  key: "route",
+  covers: { writes: true },
+  policy: { type: "in-flight", limit: { value: BOUND_LIMIT, unit: "count" }, lease: seconds(30), retryAfter: seconds(1) },
+  store: { kind: "local" },
+  evict: { maxKeys: { value: 100, unit: "count" } },
+  nested: false,
+};
+
 const server = new ProcedureServer({
   registry,
   autoRegister: true,
+  ...(arm === "storebound" ? { limits: [WRITES_IN_FLIGHT] } : {}),
   collections: { [NAME]: storage },
   events: {
     bus: createEventBus(),
@@ -99,6 +113,7 @@ const committed = async (): Promise<number> => Number((await admin.command({ ser
 
 const readerTimes: number[] = [];
 const replyTimes: number[] = [];
+const refusedTimes: number[] = [];
 const errors: Record<string, { count: number; text: string }> = {};
 let readerValues = 0;
 let readerEvents = 0;
@@ -106,6 +121,13 @@ let readerReads = 0;
 let readerBytes = 0;
 let replied = 0;
 let failures = 0;
+let refused = 0;
+// The replies in the load, and the times of the first and the last reply from the start of the load (CLI-132 step 3b)
+let repliedInLoad = 0;
+let firstReplyMs: number | null = null;
+let lastReplyMs: number | null = null;
+/** The start of the load. The load loop sets it before the first send. */
+let loadStart = Number.NaN;
 
 function failed(error: unknown): void {
   failures += 1;
@@ -161,7 +183,7 @@ if (arm === "live") {
     } while (again);
     reading = false;
   };
-  if (arm === "store" || arm === "storefilter") {
+  if (arm === "store" || arm === "storefilter" || arm === "storebound") {
     let lastVersion: string | undefined;
     const subscription = reader.subscribe<{ readonly since?: string; readonly version?: string }>([collectionChangeTopic(NAME)], (event) => {
       readerEvents += 1;
@@ -184,10 +206,20 @@ function send(client: Client, writer: number, round: number): void {
   const payload = arm === "live" ? { topic, key: `w${writer}`, value } : { id: `w${writer}`, value };
   void client.call<typeof payload, unknown>(setMethod, payload).then(
     () => {
+      const now = performance.now();
       replied += 1;
-      replyTimes.push(performance.now() - sentAt);
+      replyTimes.push(now - sentAt);
+      const sinceStart = now - loadStart;
+      if (sinceStart <= LOAD_MS) repliedInLoad += 1;
+      firstReplyMs = firstReplyMs === null ? sinceStart : Math.min(firstReplyMs, sinceStart);
+      lastReplyMs = lastReplyMs === null ? sinceStart : Math.max(lastReplyMs, sinceStart);
     },
-    failed,
+    (error: unknown) => {
+      // A refusal of the in-flight bound is the answer of the bound, not a failure: its work did not start.
+      if ((error as { code?: string }).code !== "RATE_LIMITED") return failed(error);
+      refused += 1;
+      refusedTimes.push(performance.now() - sentAt);
+    },
   );
 }
 
@@ -200,6 +232,7 @@ const beforeCpu = process.cpuUsage();
 // Each writer has its own turn in the period, and sends on a fixed schedule whatever the replies do
 const period = 1000 / SETS_PER_SECOND;
 const start = performance.now();
+loadStart = start;
 await Promise.all(clients.map(async (client, writer) => {
   const offset = (writer / writers) * period;
   for (let round = 0; round < (LOAD_MS / 1000) * SETS_PER_SECOND; round += 1) {
@@ -224,11 +257,16 @@ const line: LiveCount = {
   case: caseName,
   planned: plannedSets(writers),
   replied,
+  repliedInLoad,
+  firstReplyMs,
+  lastReplyMs,
+  refused,
   failures,
   storeWrites: afterWrites - beforeWrites,
   transactions: afterCommitted - beforeCommitted,
   replyP50Ms: at(replyTimes, 0.5),
   replyP99Ms: at(replyTimes, 0.99),
+  refusedP99Ms: at(refusedTimes, 0.99),
   readerP50Ms: at(readerTimes, 0.5),
   readerP95Ms: at(readerTimes, 0.95),
   readerP99Ms,

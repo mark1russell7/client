@@ -1,14 +1,14 @@
 /**
  * The report of the suite `live`: `--jobs <folder> --out <file> [--run <id>]`. For each case and arm this script gives
- * the median and the worst of each count over the children, the store writes for each set, and the processor time for
- * each set. The report only reports: no limit comes from one run.
+ * the median and the worst of each count over the children, the store writes for each set, the share of the plan with
+ * an answer, and the processor time for each set. The report only reports: no limit comes from one run.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { median } from "@mark1russell7/rigor-statistics";
-import { LIVE_ARMS, LIVE_CASES, keptUp, type LiveCount } from "./live-cases.js";
+import { LIVE_ARMS, LIVE_CASES, keptUp, replyRate, type LiveCount } from "./live-cases.js";
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
@@ -44,12 +44,20 @@ const cases = LIVE_CASES.map((name) => ({
       keptUp: own.filter(keptUp).length,
       planned: own[0]!.planned,
       replied: summary(own, (row) => row.replied),
+      // The same window for each arm: the replies in the load, and the replies for each second up to the last reply
+      repliedInLoad: summary(own, (row) => row.repliedInLoad ?? null),
+      lastReplyMs: summary(own, (row) => row.lastReplyMs ?? null),
+      replyRate: summary(own, replyRate),
+      refused: summary(own, (row) => row.refused),
+      // The share of the plan with an answer in the load and the grace: a reply or a refusal
+      answeredShare: summary(own, (row) => (row.replied + row.refused) / row.planned),
       failures: summary(own, (row) => row.failures),
       storeWrites: summary(own, (row) => row.storeWrites),
       storeWritesPerSet: summary(own, (row) => row.storeWrites / row.planned),
       transactions: summary(own, (row) => row.transactions),
       replyP50Ms: summary(own, (row) => row.replyP50Ms),
       replyP99Ms: summary(own, (row) => row.replyP99Ms),
+      refusedP99Ms: summary(own, (row) => row.refusedP99Ms),
       readerP50Ms: summary(own, (row) => row.readerP50Ms),
       readerP95Ms: summary(own, (row) => row.readerP95Ms),
       readerP99Ms: summary(own, (row) => row.readerP99Ms),
