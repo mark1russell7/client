@@ -1,7 +1,8 @@
 /**
- * The growth gate of the fan-out bench: `--jobs <folder>`. This script reads the job files and gives the growth gate of
- * `fan-out-growth.ts`. It fails when the outcome is `block` or `no read`, because a `no read` is not a pass. An error
- * annotation on the check line names the outcome, its cases and the CPU models of the jobs.
+ * The growth gate and the block budget of the fan-out bench: `--jobs <folder>`. This script reads the job files and gives
+ * the growth gate of `fan-out-growth.ts` and the block budget of `fan-out-budget.ts`. It fails when an outcome is `block`
+ * or `no read`, because a `no read` is not a pass. An error annotation on the check line names the outcome, its cases
+ * and the CPU models of the jobs. The run of a pull request times no case `block`, so the log tells that it does not read the budget.
  *
  * The gate reads the job files and not the report, because the run of a pull request times only the case `total`. The
  * A/A band of the report needs five cases or more, and the growth gate needs no band: it reads ratios inside each job.
@@ -11,6 +12,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { gateLine, jobModels, writeGateLine } from "@mark1russell7/rigor-bench";
+import { blockBudget } from "./fan-out-budget.js";
 import { parseCase } from "./fan-out-cases.js";
 import { type GrowthJob, fanOutGrowth } from "./fan-out-growth.js";
 
@@ -39,3 +41,17 @@ if (growth.outcome !== "pass") {
   writeGateLine(gateLine(reads, { title: "The fan-out growth gate", enforced: true, models, ...(reason !== undefined && { reason }) }));
 }
 if (growth.outcome !== "pass") process.exitCode = 1;
+
+// The block budget: the median of the sliced block of each size over the children of the run
+const budget = blockBudget(jobs);
+for (const size of budget.sizes) {
+  const read = size.median === undefined ? "no read" : `${size.median.toFixed(2)} ms`;
+  console.log(`sliced ${size.case}: ${read} over ${size.children} children, budget ${size.limit} ms: ${size.outcome}`);
+}
+console.log(`fan-out block budget over ${jobs.length} jobs: ${budget.outcome}${budget.reason === undefined ? "" : `: ${budget.reason}`}`);
+if (budget.uncovered.length > 0) console.log(`CPU models outside the runs of the budget: ${budget.uncovered.join(", ")}`);
+if (budget.outcome === "block" || budget.outcome === "no read") {
+  const reads = budget.sizes.map((size) => ({ case: size.case, outcome: size.outcome }));
+  writeGateLine(gateLine(reads, { title: "The fan-out block budget", enforced: true, models, ...(budget.reason !== undefined && { reason: budget.reason }) }));
+  process.exitCode = 1;
+}

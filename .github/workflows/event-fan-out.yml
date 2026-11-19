@@ -4,8 +4,9 @@ name: Event fan-out
 # 100,000 subscribers, with and without the slices of the event bus (roadmap CLI-90). Each sample is
 # a fresh process. Each job has an A/A pair. The report pools the jobs.
 #
-# The times are a report. The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 24 times
-# for each 10 times more subscribers.
+# The growth of the time of a publish is a gate (bench/fan-out-growth.ts): less than 24 times
+# for each 10 times more subscribers. The median of the sliced block of each size has a budget (bench/fan-out-budget.ts).
+# Only a run that times the case block reads the budget: main each night, and a dispatch. The other times are a report.
 #
 # A pull request that changes the event bus or the procedures runs the gate: 5 jobs of 6 rounds, only the case total.
 # The gate needs 5 jobs. A run of 3 jobs (42399340081) gave an upper bound of 14.68x, so one job decided it (CLI-90).
@@ -150,8 +151,9 @@ jobs:
           path: packages/client/fan-out-report.json
           if-no-files-found: error
       # The growth gate: less than 24 times for each 10 times more subscribers. A no read is not a pass.
+      # The block budget: the median of the sliced block of each size, from 6 scheduled runs (CLI-90).
       # The gate reads the job files, so it also runs when the report fails.
-      - name: The growth gate
+      - name: The growth gate and the block budget
         if: ${{ !cancelled() }}
         working-directory: packages/client
         run: node --import tsx bench/fan-out-gate.ts --jobs bench-out

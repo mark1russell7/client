@@ -3,8 +3,9 @@
  * 10 times more subscribers. A cost that grows as n x n grows 100 times. The gate reads the ratio inside each job, so
  * the speed of a runner does not change the verdict. A case `total` whose child did not end in its time limit blocks.
  *
- * Only the case `total` is a gate: the time to reach all subscribers. The case `block` of the arm `sliced` is one slice,
- * so its growth is a report.
+ * Only the case `total` has a growth gate: the time to reach all subscribers. The growth of the case `block` is a report.
+ * The block of the arm `sliced` is longer than one slice, and it grows linearly with the subscribers. Thus the block has a
+ * budget for each size in `fan-out-budget.ts`.
  */
 
 import { type GrowthRound, type GrowthVerdict, type PairedTime, growthVerdict } from "@mark1russell7/rigor-bench";
