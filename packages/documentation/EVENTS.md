@@ -410,6 +410,10 @@ The bound goes to the host, not to the change events:
 - The limits of the host (CLI-40) refuse a call past a rate with `RATE_LIMITED` and a wait in `retry-after`. The work did not start, so a retry after the wait is safe.
 - A rate limit needs the service rate, and the service rate changes with the storage and the load. A bound on the calls in flight does not need it.
 - The limiter of `@mark1russell7/service` 0.10.0 has a bound on the calls in flight (`InFlightBound`) beside its rate policies. A limit of the host takes it (CLI-132). A call past the bound gets `RATE_LIMITED` before its work starts.
+- The live-bound bench of `@procedures/mongo` compares two arms at 100 writers over the same load of 20 s. The arm `storebound` has a bound of 32 writes in flight, and the arm `store` has no bound.
+- In run [44460772799](https://github.com/mark1russell7/client/actions/runs/44460772799), the bound replied 250 times a second, and the store with no bound replied 259 times a second (0.97).
+- The last reply of the bound came 0.1 s after the load. The store with no bound replied until the end of the grace, because its queue grew.
+- Each write of the bound got a reply or a `RATE_LIMITED` refusal, with no failure. The p99 of its replies was 584 ms or less in each of its 15 children.
 
 `changeEvents` stays `true` by default:
 
