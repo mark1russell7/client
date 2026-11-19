@@ -3,7 +3,8 @@
  *
  * It reads the entry `.d.ts` file of a package with the type checker of TypeScript. It gives a
  * procedure for each public function whose inputs and output are JSON, or have a codec
- * (`./codecs.ts`). The schemas come from the types, and the descriptions come from the doc comments.
+ * (`./codecs.ts`). An instance of a class at the top of a parameter or of the output is a handle
+ * (`./handles.ts`). The schemas come from the types, and the descriptions come from the doc comments.
  *
  * TypeScript 7 has no compiler API in JavaScript. So this module reads the compiler API of
  * TypeScript 5 as the package `typescript-api` (`npm:typescript@^5.9.3`), as the site of this
@@ -13,8 +14,10 @@
 
 import ts from "typescript-api";
 import type * as TS from "typescript-api";
-import type { Effects } from "@procedures/client/browser";
+import type { Effects, FsRootRules } from "@procedures/client/browser";
+import { HANDLE_KEYWORD, handleSchema } from "@procedures/client/browser";
 import { BIGINT_PATTERN } from "./codecs.js";
+import { handleKindsOf, withHandleEffects } from "./handles.js";
 import {
   CODEC_KEYWORD,
   CONSTRUCT_KEYWORD,
@@ -33,6 +36,11 @@ import {
 export interface ExportsOverlay {
   /** The effects of each procedure. Absent: unknown. A package of pure functions gives `{ reads: [], writes: [] }`. */
   readonly effects?: Effects;
+  /**
+   * The rules of each procedure under the root of a host: the inputs that name a file or a folder.
+   * An empty object confines a procedure that names no path, for example one that reads a handle.
+   */
+  readonly fsRoot?: FsRootRules;
   /** The changes for single functions, by the name of the export. */
   readonly functions?: Readonly<Record<string, ExportsFunctionOverlay>>;
   /**
@@ -46,6 +54,8 @@ export interface ExportsOverlay {
 export interface ExportsFunctionOverlay {
   /** The effects of this function, in place of the effects of the package. */
   readonly effects?: Effects;
+  /** The rules of this function under the root of a host, in place of the rules of the package. */
+  readonly fsRoot?: FsRootRules;
   /** The reason why this function has no procedure. */
   readonly exempt?: string;
 }
@@ -174,6 +184,8 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 
   const exports = [...checker.getExportsOfModule(moduleSymbol)].sort((a, b) => compare(a.name, b.name));
   const factories = factoriesOf(exports);
+  // The classes that a function of the package takes or gives at the top: the kinds of its handles
+  const handleClasses = handleClassesOf(exports);
   // A factory whose input reaches its own type has no input: null
   const factoryInputs = new Map<Factory, FactoryInput | null>();
   for (const exported of exports) {
@@ -215,8 +227,13 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       exempt.push(result);
       continue;
     }
-    const effects = functionOverlay?.effects ?? overlay.effects;
-    procedures.push(effects ? { ...result, effects } : result);
+    // A procedure with a handle reads or writes the handle scope of its caller (d40-handles)
+    const properties = (result.input["properties"] ?? {}) as Record<string, ExportsJsonSchema>;
+    const takes = Object.values(properties).some((schema) => handleKindsOf(schema) !== undefined);
+    const effects = withHandleEffects(functionOverlay?.effects ?? overlay.effects, takes, handleKindsOf(result.output) !== undefined);
+    const fsRoot = functionOverlay?.fsRoot ?? overlay.fsRoot;
+    if (fsRoot !== undefined) checkRootInputs(name, fsRoot, result);
+    procedures.push({ ...result, ...(effects ? { effects } : {}), ...(fsRoot !== undefined ? { fsRoot } : {}) });
   }
 
   return {
@@ -225,7 +242,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     ...(options.version !== undefined ? { version: options.version } : {}),
     entry: options.entry ?? ".",
     namespace: [...options.namespace],
-    $defs: Object.fromEntries([...defs.entries()].sort(([a], [b]) => compare(a, b))),
+    $defs: Object.fromEntries(reachedDefinitions(defs, procedures).sort(([a], [b]) => compare(a, b))),
     procedures,
     exempt,
     others: { classes, values, types },
@@ -249,9 +266,17 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
         schema = schemaOf(parameterType, false);
       } catch (error) {
         if (!(error instanceof NotJson)) throw error;
-        // A value that is not JSON can come from a pure function of the package: a constructed input
-        const constructed = error.isFunction ? undefined : constructedSchema(parameterType);
-        if (constructed === undefined || "problem" in constructed) {
+        // An instance of a class has a state: it is a handle in the scope of the caller (d40-handles)
+        const handle = error.isFunction ? undefined : handleSchemaOf(parameterType, false);
+        // Another value that is not JSON can come from a pure function of the package: a constructed input.
+        // A class gets one only when overlay.constructors names its factory
+        const constructed = error.isFunction || (handle !== undefined && !constructorNamed(parameterType)) ? undefined : constructedSchema(parameterType);
+        // Else an interface takes a handle of each class of the package that it accepts
+        const accepted = error.isFunction || handle !== undefined || constructed !== undefined ? undefined : interfaceHandleSchema(parameterType);
+        const handleOrAccepted = handle ?? accepted;
+        if (constructed !== undefined && !("problem" in constructed)) schema = constructed;
+        else if (constructed === undefined && handleOrAccepted !== undefined) schema = handleOrAccepted;
+        else {
           const problem = constructed !== undefined ? `. ${constructed.problem}` : "";
           return {
             name,
@@ -259,10 +284,10 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
             detail: `${error.detail(parameterName)}${problem}`,
           };
         }
-        schema = constructed;
       }
       const own = parameterText(parameter);
-      const description = own && CONSTRUCT_KEYWORD in schema ? `${own} ${String(schema["description"])}` : own;
+      const generated = CONSTRUCT_KEYWORD in schema || HANDLE_KEYWORD in schema;
+      const description = own && generated ? `${own} ${String(schema["description"])}` : own;
       properties[parameterName] = description ? { ...schema, description } : schema;
       if (parameterDeclaration.dotDotDotToken) rest = parameterName;
       else params.push(parameterName);
@@ -282,7 +307,10 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
       output = returnType.flags & (ts.TypeFlags.Void | ts.TypeFlags.Undefined) ? { type: "null" } : schemaOf(returnType, true);
     } catch (error) {
       if (!(error instanceof NotJson)) throw error;
-      return { name, reason: "output-not-json", detail: error.detail() };
+      // An instance of a class is a handle in the scope of the caller (d40-handles)
+      const handle = handleSchemaOf(returnType, true);
+      if (handle === undefined) return { name, reason: "output-not-json", detail: error.detail() };
+      output = handle;
     }
     // A named type serves inputs and outputs, so a function in it can reach an output as a sub-program
     const programAt = programPath(output);
@@ -357,6 +385,141 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     const { schema, construct } = factoryInput(factory)!;
     const call = `${factory.name}(${construct.params.join(", ")})`;
     return { ...schema, description: `The input of ${factory.name}: the procedure makes the ${typeName} with ${call} before the call.`, [CONSTRUCT_KEYWORD]: construct };
+  }
+
+  /** True when `overlay.constructors` names a factory for the type, without `undefined` and `null`. */
+  function constructorNamed(type: TS.Type): boolean {
+    const members = type.isUnion() ? type.types : [type];
+    const defined = members.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void | ts.TypeFlags.Null)));
+    return defined.length === 1 && overlay.constructors?.[checker.typeToString(defined[0]!)] !== undefined;
+  }
+
+  /**
+   * The schema of a handle (d40-handles): the type is one instance of a class that is not a global
+   * type. The result is undefined for another type. An optional parameter has `T | undefined`.
+   * A member `null`, or `undefined` in an output, gives `anyOf` with `{ "type": "null" }`.
+   */
+  function handleSchemaOf(type: TS.Type, output: boolean): ExportsJsonSchema | undefined {
+    const made = classInstance(type);
+    return made === undefined ? undefined : nullable(type, handleSchema(made.kind), output);
+  }
+
+  /**
+   * The schema of the handle of an input of an interface (d40-handles). The interface accepts each
+   * class of `handleClasses` that is assignable to it, for example `DatabaseSync` for a
+   * `SqlConnection`. The result is undefined when it accepts no class.
+   */
+  function interfaceHandleSchema(type: TS.Type): ExportsJsonSchema | undefined {
+    const made = definedMember(type);
+    if (made === undefined || !(made.flags & ts.TypeFlags.Object) || checker.getPropertiesOfType(made).length === 0) return undefined;
+    if (made.getConstructSignatures().length > 0 || made.getCallSignatures().length > 0) return undefined;
+    const accepted = [...handleClasses].filter(([instance]) => checker.isTypeAssignableTo(instance, made)).map(([, kind]) => kind);
+    const kinds = [...new Set(accepted)].sort(compare);
+    return kinds.length === 0 ? undefined : nullable(type, handleSchema(kinds), false);
+  }
+
+  /**
+   * This function gives the members of a union in a canonical sequence. TypeScript keeps the members
+   * in the sequence of its type ids. An id comes from the sequence in which the checker made the
+   * types. Thus a change in a different part of the generator can change the sequence. The sequence
+   * is important. The decoder of the codecs takes the first member that accepts a value. The names
+   * of the definitions come in the sequence of the walk.
+   *
+   * The primitive types come first, in the sequence of `PRIMITIVES`. The number literals and the
+   * bigint literals follow by value. Then come the string literals by code unit. The other types
+   * come last, by the code units of their text. Members with the same key keep their sequence.
+   */
+  function canonicalMembers(members: readonly TS.Type[]): TS.Type[] {
+    const keyed = members.map((member, index) => ({ member, index, ...memberKey(member) }));
+    keyed.sort((a, b) => a.rank - b.rank || compareKeys(a.key, b.key) || a.index - b.index);
+    return keyed.map(({ member }) => member);
+  }
+
+  /** The rank and the key of a member of a union, for `canonicalMembers`. */
+  function memberKey(member: TS.Type): { rank: number; key: number | bigint | string } {
+    const primitive = PRIMITIVES.findIndex((flag) => member.flags & flag);
+    if (primitive >= 0) return { rank: 0, key: primitive };
+    if (member.isNumberLiteral()) return { rank: 1, key: member.value };
+    if (member.flags & ts.TypeFlags.BigIntLiteral) {
+      const { negative, base10Value } = (member as TS.BigIntLiteralType).value;
+      return { rank: 2, key: BigInt(`${negative ? "-" : ""}${base10Value}`) };
+    }
+    if (member.isStringLiteral()) return { rank: 3, key: member.value };
+    return { rank: 4, key: checker.typeToString(member, undefined, ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType) };
+  }
+
+  /** The schema, or `anyOf` with `{ "type": "null" }` for a member `null`, or `undefined` in an output. */
+  function nullable(type: TS.Type, schema: ExportsJsonSchema, output: boolean): ExportsJsonSchema {
+    const members = type.isUnion() ? type.types : [type];
+    const hasNull = members.some((member) => member.flags & ts.TypeFlags.Null);
+    const hasUndefined = members.some((member) => member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void));
+    return hasNull || (output && hasUndefined) ? { anyOf: [schema, { type: "null" }] } : schema;
+  }
+
+  /**
+   * The one member of a type without `undefined`, `void` and `null`, or undefined for more than one.
+   * A type parameter gives its constraint.
+   */
+  function definedMember(type: TS.Type): TS.Type | undefined {
+    const members = type.isUnion() ? type.types : [type];
+    const defined = members.filter((member) => !(member.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Void | ts.TypeFlags.Null)));
+    if (defined.length !== 1) return undefined;
+    const made = defined[0]!;
+    if (!made.isTypeParameter()) return made;
+    const constraint = checker.getBaseConstraintOfType(made);
+    return constraint === undefined || constraint === made ? undefined : definedMember(constraint);
+  }
+
+  /** The instance type and the kind of a class that is not a global type, or undefined for another type. */
+  function classInstance(type: TS.Type): { readonly instance: TS.Type; readonly kind: string } | undefined {
+    const made = definedMember(type);
+    const symbol = made?.getSymbol();
+    if (made === undefined || !symbol || !(symbol.flags & ts.SymbolFlags.Class) || isGlobal(symbol)) return undefined;
+    // The type of the class itself (typeof C) has a construct signature: it is a function, not an instance
+    if (made.getConstructSignatures().length > 0 || made.getCallSignatures().length > 0) return undefined;
+    return { instance: made, kind: handleKind(symbol) };
+  }
+
+  /**
+   * The classes that the functions of the package take or give at the top of a parameter or of the
+   * output, with their kinds. Only a function with one signature and no exemption of the overlay counts.
+   */
+  function handleClassesOf(symbols: readonly TS.Symbol[]): Map<TS.Type, string> {
+    const found = new Map<TS.Type, string>();
+    for (const exported of symbols) {
+      const symbol = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
+      if (!symbol.declarations?.length || !(symbol.flags & (ts.SymbolFlags.Function | ts.SymbolFlags.Variable))) continue;
+      if (overlay.functions?.[exported.name]?.exempt !== undefined) continue;
+      const signatures = checker.getTypeOfSymbolAtLocation(symbol, source!).getCallSignatures();
+      if (signatures.length !== 1) continue;
+      const signature = signatures[0]!;
+      const returned = signature.getReturnType();
+      const parameters = signature.getParameters().flatMap((parameter) =>
+        parameter.valueDeclaration ? [checker.getTypeOfSymbolAtLocation(parameter, parameter.valueDeclaration)] : [],
+      );
+      for (const type of [promisedType(returned) ?? returned, ...parameters]) {
+        const made = classInstance(type);
+        if (made !== undefined) found.set(made.instance, made.kind);
+      }
+    }
+    return found;
+  }
+
+  /**
+   * The kind of the handle of a class: its module and its name, for example `node:sqlite#DatabaseSync`.
+   * The module is the name of an ambient module, the package of a file in `node_modules`, or the
+   * package of the manifest. So two packages that use the same class agree on its kind.
+   */
+  function handleKind(symbol: TS.Symbol): string {
+    const declaration = symbol.declarations?.[0];
+    for (let node: TS.Node | undefined = declaration; node !== undefined; node = node.parent) {
+      if (ts.isModuleDeclaration(node) && ts.isStringLiteral(node.name)) return `${node.name.text}#${symbol.name}`;
+    }
+    const file = declaration?.getSourceFile().fileName.split("\\").join("/") ?? "";
+    const at = file.lastIndexOf("/node_modules/");
+    if (at < 0) return `${options.package}#${symbol.name}`;
+    const [first = "", second = ""] = file.slice(at + "/node_modules/".length).split("/");
+    return `${first.startsWith("@") ? `${first}/${second}` : first}#${symbol.name}`;
   }
 
   /**
@@ -472,7 +635,7 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
     members = defined;
     // `boolean` is the union `true | false`
     const booleans = members.filter((member) => member.flags & ts.TypeFlags.BooleanLiteral);
-    const others = members.filter((member) => !(member.flags & ts.TypeFlags.BooleanLiteral));
+    const others = canonicalMembers(members.filter((member) => !(member.flags & ts.TypeFlags.BooleanLiteral)));
     const schemas: ExportsJsonSchema[] = booleans.length === 2 ? [{ type: "boolean" }] : booleans.map((member) => schemaOf(member, output));
     for (const member of others) schemas.push(schemaOf(member, output));
     if (hasUndefined && output) schemas.push({ type: "null" });
@@ -752,6 +915,70 @@ export function generateExportsManifest(options: GenerateExportsOptions): Export
 function firstParagraph(comment: string): string {
   const [first = ""] = comment.split(/\n\s*\n/);
   return first.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * This function gives the definitions that the procedures reach through `$ref`, also through other
+ * definitions. A function whose schema failed is exempt, but the definitions made inside its schema
+ * stay in the map. Thus a definition that no procedure reaches is not in the manifest.
+ */
+function reachedDefinitions(defs: ReadonlyMap<string, ExportsJsonSchema>, procedures: readonly unknown[]): Array<[string, ExportsJsonSchema]> {
+  const reached = new Set<string>();
+  const visit = (node: unknown): void => {
+    if (node === null || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item);
+      return;
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (key !== "$ref" || typeof value !== "string" || !value.startsWith("#/$defs/")) {
+        visit(value);
+        continue;
+      }
+      const name = value.slice("#/$defs/".length);
+      if (reached.has(name)) continue;
+      reached.add(name);
+      visit(defs.get(name));
+    }
+  };
+  visit(procedures);
+  return [...defs].filter(([name]) => reached.has(name));
+}
+
+/**
+ * The primitive types of a union, in the sequence in which the TypeScript checker makes them.
+ * Thus `string` comes before `bigint`, as before the canonical sequence of `canonicalMembers`.
+ */
+const PRIMITIVES: readonly TS.TypeFlags[] = [
+  ts.TypeFlags.Any,
+  ts.TypeFlags.Unknown,
+  ts.TypeFlags.Undefined,
+  ts.TypeFlags.Null,
+  ts.TypeFlags.String,
+  ts.TypeFlags.Number,
+  ts.TypeFlags.BigInt,
+  ts.TypeFlags.Boolean,
+  ts.TypeFlags.ESSymbol,
+  ts.TypeFlags.Void,
+  ts.TypeFlags.Never,
+  ts.TypeFlags.NonPrimitive,
+];
+
+/**
+ * This function throws when the root rules of a function name an input that the function does not
+ * have. Then the overlay is older or newer than the package, and the host cannot confine the path.
+ */
+function checkRootInputs(name: string, rules: FsRootRules, procedure: ExportProcedure): void {
+  const named = [...(rules.cwd !== undefined ? [rules.cwd] : []), ...(rules.paths ?? []), ...(rules.names ?? []), ...(rules.required ?? [])];
+  const unknown = named.filter((input) => !procedure.params.includes(input) && procedure.rest !== input);
+  if (unknown.length > 0) {
+    throw new Error(`The root rules of ${name} name the inputs ${unknown.join(", ")}, but the function has no parameters with these names`);
+  }
+}
+
+/** A comparison of two keys of the same rank: numbers and bigints by value, strings by code unit. */
+function compareKeys(a: number | bigint | string, b: number | bigint | string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** A comparison of two names by code unit, the same on each platform. */

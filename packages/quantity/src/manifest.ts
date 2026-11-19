@@ -298,32 +298,32 @@ export const manifest: ExportsManifest = {
         },
         "kind": {
           "enum": [
-            "time",
-            "length",
-            "mass",
-            "temperature",
-            "data",
-            "money",
-            "current",
-            "count",
-            "ratio",
-            "level",
-            "frequency",
-            "transfer-rate",
-            "data-rate",
-            "speed",
             "area",
-            "volume",
-            "energy",
-            "power",
-            "voltage",
             "charge",
+            "count",
+            "current",
+            "data",
+            "data-rate",
+            "derived",
+            "energy",
+            "energy-price",
+            "frequency",
+            "length",
+            "level",
+            "mass",
+            "money",
+            "money-rate",
+            "power",
+            "ratio",
             "resistance",
             "specific-power",
             "specific-volume-rate",
-            "money-rate",
-            "energy-price",
-            "derived"
+            "speed",
+            "temperature",
+            "time",
+            "transfer-rate",
+            "voltage",
+            "volume"
           ]
         },
         "counts": {
@@ -350,401 +350,6 @@ export const manifest: ExportsManifest = {
         "kind",
         "counts",
         "log"
-      ]
-    },
-    "UnitSystem": {
-      "type": "object",
-      "properties": {
-        "atoms": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Atom"
-          }
-        },
-        "atomBySymbol": {
-          "type": "array",
-          "items": {
-            "type": "array",
-            "prefixItems": [
-              {
-                "type": "string"
-              },
-              {
-                "$ref": "#/$defs/Atom"
-              }
-            ],
-            "minItems": 2,
-            "maxItems": 2
-          },
-          "x-procedures-codec": "map"
-        },
-        "lookupAtom": {
-          "type": "object",
-          "description": "This function gives the atom that a spelling names: its symbol or one of its aliases.",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "spelling"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "$ref": "#/$defs/Atom"
-            },
-            "undefinedForNull": true
-          }
-        },
-        "parseUnit": {
-          "type": "object",
-          "description": "This function resolves a unit from its spelling. The spelling has symbols or their aliases, factors joined by `·` or `*`, and one `/` at most. All that follows the slash divides: \"kcal/h·kg\" is per hour per kilogram. A factor can have a power (`m^2`) and say what it counts (`{rep}`).",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "spelling"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "$ref": "#/$defs/Unit"
-            }
-          }
-        },
-        "tryParseUnit": {
-          "type": "object",
-          "description": "This function gives the unit of a spelling, or undefined when the spelling names no unit.",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "spelling"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "$ref": "#/$defs/Unit"
-            },
-            "undefinedForNull": true
-          }
-        },
-        "isCanonicalUnit": {
-          "type": "object",
-          "description": "This function tells if stored data can have this spelling. Only the canonical spelling is correct.",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "spelling"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "type": "boolean"
-            }
-          }
-        },
-        "canonicalUnit": {
-          "type": "object",
-          "description": "This function gives the canonical spelling of a unit, for data from another system: \"hr\" is \"h\".",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "spelling"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "type": "string"
-            }
-          }
-        },
-        "kindOf": {
-          "type": "object",
-          "description": "One call of a pure procedure, as data, for the function (spelling: string) => Kind | \"derived\". It reads each parameter as {\"$ref\": \"<name>\"}: spelling.",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "spelling"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "enum": [
-                "time",
-                "length",
-                "mass",
-                "temperature",
-                "data",
-                "money",
-                "current",
-                "count",
-                "ratio",
-                "level",
-                "frequency",
-                "transfer-rate",
-                "data-rate",
-                "speed",
-                "area",
-                "volume",
-                "energy",
-                "power",
-                "voltage",
-                "charge",
-                "resistance",
-                "specific-power",
-                "specific-volume-rate",
-                "money-rate",
-                "energy-price",
-                "derived"
-              ]
-            }
-          }
-        },
-        "whyNotConvertible": {
-          "type": "object",
-          "description": "This function gives the reason that `from` cannot become `to`, or undefined when it can.",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "from",
-              "to"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "type": "string"
-            },
-            "undefinedForNull": true
-          }
-        },
-        "convertible": {
-          "type": "object",
-          "description": "One call of a pure procedure, as data, for the function (from: string, to: string) => boolean. It reads each parameter as {\"$ref\": \"<name>\"}: from, to.",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "from",
-              "to"
-            ],
-            "inputs": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "string"
-              }
-            ],
-            "output": {
-              "type": "boolean"
-            }
-          }
-        },
-        "convertExact": {
-          "type": "object",
-          "description": "This function converts a value in one unit, exactly, into another unit.",
-          "required": [
-            "$proc"
-          ],
-          "properties": {
-            "$proc": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            "input": {},
-            "$when": {
-              "const": "$never"
-            }
-          },
-          "x-procedures-program": {
-            "params": [
-              "value",
-              "from",
-              "to",
-              "on"
-            ],
-            "inputs": [
-              {
-                "$ref": "#/$defs/Rational"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "anyOf": [
-                  {
-                    "$ref": "#/$defs/MeasuredOn"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            ],
-            "output": {
-              "$ref": "#/$defs/Rational"
-            }
-          }
-        }
-      },
-      "required": [
-        "atoms",
-        "atomBySymbol",
-        "lookupAtom",
-        "parseUnit",
-        "tryParseUnit",
-        "isCanonicalUnit",
-        "canonicalUnit",
-        "kindOf",
-        "whyNotConvertible",
-        "convertible",
-        "convertExact"
       ]
     },
     "Unknown": {
@@ -1236,32 +841,32 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "enum": [
-          "time",
-          "length",
-          "mass",
-          "temperature",
-          "data",
-          "money",
-          "current",
-          "count",
-          "ratio",
-          "level",
-          "frequency",
-          "transfer-rate",
-          "data-rate",
-          "speed",
           "area",
-          "volume",
-          "energy",
-          "power",
-          "voltage",
           "charge",
+          "count",
+          "current",
+          "data",
+          "data-rate",
+          "derived",
+          "energy",
+          "energy-price",
+          "frequency",
+          "length",
+          "level",
+          "mass",
+          "money",
+          "money-rate",
+          "power",
+          "ratio",
           "resistance",
           "specific-power",
           "specific-volume-rate",
-          "money-rate",
-          "energy-price",
-          "derived"
+          "speed",
+          "temperature",
+          "time",
+          "transfer-rate",
+          "voltage",
+          "volume"
         ]
       },
       "effects": {
@@ -1300,32 +905,32 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "enum": [
-          "time",
-          "length",
-          "mass",
-          "temperature",
-          "data",
-          "money",
-          "current",
-          "count",
-          "ratio",
-          "level",
-          "frequency",
-          "transfer-rate",
-          "data-rate",
-          "speed",
           "area",
-          "volume",
-          "energy",
-          "power",
-          "voltage",
           "charge",
+          "count",
+          "current",
+          "data",
+          "data-rate",
+          "derived",
+          "energy",
+          "energy-price",
+          "frequency",
+          "length",
+          "level",
+          "mass",
+          "money",
+          "money-rate",
+          "power",
+          "ratio",
           "resistance",
           "specific-power",
           "specific-volume-rate",
-          "money-rate",
-          "energy-price",
-          "derived"
+          "speed",
+          "temperature",
+          "time",
+          "transfer-rate",
+          "voltage",
+          "volume"
         ]
       },
       "effects": {

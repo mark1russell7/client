@@ -12,8 +12,8 @@ export const manifest: ExportsManifest = {
   "$defs": {
     "BinomialSide": {
       "enum": [
-        "less",
-        "greater"
+        "greater",
+        "less"
       ]
     },
     "BootstrapOptions": {
@@ -40,9 +40,9 @@ export const manifest: ExportsManifest = {
         },
         "method": {
           "enum": [
+            "higher",
             "linear",
-            "nearest-rank",
-            "higher"
+            "nearest-rank"
           ],
           "description": "The quantile method of the two ends of the interval. The default is linear."
         },
@@ -545,10 +545,10 @@ export const manifest: ExportsManifest = {
     },
     "CoverageReason": {
       "enum": [
-        "qualifies",
         "cell-rejected",
+        "cell-rejected-and-pooled-low",
         "pooled-low",
-        "cell-rejected-and-pooled-low"
+        "qualifies"
       ]
     },
     "CoverageStep": {
@@ -963,8 +963,8 @@ export const manifest: ExportsManifest = {
       "enum": [
         "gain",
         "loss",
-        "noise",
-        "no-spread"
+        "no-spread",
+        "noise"
       ]
     },
     "NoiseVerdict": {
@@ -1243,21 +1243,6 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {
             "ok": {
-              "const": true
-            },
-            "record": {
-              "$ref": "#/$defs/ResponseRecord"
-            }
-          },
-          "required": [
-            "ok",
-            "record"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "ok": {
               "const": false
             },
             "faults": {
@@ -1270,6 +1255,21 @@ export const manifest: ExportsManifest = {
           "required": [
             "ok",
             "faults"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": true
+            },
+            "record": {
+              "$ref": "#/$defs/ResponseRecord"
+            }
+          },
+          "required": [
+            "ok",
+            "record"
           ]
         }
       ]
@@ -1717,33 +1717,18 @@ export const manifest: ExportsManifest = {
     "ResponseDimension": {
       "anyOf": [
         {
+          "$ref": "#/$defs/CategoricalDimension"
+        },
+        {
           "$ref": "#/$defs/ContinuousDimension"
         },
         {
           "$ref": "#/$defs/OrdinalDimension"
-        },
-        {
-          "$ref": "#/$defs/CategoricalDimension"
         }
       ]
     },
     "ResponseFactor": {
       "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "dimension": {
-              "type": "string"
-            },
-            "power": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "dimension",
-            "power"
-          ]
-        },
         {
           "type": "object",
           "properties": {
@@ -1757,6 +1742,21 @@ export const manifest: ExportsManifest = {
           "required": [
             "dimension",
             "level"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "dimension": {
+              "type": "string"
+            },
+            "power": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "dimension",
+            "power"
           ]
         }
       ]
@@ -2515,13 +2515,13 @@ export const manifest: ExportsManifest = {
     "RidgeInput": {
       "anyOf": [
         {
+          "$ref": "#/$defs/RidgeLevelInput"
+        },
+        {
           "$ref": "#/$defs/RidgeNumberInput"
         },
         {
           "$ref": "#/$defs/RidgeRankInput"
-        },
-        {
-          "$ref": "#/$defs/RidgeLevelInput"
         }
       ]
     },
@@ -2760,9 +2760,9 @@ export const manifest: ExportsManifest = {
         },
         "method": {
           "enum": [
+            "higher",
             "linear",
-            "nearest-rank",
-            "higher"
+            "nearest-rank"
           ],
           "description": "The quantile method of the two ends of the interval. The default is linear."
         },
@@ -2842,11 +2842,11 @@ export const manifest: ExportsManifest = {
     },
     "SmoothLaw": {
       "enum": [
-        "uniform",
-        "normal",
         "exponential",
         "log-normal",
-        "pareto"
+        "normal",
+        "pareto",
+        "uniform"
       ]
     },
     "SmoothLawScore": {
@@ -3684,9 +3684,9 @@ export const manifest: ExportsManifest = {
               },
               "method": {
                 "enum": [
+                  "higher",
                   "linear",
-                  "nearest-rank",
-                  "higher"
+                  "nearest-rank"
                 ],
                 "description": "The quantile method of the two ends of the interval. The default is linear."
               },
@@ -5540,9 +5540,9 @@ export const manifest: ExportsManifest = {
           },
           "method": {
             "enum": [
+              "higher",
               "linear",
-              "nearest-rank",
-              "higher"
+              "nearest-rank"
             ]
           }
         },
@@ -5662,9 +5662,9 @@ export const manifest: ExportsManifest = {
           },
           "method": {
             "enum": [
+              "higher",
               "linear",
-              "nearest-rank",
-              "higher"
+              "nearest-rank"
             ]
           }
         },
@@ -6192,8 +6192,8 @@ export const manifest: ExportsManifest = {
           },
           "sides": {
             "enum": [
-              2,
-              1
+              1,
+              2
             ]
           }
         },
@@ -6234,8 +6234,8 @@ export const manifest: ExportsManifest = {
           },
           "sides": {
             "enum": [
-              2,
-              1
+              1,
+              2
             ]
           }
         },

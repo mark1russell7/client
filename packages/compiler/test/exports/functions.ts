@@ -127,6 +127,35 @@ export function counter(): Counter {
   return new Counter();
 }
 
+export function countOf(counter: Counter): number {
+  return counter.count;
+}
+
+export function bump(counter: Counter, by: number): void {
+  counter.add(by);
+}
+
+export function maybeCounter(make: boolean): Counter | undefined {
+  return make ? new Counter() : undefined;
+}
+
+export function boxed(): { readonly counter: Counter } {
+  return { counter: new Counter() };
+}
+
+export interface Countable {
+  readonly count: number;
+  add(value: number): void;
+}
+
+export function reset(countable: Countable): void {
+  countable.add(-countable.count);
+}
+
+export function peek<C extends Countable>(countable: C): number {
+  return countable.count;
+}
+
 export function parse(text: string, radix = 10): number {
   return Number.parseInt(text, radix);
 }

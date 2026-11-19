@@ -258,6 +258,8 @@ export class Client<TContext = {}> {
   private capability: Capability | undefined;
   /** The order of the clearance values. */
   private clearanceOrder: ClearanceOrder | undefined;
+  /** The highest depth of a nested call of a local invocation. Undefined: the default 64. */
+  private maxDepth: number | undefined;
 
   /**
    * Context values set via withContext().
@@ -289,6 +291,7 @@ export class Client<TContext = {}> {
       this.interceptors = opts.interceptors ?? [];
       this.capability = opts.capability;
       this.clearanceOrder = opts.clearanceOrder;
+      this.maxDepth = opts.maxDepth;
     }
 
     // Initialize empty context (child clients override this)
@@ -314,6 +317,7 @@ export class Client<TContext = {}> {
     (child as any).interceptors = parent.interceptors;
     (child as any).capability = parent.capability;
     (child as any).clearanceOrder = parent.clearanceOrder;
+    (child as any).maxDepth = parent.maxDepth;
 
     // Object.create() bypasses class-field initializers, so procedureRegistry (which normally
     // defaults to PROCEDURE_REGISTRY via a field initializer) would be undefined on the child
@@ -671,6 +675,7 @@ export class Client<TContext = {}> {
       onRef: caller.onRef,
       capability: caller.capability ?? this.capability,
       clearanceOrder: this.clearanceOrder,
+      maxDepth: this.maxDepth,
     };
   }
 

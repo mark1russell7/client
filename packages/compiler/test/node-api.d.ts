@@ -41,3 +41,11 @@ interface ImportMeta {
 }
 
 declare const process: { readonly execPath: string };
+
+/** The globals of Node.js that the tests of `src/api.ts` use. */
+declare function btoa(data: string): string;
+
+declare class URLSearchParams {
+  constructor(init?: string);
+  get(name: string): string | null;
+}

@@ -1,5 +1,92 @@
 # @procedures/client
 
+## 0.66.0
+
+No changes in this release.
+
+## 0.65.0
+
+### Minor Changes
+
+- ffb85af: Three limits are on by default: the depth of the nested calls, the nested calls in a call limit, and the size of a read.
+  
+  - Without `maxDepth`, a host refuses a nested call over the depth 64 with `FORBIDDEN` and the reason `depth`. Its handler does not start. Before, the handler started and the process wrote one warning. An explicit `maxDepth` of `invokeProcedure()`, `ProcedureServer` or `hostPolicy()` keeps its value.
+  - The new option `maxDepth` of `ClientOptions` and `LocalTransportOptions` sets the depth limit of the local calls of a `Client` and of a `LocalTransport`.
+  - A `CallLimit` without the field `nested` also takes the units of each nested call that it covers, as with `nested: true`. Before, it counted only the calls of a caller. The server writes no warning at the start.
+  - Without `maxBytes`, `fs.read` and `fs.read.json` refuse a part over 16 MiB (16777216 bytes) with a `RangeError` and the code `ERR_FS_FILE_TOO_LARGE`. Before, the read loaded the whole file and wrote one warning. For a regular file, the error comes before the read.
+  - This version removes the three warnings of the old defaults.
+  
+  ## Break
+  
+  A call that worked before can fail with a new default. Migration steps for the site and each app:
+  
+  1. Find each host with call trees deeper than 64. Give `maxDepth` to `hostPolicy()`, `ProcedureServer`, `invokeProcedure()`, `Client` or `LocalTransport`.
+  2. Find each `CallLimit` without the field `nested`. To count only the calls of a caller, give it `nested: false`.
+  3. Find each call of `fs.read` and `fs.read.json` for a part over 16 MiB. Give it a larger `maxBytes`.
+  
+  The warnings of the earlier patch versions show each place to change.
+  
+  ```ts
+  const policy = hostPolicy({
+    maxDepth: 256, // A deeper limit than the default 64
+    limits: [{ ...writesPerTenant, nested: false }], // Only the calls of a caller take units
+  });
+  const log = await client.call(["fs", "read"], { path: "big.log", maxBytes: 64 * 1024 * 1024 });
+  ```
+
+### Patch Changes
+
+- e7ec32b: `@procedures/compiler` has the new entry `./api`: the format `api-operation/1`. One document gives one operation of an HTTP API as data, and each value is a term of the formula kit of `@mark1russell7/coeval`.
+  
+  - `buildApiRequest(operation, input, credentials)` gives the URL, the method, the headers and the body of one call. It checks the input and the credential against their JSON Schemas, and it does not send the request.
+  - `extractApiResponse(operation, response)` reads the status, the headers and the body text of the answer into a success or a failure. It does not throw.
+  - `apiOperationIssues(operation)` gives the problems of the structure of a document.
+  - The validator of `@cfworker/json-schema` (MIT, no dependencies) checks each schema. The `$schema` of a schema sets its draft. It is a new dependency of `@procedures/compiler`.
+  - The entry imports no Node built-in, so a browser can use it.
+  - The range of `@mark1russell7/coeval` goes from `^0.34.0` to `^0.38.1` in both packages, for the standard operations `STD_OPS`. The breaking steps 0.35.0 to 0.38.0 change no import of these packages.
+- 4e20391: Handles in the exports generator (d40-handles). A parameter or an output of a class type gets a handle. Its schema has the keyword `x-procedures-handle` with the kind of the class, for example `node:sqlite#DatabaseSync`. The loader keeps the object of an output in the handle scope of the caller. It gets the object of a handle input from the same scope. A procedure that takes a handle reads `handles`, and a procedure that gives a handle writes `handles`. Thus a function that was exempt because of a class instance gets a procedure. `closeValue` of `@procedures/client` closes an object as a scope closes it.
+- abf52af: Handles for the inputs of an interface (d40-handles). In the exports generator, a parameter of an interface takes a handle of each class of the package that is assignable to it. For example, a `SqlConnection` takes a `node:sqlite#DatabaseSync`. A parameter of a type parameter uses its constraint. An input with more than one kind has the list of the kinds in `x-procedures-handle`. `handleSchema` and `HandleScope.get` of `@procedures/client` also take a list of kinds. The manifest of `@procedures/optional` has the members of two `Result` unions in a different sequence. The schemas accept the same values.
+- a2a09b7: Each WebSocket connection keeps its own handle scope (d40-handles). A procedure that opens an object with a state over WebSocket gives a handle, and the next calls of the same connection use it. Another connection cannot use the handle. The close of the connection and the stop of the transport close each object of its scope. The new option `handles` of `WebSocketServerTransport` sets `maxHandles` and `idleMs`. `wsFace` of the host passes it through.
+
+## 0.64.0
+
+### Minor Changes
+
+- 49b516e: The packages use `@mark1russell7/service` 0.10.0 and `@mark1russell7/algebra` 0.9.
+  
+  This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script ended while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
+  
+  - The `realClock` of `@procedures/client` worked this way before. Its timers do not change.
+  - The watch timers of service (checks, the watchdog, the sweeps) do not keep a process alive.
+  - The heartbeat of the WebSocket client uses `unrefClock` of service. Its timers do not keep a process alive: the socket does.
+  - A new end-to-end test runs a command with `main()` of `@procedures/mark` in a script. After the command, no timer keeps the script alive.
+  
+  Migration: a script that must end before a pending timer of service fires stops its work first. Close each client, host and transport, or abort the call. For a timer that only watches other work, give the service a clock made with `unrefClock` of `@mark1russell7/service/clock`.
+
+### Patch Changes
+
+- 6f8219e: `peerModule` reads the manifest of a running peer through `procedure.manifest`. It gives a module with a stub for each entry, and each stub sends its call to the peer over HTTP. The module reads the address of the peer at each call, so a new port or token after a restart is no problem. `forwardedModule` makes the same stubs from a manifest and a call function of any transport. `HOST_NAMESPACES` names the namespaces that each host has (`client` and `procedure`): a forwarded module leaves them out by default.
+- bdca30d: The warnings of the three old defaults name 0.65.0, the version that changes them. Version 0.64.0 keeps the old defaults: the depth of the nested calls has no limit, a `CallLimit` without the field `nested` counts only the calls of a caller, and `fs.read` loads the whole file without `maxBytes`.
+- dfd04b7: Handles: the objects with a state of a caller (d40-handles). A procedure keeps an object, for example a database, in the `HandleScope` of its caller, and gives `{ "handle": "<id>" }`. Other procedures take the handle and get the object. `handleModule` adds `handle.list` and `handle.close`. Each MCP session has its own scope, and the end of the session closes its objects. The option `handles` of the MCP transport sets the count limit and the idle time limit. A peer does not forward `handle.*`.
+- 7d303f3: A limit of the server can bound the calls in flight. Give the limit the policy `in-flight` of `@mark1russell7/service` 0.10.0: `{ type: "in-flight", limit, lease, retryAfter }`.
+  
+  - A call holds one unit of the bound until it ends: at its value, its error, the end of its stream or the stop of its reader. Then the server gives the unit back.
+  - A call past the bound gets `RATE_LIMITED` before its work starts, with `retry-after` and the cause `limit`.
+  - A limit with `nested: true` holds a unit of each nested call until the end of that call.
+  - When a later limit refuses a call, the in-flight bounds before it get their units back at once.
+  - When a shared store cannot release the units, the server writes a warning. The units then count until their lease ends.
+  - Set a lease of at least the deadline of a call. A lease has no renewal.
+  
+  `InvokeOptions.admitNested` can give a release function. The invocation calls it one time at the end of the nested call.
+- ce0d511: The dev-tools MCP server forwards the tools of running peers (`MCP_PEERS`, `mark mcp --peers`).
+  
+  - An entry `name=source` names a peer. A source is the base URL of the procedures of the peer, or its discovery file: a JSON object with `url` or `endpoint`, and `token`.
+  - At the start, the server reads the manifest of each peer with `peerModule`, with a time limit of 5 seconds. Each procedure of the peer becomes a tool, and its calls go to the peer.
+  - The server reads a discovery file at each call. Thus the calls follow a peer that starts again with a new port and token.
+  - A peer that does not answer gives no tools until the next start. The server writes the reason to stderr, and `DevToolsHost.peers` gives the state of each peer.
+  - The new exports of `@procedures/mcp-dev-tools` are `parsePeers`, `loadPeers`, `peerAddress`, `readDiscovery`, `DEFAULT_PEER_TIMEOUT_MS` and their types.
+  - `peerModule` of `@procedures/client` has the new option `signal` for the read of the manifest.
+
 ## 0.63.0
 
 ### Minor Changes

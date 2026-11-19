@@ -17,9 +17,12 @@ SQLite database operations via client procedures. Execute queries and store stru
 - **Default log database**: Pre-configured logging at `~/logs/cli/cli.db`
 - **A collection storage**: `SqliteStorage` keeps a collection in a SQLite table, with a change log
 
-The package has 9 procedures. Its register entry (`import "@procedures/sqlite/register"`) registers them:
+The package has 18 procedures. Its register entry (`import "@procedures/sqlite/register"`) registers them:
 - **Database**: `sqlite.query`, `sqlite.execute`, `sqlite.tables`, `sqlite.schema`, `sqlite.transaction`, `sqlite.migrate`, `sqlite.backup`
 - **Logs**: `logs.store`, `logs.query`
+- **Generated**: one procedure for each of 9 functions of `@mark1russell7/sqlite`, on database handles. The section [The generated procedures](#the-generated-procedures) gives them.
+
+The register entry also registers `handle.list` and `handle.close` of `@procedures/client`.
 
 ### The old names `db.*`
 
@@ -509,6 +512,50 @@ const { logs } = await client.exec(
   }
 );
 ```
+
+## The generated procedures
+
+The package has a procedure for each function of `@mark1russell7/sqlite` with JSON inputs and a JSON output. These are 9 of the 25 functions. The generator of `@procedures/compiler` makes them from the types of the library. Thus a procedure cannot drift from its function.
+
+- `sqlite.openDatabase` opens a database and gives a handle, for example `{ "handle": "h_..." }`. The handle is in the scope of the caller.
+- The other 8 procedures take the handle in the input `db`: `sqlite.userVersion`, `sqlite.schemaVersion`, `sqlite.tableColumns`, `sqlite.addMissingColumns`, `sqlite.checkIntegrity`, `sqlite.checkpoint`, `sqlite.snapshot` and `sqlite.clearDatabase`.
+- `handle.list` gives the open handles of the caller. `handle.close` closes a handle and its database. The end of the scope closes each database that is open.
+- The procedures refuse the handle of a different caller.
+- Under the root of a host, a relative `path` starts at the root. The host refuses a path outside the root. `:memory:` is not a path.
+- The first call loads `@mark1russell7/sqlite`, as the other procedures do.
+
+`sqliteManifest` gives the names, the schemas and the effects of each procedure. The MCP server of `@procedures/bundle-mcp` does not show these procedures as tools. A later change adds seven of them as tools.
+
+```ts
+import { createRegistry, HandleScope, invokePath, outputValue } from "@procedures/client";
+import { sqliteModule } from "@procedures/sqlite";
+
+const registry = createRegistry(sqliteModule);
+const handles = new HandleScope();
+const db = await outputValue(await invokePath(["sqlite", "openDatabase"], { path: "./app.db" }, { registry, handles }));
+const columns = await outputValue(await invokePath(["sqlite", "tableColumns"], { db, table: "logs" }, { registry, handles }));
+await handles.end(); // This closes the database.
+```
+
+### The functions with no procedure
+
+16 functions have no procedure. The manifest gives the reason for each function:
+
+- A parameter is a function, for example the migrations of `migrate` and the callback of `transaction`. A JSON input cannot give a function.
+- An input is not JSON, for example a `Date` of `quarantine` or a connection of a different engine (`sqlJsConnection`, `wasmConnection`).
+- The output is not JSON, for example the `Error` of `sqliteFault`.
+
+The procedures `sqlite.transaction` and `sqlite.migrate` above do the work of two of these functions.
+
+### Update the manifest
+
+After an update of `@mark1russell7/sqlite`, start this command from the root of the repository:
+
+```bash
+node scripts/wraps.ts generate --package client-sqlite
+```
+
+The command writes `src/manifest.ts` from the types of the library and the overlay in `wrap.json`. The overlay gives the effects of each function and its rules under a root. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current.
 
 ## The collection storage
 

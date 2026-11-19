@@ -7,7 +7,18 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { Client, ProcedureRegistry, registerModules, type ProcedureContext } from "@procedures/client/browser";
+import {
+  Client,
+  HandleScope,
+  ProcedureRegistry,
+  handleModule,
+  handleSchema,
+  invokeProcedure,
+  isHandleRef,
+  registerModules,
+  type HandleRef,
+  type ProcedureContext,
+} from "@procedures/client/browser";
 import { generateExportsManifest } from "./generate.js";
 import { exportInputSchema, exportOutputSchema, exportsModule, jsonValue } from "./exports/load.js";
 import { codecDecoder } from "./exports/codecs.js";
@@ -39,6 +50,20 @@ function clientOf(manifest: ExportsManifest): Client {
 const manifest = manifestOfFixture();
 
 describe("generateExportsManifest", () => {
+  it("carries the root rules of the overlay to the metadata of each procedure, and throws on a rule for an unknown input", () => {
+    const options = { declarations: join(fixtureDir, "fixture.d.ts"), package: "fixture", namespace: ["fixture"] };
+    const rules = { paths: ["name"], values: [":memory:"] };
+    const ruled = generateExportsManifest({ ...options, overlay: { effects: { reads: ["fs"], writes: [] }, fsRoot: {}, functions: { greet: { fsRoot: rules } } } });
+    const byName = (name: string) => ruled.procedures.find((procedure) => procedure.name === name)!;
+    expect(byName("greet").fsRoot).toEqual(rules);
+    // The rules of the package confine a procedure that names no path
+    expect(byName("add").fsRoot).toEqual({});
+    const greet = exportsModule(ruled, fixture).procedures.find((procedure) => procedure.path[1] === "greet")!;
+    expect(greet.metadata.fsRoot).toEqual(rules);
+    expect(() => generateExportsManifest({ ...options, overlay: { functions: { greet: { fsRoot: { paths: ["file"] } } } } })).toThrow(
+      "The root rules of greet name the inputs file, but the function has no parameters with these names",
+    );
+  }, GENERATE_TIMEOUT * 2);
 
   it("gives the golden manifest of the fixture", async () => {
     await expect(`${JSON.stringify(manifest, null, 2)}\n`).toMatchFileSnapshot("../test/exports/fixture.manifest.json");
@@ -46,18 +71,19 @@ describe("generateExportsManifest", () => {
 
   it("gives a procedure for each function with JSON inputs and a JSON output", () => {
     expect(manifest.procedures.map((procedure) => procedure.name)).toEqual([
-      "above", "add", "anything", "apply", "big", "chain", "choose", "deal", "definite", "depth", "distinct", "drain", "draw", "exactly", "findIndex", "first",
-      "flip", "greet", "identity", "keys", "kindOf", "known", "lookup", "maybeRoll", "minus", "norm", "nothing", "pair", "pick", "present", "read", "rolls",
-      "scale", "sideOf", "sizeOf", "sizes", "sortBy", "stamp", "step", "strict", "sumOf", "tally", "toggle", "total", "useHandler", "weight",
+      "above", "add", "anything", "apply", "big", "bump", "chain", "choose", "countOf", "counter", "deal", "definite", "depth", "distinct", "drain", "draw",
+      "exactly", "findIndex", "first", "flip", "greet", "identity", "keys", "kindOf", "known", "lookup", "maybeCounter", "maybeRoll", "minus", "norm",
+      "nothing", "pair", "peek", "pick", "present", "read", "reset", "rolls", "scale", "sideOf", "sizeOf", "sizes", "sortBy", "stamp", "step", "strict",
+      "sumOf", "tally", "toggle", "total", "useHandler", "weight",
     ]);
   });
 
   it("gives each other function an exemption with its reason", () => {
     expect(manifest.exempt.map(({ name, reason }) => [name, reason])).toEqual([
       ["bag", "output-not-json"],
+      ["boxed", "output-not-json"],
       ["broken", "input-not-json"],
       ["coin", "output-not-json"],
-      ["counter", "output-not-json"],
       ["curried", "function-parameter"],
       ["deck", "output-not-json"],
       ["die", "input-not-json"],
@@ -87,7 +113,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("counts the classes, the values and the types", () => {
-    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 17 });
+    expect(manifest.others).toEqual({ classes: ["Counter"], values: 1, types: 18 });
   });
 
   it("takes the description from the first paragraph of the doc comment, and of each parameter", () => {
@@ -142,7 +168,7 @@ describe("generateExportsManifest", () => {
   });
 
   it("gives null for the undefined member of a named union in an output, and keeps it out of the definition", async () => {
-    expect(manifest.$defs["MaybeSide"]).toEqual({ enum: ["less", "greater", "two-sided"] });
+    expect(manifest.$defs["MaybeSide"]).toEqual({ enum: ["greater", "less", "two-sided"] });
     expect(manifest.procedures.find((procedure) => procedure.name === "sideOf")!.output).toEqual({ anyOf: [{ $ref: "#/$defs/MaybeSide" }, { type: "null" }] });
     const client = clientOf(manifest);
     expect(await client.exec(["fixture", "sideOf"], { sign: -2 })).toBe("less");
@@ -299,6 +325,43 @@ describe("exportsModule", () => {
   it("throws when the package does not export a function of the manifest", () => {
     const { add: _add, ...rest } = fixture;
     expect(() => exportsModule(manifest, rest)).toThrow(/does not export the functions add/);
+  });
+
+  it("takes a loader in place of the functions: the first call loads them one time, and checks them then", async () => {
+    let loads = 0;
+    const lazy = new ProcedureRegistry();
+    registerModules(lazy, [
+      exportsModule(manifest, async () => {
+        loads++;
+        return fixture;
+      }),
+    ]);
+    const client = new Client({ transport: stubTransport }).useRegistry(lazy);
+    expect(loads).toBe(0);
+    expect(await client.exec(["fixture", "add"], { a: 2, b: 3 })).toBe(5);
+    expect(await client.exec(["fixture", "total"], { values: [1, 2] })).toBe(3);
+    expect(loads).toBe(1);
+    // A package without a function of the manifest fails at the first call, not when the module is made
+    const { add: _add, ...rest } = fixture;
+    const partial = new ProcedureRegistry();
+    registerModules(partial, [exportsModule(manifest, async () => rest)]);
+    await expect(new Client({ transport: stubTransport }).useRegistry(partial).exec(["fixture", "add"], { a: 2, b: 3 })).rejects.toThrow(/does not export the functions add/);
+  });
+
+  it("loads the functions again after a failed load", async () => {
+    let loads = 0;
+    const lazy = new ProcedureRegistry();
+    registerModules(lazy, [
+      exportsModule(manifest, async () => {
+        loads++;
+        if (loads === 1) throw new Error("The package is not there yet");
+        return fixture;
+      }),
+    ]);
+    const client = new Client({ transport: stubTransport }).useRegistry(lazy);
+    await expect(client.exec(["fixture", "add"], { a: 2, b: 3 })).rejects.toThrow("The package is not there yet");
+    expect(await client.exec(["fixture", "add"], { a: 2, b: 3 })).toBe(5);
+    expect(loads).toBe(2);
   });
 
   it("gives the JSON form of an output, and copies only what changes", () => {
@@ -563,5 +626,109 @@ describe("codecs", () => {
     const defs = { Chain: { type: "object", properties: { at: bigint, next: { $ref: "#/$defs/Chain" } } } };
     const chain = codecDecoder({ $ref: "#/$defs/Chain" }, defs)!;
     expect(chain({ at: "1", next: { at: "2" } })).toEqual({ at: 1n, next: { at: 2n } });
+  });
+});
+
+describe("handles (d40-handles)", () => {
+  const COUNTER = "fixture#Counter";
+  const procedureOf = (name: string) => manifest.procedures.find((procedure) => procedure.name === name)!;
+  const run = async (functions: Readonly<Record<string, unknown>>, name: string, input: unknown, handles?: HandleScope): Promise<unknown> => {
+    const procedure = exportsModule(manifest, functions).procedures.find((entry) => entry.path[1] === name)!;
+    const result = await invokeProcedure(procedure, input, handles ? { handles } : {});
+    return (result as { value: unknown }).value;
+  };
+
+  it("gives a class instance at the top of a parameter or of the output the schema of a handle, and the effects on the scope", () => {
+    expect(procedureOf("counter")).toMatchObject({ output: handleSchema(COUNTER), effects: { reads: [], writes: ["handles"] } });
+    expect(procedureOf("countOf").input).toMatchObject({
+      properties: { counter: { ...handleSchema(COUNTER), description: `The counter. ${String(handleSchema(COUNTER)["description"])}` } },
+      required: ["counter"],
+    });
+    expect(procedureOf("countOf").effects).toEqual({ reads: ["handles"], writes: [] });
+    expect(procedureOf("bump")).toMatchObject({ output: { type: "null" }, effects: { reads: ["handles"], writes: [] } });
+    expect(procedureOf("maybeCounter").output).toEqual({ anyOf: [handleSchema(COUNTER), { type: "null" }] });
+    // A class instance below the top of a value stays an exemption, and the class stays in the count of the classes
+    expect(manifest.exempt.find((exemption) => exemption.name === "boxed")?.detail).toContain("an instance of the class Counter");
+    expect(manifest.others.classes).toEqual(["Counter"]);
+  });
+
+  it("keeps the object of an output in the scope of the caller, and gives the object of a handle input to the function", async () => {
+    expect(exportsModule(manifest, fixture).requires?.map((module) => module.name)).toEqual([handleModule.name]);
+    const scope = new HandleScope();
+    const ref = (await run(fixture, "counter", {}, scope)) as HandleRef;
+    expect(isHandleRef(ref)).toBe(true);
+    expect(scope.list()).toMatchObject([{ handle: ref.handle, kind: COUNTER }]);
+    expect(await run(fixture, "bump", { counter: ref, by: 2 }, scope)).toBeNull();
+    expect(await run(fixture, "bump", { counter: ref, by: 3 }, scope)).toBeNull();
+    expect(await run(fixture, "countOf", { counter: ref }, scope)).toBe(5);
+    expect(scope.get<fixture.Counter>(ref, COUNTER).count).toBe(5);
+  });
+
+  it("gives null and opens nothing for an absent object", async () => {
+    const scope = new HandleScope();
+    expect(await run(fixture, "maybeCounter", { make: false }, scope)).toBeNull();
+    expect(scope.size).toBe(0);
+    expect(isHandleRef(await run(fixture, "maybeCounter", { make: true }, scope))).toBe(true);
+  });
+
+  it("refuses a call with no scope before the function makes an object", async () => {
+    let made = 0;
+    const counting = { ...fixture, counter: () => (made++, new fixture.Counter()) };
+    await expect(run(counting, "counter", {})).rejects.toMatchObject({ code: "NOT_ACCEPTABLE" });
+    await expect(run(fixture, "countOf", { counter: { handle: "h_0" } })).rejects.toMatchObject({ code: "NOT_ACCEPTABLE" });
+    expect(made).toBe(0);
+  });
+
+  it("refuses a handle of another kind, and closes an object that a full scope refuses", async () => {
+    const scope = new HandleScope({ maxHandles: 1 });
+    const other = scope.open("other#Thing", {});
+    await expect(run(fixture, "countOf", { counter: other }, scope)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    let closed = 0;
+    const closable = { ...fixture, counter: () => Object.assign(new fixture.Counter(), { close: () => void (closed += 1) }) };
+    await expect(run(closable, "counter", {}, scope)).rejects.toMatchObject({ code: "RATE_LIMITED" });
+    expect(closed).toBe(1);
+  });
+
+  it("gives an input of an interface, or of a type parameter of one, the handles of each class of the package that it accepts", async () => {
+    expect(procedureOf("reset")).toMatchObject({ input: { properties: { countable: handleSchema(COUNTER) } }, effects: { reads: ["handles"], writes: [] } });
+    expect(procedureOf("peek")).toMatchObject({ input: { properties: { countable: handleSchema(COUNTER) } }, generics: ["C"] });
+    // An interface that no class of the package accepts stays an exemption
+    for (const name of ["measure", "opens"]) expect(manifest.exempt.find((exemption) => exemption.name === name)?.reason).toBe("input-not-json");
+    const scope = new HandleScope();
+    const ref = (await run(fixture, "counter", {}, scope)) as HandleRef;
+    await run(fixture, "bump", { counter: ref, by: 4 }, scope);
+    expect(await run(fixture, "peek", { countable: ref }, scope)).toBe(4);
+    expect(await run(fixture, "reset", { countable: ref }, scope)).toBeNull();
+    expect(await run(fixture, "countOf", { counter: ref }, scope)).toBe(0);
+  });
+
+  it("takes a handle of each kind of a list, and refuses an output with more than one kind", async () => {
+    const two = { ...handleSchema(["fixture#Counter", "other#Counter"]) };
+    const reset = { ...procedureOf("reset"), input: { ...procedureOf("reset").input, properties: { countable: two } } };
+    const scope = new HandleScope();
+    const other = scope.open("other#Counter", new fixture.Counter());
+    const procedure = exportsModule({ ...manifest, procedures: [reset] }, fixture).procedures[0]!;
+    expect((await invokeProcedure(procedure, { countable: other }, { handles: scope })) as unknown).toMatchObject({ value: null });
+    const page = scope.open("other#Page", {});
+    await expect(invokeProcedure(procedure, { countable: page }, { handles: scope })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    const counter = { ...procedureOf("counter"), output: two };
+    expect(() => exportsModule({ ...manifest, procedures: [counter] }, fixture)).toThrow("an output has one kind");
+  });
+
+  it("gives a class a constructed input only when overlay.constructors names its factory", () => {
+    const named = generateExportsManifest({
+      declarations: join(fixtureDir, "fixture.d.ts"),
+      package: "fixture",
+      namespace: ["fixture"],
+      overlay: { effects: PURE, constructors: { Counter: "counter" } },
+    });
+    const countOf = named.procedures.find((procedure) => procedure.name === "countOf")!;
+    expect(countOf.input).toMatchObject({ properties: { counter: { [CONSTRUCT_KEYWORD]: { function: "counter", params: [] } } } });
+    expect(countOf.effects).toEqual(PURE);
+  }, GENERATE_TIMEOUT);
+
+  it("gives a module with no handle no required module", () => {
+    const pure = { ...manifest, procedures: manifest.procedures.filter((procedure) => procedure.name === "add") };
+    expect(exportsModule(pure, fixture).requires).toEqual([]);
   });
 });

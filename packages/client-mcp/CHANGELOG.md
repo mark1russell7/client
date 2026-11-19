@@ -1,5 +1,52 @@
 # @procedures/mcp-server
 
+## 0.66.0
+
+### Patch Changes
+
+- 3761ba1: A bundle or a module file can export `mcpInstructions`: a text for the model, for example the tool to read first (d40-tool-surface). `mergeInstructions` of `@procedures/mcp-server` joins the texts of some bundles. The dev-tools server gives the joined instructions of its bundles and module files to the client at the start of each session. A module file of the tools of another repository thus keeps the instructions of its own server.
+- @procedures/client@0.66.0
+  - @procedures/mcp@0.66.0
+
+## 0.65.0
+
+### Patch Changes
+
+- Updated dependencies [e7ec32b]
+- Updated dependencies [4e20391]
+- Updated dependencies [abf52af]
+- Updated dependencies [a2a09b7]
+- Updated dependencies [ffb85af]
+  - @procedures/client@0.65.0
+  - @procedures/mcp@0.65.0
+
+## 0.64.0
+
+### Minor Changes
+
+- 49b516e: The packages use `@mark1russell7/service` 0.10.0 and `@mark1russell7/algebra` 0.9.
+  
+  This is a breaking change. Before, a timer of service work (a backoff, a retry, a time-out) did not keep a Node process alive. A script ended while such a timer waited. After this change, the process waits for the timer, as it does for `setTimeout`.
+  
+  - The `realClock` of `@procedures/client` worked this way before. Its timers do not change.
+  - The watch timers of service (checks, the watchdog, the sweeps) do not keep a process alive.
+  - The heartbeat of the WebSocket client uses `unrefClock` of service. Its timers do not keep a process alive: the socket does.
+  - A new end-to-end test runs a command with `main()` of `@procedures/mark` in a script. After the command, no timer keeps the script alive.
+  
+  Migration: a script that must end before a pending timer of service fires stops its work first. Close each client, host and transport, or abort the call. For a timer that only watches other work, give the service a clock made with `unrefClock` of `@mark1russell7/service/clock`.
+
+### Patch Changes
+
+- dfd04b7: Handles: the objects with a state of a caller (d40-handles). A procedure keeps an object, for example a database, in the `HandleScope` of its caller, and gives `{ "handle": "<id>" }`. Other procedures take the handle and get the object. `handleModule` adds `handle.list` and `handle.close`. Each MCP session has its own scope, and the end of the session closes its objects. The option `handles` of the MCP transport sets the count limit and the idle time limit. A peer does not forward `handle.*`.
+- Updated dependencies [6f8219e]
+- Updated dependencies [bdca30d]
+- Updated dependencies [dfd04b7]
+- Updated dependencies [7d303f3]
+- Updated dependencies [ce0d511]
+- Updated dependencies [49b516e]
+  - @procedures/client@0.64.0
+  - @procedures/mcp@0.64.0
+
 ## 0.63.0
 
 ### Patch Changes
