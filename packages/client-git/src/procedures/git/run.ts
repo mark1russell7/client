@@ -8,6 +8,7 @@
 
 import { runCommand } from "@procedures/shell/command";
 import { GIT_MAX_BUFFER } from "./args.js";
+import { currentGitLimits, limitedGitCommand } from "./limits.js";
 import { confinedGitCommand, currentGitRoot } from "./root.js";
 
 /** The part of the procedure context that the git procedures read. */
@@ -48,11 +49,14 @@ export class GitError extends Error {
 /**
  * This function runs `git <args>` and gives its stdout. It throws a `GitError` when git fails,
  * and an `AbortError` when the signal aborts. In the handler of a git procedure under a root
- * (`underGitRoot()`), git stays in the root: `confinedGitCommand()` of `root.ts`.
+ * (`underGitRoot()`), git stays in the root: `confinedGitCommand()` of `root.ts`. Under a capability
+ * without `process` (`underGitLimits()`), git starts no program of the repository: `limits.ts`.
  */
 export async function git(args: string[], options: GitRunOptions = {}): Promise<string> {
   const root = currentGitRoot();
-  const command = root === undefined ? { args, cwd: options.cwd, env: options.env } : await confinedGitCommand(root, args, options.cwd, options.env);
+  const limits = currentGitLimits();
+  const confined = root === undefined ? { args, cwd: options.cwd, env: options.env } : await confinedGitCommand(root, args, options.cwd, options.env);
+  const command = limits === undefined ? confined : await limitedGitCommand(limits, confined, root !== undefined);
   const result = await runCommand("git", {
     args: command.args,
     cwd: command.cwd,

@@ -647,6 +647,7 @@ patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 peerModule: dist/client/peer-module.d.ts#peerModule
+permitsEffects: dist/procedures/capability.d.ts#permitsEffects
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
@@ -1357,6 +1358,7 @@ patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 peerModule: dist/client/peer-module.d.ts#peerModule
+permitsEffects: dist/procedures/capability.d.ts#permitsEffects
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
@@ -2049,6 +2051,7 @@ parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
 parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
+permitsEffects: dist/procedures/capability.d.ts#permitsEffects
 preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 preloadRefPaths: dist/procedures/ref.d.ts#preloadRefPaths
 prepareRootCall: dist/procedures/program.d.ts#prepareRootCall
@@ -4373,6 +4376,9 @@ export declare function ladder<C>(levels: readonly C[]): ClearanceOrder<C>;
 
 ### dist/procedures/capability.d.ts#narrowCapability
 export declare function narrowCapability<C>(current: Capability<C> | undefined, request: CapabilityRequest<C> | undefined, order?: ClearanceOrder<C>, now?: number): Capability<C>;
+
+### dist/procedures/capability.d.ts#permitsEffects
+export declare function permitsEffects(capability: Capability<unknown> | undefined, effects: Pick<Effects, "reads" | "writes">): boolean;
 
 ### dist/procedures/capability.d.ts#toolHints
 export declare function toolHints(procedure: AnyProcedure): ToolHints;

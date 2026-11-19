@@ -15,7 +15,7 @@
 
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { InvocationError, type Capability } from "@procedures/client";
+import { InvocationError, permitsEffects, type Capability } from "@procedures/client";
 import { getS3Client } from "../../s3-client.js";
 import type { S3PresignInput, S3PresignOutput } from "../../types.js";
 
@@ -27,11 +27,8 @@ const UPLOAD_WRITES = ["s3", "network"];
 
 /** True when a capability permits the writes of an upload. No capability: no limit. */
 export function permitsUpload(capability: Capability | undefined): boolean {
-  const permitted = capability?.effects;
-  if (!permitted) return true;
-  if (permitted.destructive === false) return false;
-  const writes = permitted.writes;
-  return writes === undefined || writes === "any" || UPLOAD_WRITES.every((name) => writes.includes(name));
+  if (capability?.effects?.destructive === false) return false;
+  return permitsEffects(capability, { writes: UPLOAD_WRITES });
 }
 
 /**

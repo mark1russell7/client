@@ -1192,6 +1192,18 @@ A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT
 
 The list of the keys is in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#git-under-a-root).
 
+## A capability without process
+
+When the capability of a call does not permit `process`, each `git.*` procedure gets these rules, also without a root:
+
+- Git starts no hook, no `core.fsmonitor` program and no remote helper, and git does not go into a submodule.
+- Before the first command in a folder, the procedure examines the repository. It refuses a configuration key that starts a program, also in an included file. Examples are `filter.*.clean`, `diff.external` and `core.sshCommand`.
+- It refuses a repository with submodules, and a URL with `::`.
+- The programs of the system and global configuration apply, because they are programs of the host.
+- A refusal is `FORBIDDEN` with the reason `effects-exceeded`. The error names each refused key.
+
+The rules are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#git-under-a-capability-without-process).
+
 ## Error Handling
 
 All git procedures may throw errors for invalid operations:

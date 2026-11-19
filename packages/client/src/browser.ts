@@ -468,6 +468,7 @@ export {
   toolHints,
   narrowCapability,
   capabilityRefusal,
+  permitsEffects,
   examinesNestedCall,
   explainInvocation,
   checkEffects,

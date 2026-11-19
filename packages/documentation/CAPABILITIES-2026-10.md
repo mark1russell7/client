@@ -171,6 +171,8 @@ The declarations of phase D added these decisions:
 
 11. **The static check compares the resources, not the flags.** A caller cannot touch fewer resources than its callees: a caller of `fs.write` writes `fs`. But `destructive` and `idempotent` depend on the input that the caller gives: `lib.new` makes new files with `fs.write`, so it is additive. These flags are the claim of the caller, and the effects snapshot shows them in a review.
 12. **Code of the project is `process`.** A test file, a build plugin, a package script and a git hook can do anything. So `vitest.run`, `vite.build`, `pnpm.install`, `lib.new` (it starts the cue CLI of the workspace) and the git procedures that start hooks write `process`. Each `pnpm.*` procedure also writes `process`, and `pnpm.list` too. Before each command, pnpm loads the `.pnpmfile.cjs` of the project and installs its config dependencies.
+
+    Under a capability without `process`, the other git procedures start no program of the repository. The section [Git under a capability without `process`](#git-under-a-capability-without-process) gives the rules.
 13. **`process` has one meaning: it starts any program.** The background processes that a host started (`node.spawn`, `vitest.watch`) are the resource `jobs`. To stop or list them is not to start a program.
 14. **A procedure has one purpose.** A procedure that reads or writes by an input flag declares the writes, so its readers declare them too. `git.remote` was such a procedure. At this time, `git.remote` reads and `git.remote.set` writes.
 
@@ -313,6 +315,21 @@ The keys of the configuration of a repository that a root refuses. The error nam
 | `protocol.*`, `bundle.*`, `fetch.bundleURI`, `transfer.bundleURI`, a `remote.*.url` with `::`, a `url.*.insteadOf` whose base has `::`, and a `submodule.*.update` with `!` | They let git use a transport or a local bundle, or they start a program |
 
 `core.hooksPath` and `core.fsmonitor` in the configuration of a repository are not refused: the `-c` options override them.
+
+### Git under a capability without `process`
+
+A git procedure that does not write `process` starts only git. But git can start the programs of the repository: the hooks, `core.fsmonitor`, the filters of `.gitattributes`, `diff.external` and the configuration of a submodule. These programs are code of the project (rule 12). When the capability of a call does not permit `process`, each git command of the handler gets these rules (`underGitLimits()`, tracker item O110):
+
+- The `-c` options of a root turn off the hooks, `core.fsmonitor`, the transport `ext`, the remote helpers and the recursion into submodules. The transport `file` stays on.
+- Before the first command of a call in a folder, the procedure examines the repository. It refuses each key of the table above that starts a program, and `protocol.*.allow`. It also examines the files that the configuration includes.
+- The procedure also refuses a repository with submodules, and a URL with `::` in `git.clone` and `git.remote.set`.
+- The keys that name a file outside the repository, `protocol.*` and `bundle.*` are rules of a root only.
+- The configuration of the system and the global configuration apply. Their programs are programs of the host, for example the filter of Git LFS.
+- When the capability does not permit `network` reads and `fs` writes, git does not fetch a missing object of a partial clone (`GIT_NO_LAZY_FETCH=1`).
+- A refusal is `FORBIDDEN` with the reason `effects-exceeded`. The error names each refused key.
+- Under a root, the root examines the repository with its stricter rules. The capability adds only `GIT_NO_LAZY_FETCH`.
+
+The procedures that start hooks (`git.commit`, `git.push`, `git.checkout` and the others with `process` in their effects) keep `process`. A host without `process` refuses them before git starts.
 
 ### The limits
 

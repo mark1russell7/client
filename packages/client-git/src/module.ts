@@ -8,6 +8,7 @@
  */
 
 import { definePackage, createProcedure, pathToKey, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, type PackageDefinition } from "@procedures/client";
+import { underGitLimits } from "./procedures/git/limits.js";
 import { underGitRoot } from "./procedures/git/root.js";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
@@ -230,7 +231,9 @@ import {
 // =============================================================================
 
 // Git is a fixed program, so the declarations name what git reads and changes, not "process".
-// They do not include the hooks of a repository.
+// Git can also start programs of the repository: hooks, core.fsmonitor, filters and diff drivers.
+// When the capability of a call does not permit process, git starts none of them
+// (`underGitLimits()` of `procedures/git/limits.ts`).
 
 /** The effects of a git command that reads the repository and changes nothing. */
 const READS_REPOSITORY: Effects = { reads: ["fs"], writes: [] };
@@ -241,7 +244,8 @@ const CHANGES_REPOSITORY: Effects = { reads: ["fs"], writes: ["fs"] };
 /**
  * A change that starts the hooks of the repository (commit, push, pull, checkout). A hook is code
  * of the project (husky, for example), so these write process (CAPABILITIES-2026-10). A hook
- * that only the reference-transaction event starts (branch, fetch, stash) is not counted.
+ * that only the reference-transaction event starts (branch, fetch, stash) is not counted: under
+ * a capability without process, these procedures start no hook.
  */
 const RUNS_HOOKS: Effects = { reads: ["fs"], writes: ["fs", "process"] };
 
@@ -279,7 +283,8 @@ const ROOT_RULES: Readonly<Record<string, FsRootRules>> = {
 
 /**
  * The procedure with its rules under a root. Its handler runs in `underGitRoot()` with the root of
- * the call (`ctx.fsRoot`). Without a root, the handler runs as before.
+ * the call (`ctx.fsRoot`), and in `underGitLimits()` with the capability of the call. Without a
+ * root and without a capability that limits process, network or fs, the handler runs as before.
  */
 function underARoot(procedure: AnyProcedure): AnyProcedure {
   const handler = procedure.handler as ((input: unknown, ctx: ProcedureContext) => Promise<unknown>) | undefined;
@@ -289,7 +294,10 @@ function underARoot(procedure: AnyProcedure): AnyProcedure {
     metadata: { ...procedure.metadata, fsRoot },
     ...(handler === undefined
       ? {}
-      : { handler: ((input: unknown, ctx: ProcedureContext) => underGitRoot(ctx?.fsRoot, procedure.path, () => handler(input, ctx))) as AnyProcedure["handler"] }),
+      : {
+          handler: ((input: unknown, ctx: ProcedureContext) =>
+            underGitRoot(ctx?.fsRoot, procedure.path, () => underGitLimits(ctx?.capability, procedure.path, () => handler(input, ctx)))) as AnyProcedure["handler"],
+        }),
   };
 }
 

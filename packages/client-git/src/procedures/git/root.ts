@@ -89,14 +89,23 @@ export function remoteUrlInGitRoot(url: string): string {
  * configuration file. Git gives these options to the git commands that it starts.
  */
 export function safeConfig(hooks: string): string[] {
+  return noProgramConfig(hooks, "never");
+}
+
+/**
+ * The `-c` options that stop git from starting a program of the repository: no hook, no
+ * `core.fsmonitor`, no `ext::`, no remote helper and no git in a submodule. `file` is the rule of
+ * the transport of a local path. A root gives `never`, because the path can be outside the root.
+ */
+export function noProgramConfig(hooks: string, file: "always" | "never"): string[] {
   return [
     // No hook runs: the folder is empty
     `core.hooksPath=${hooks}`,
     "core.fsmonitor=false",
-    // Only the network transports: no local path, no file://, no ext:: and no remote helper. The
-    // rule of a transport overrides protocol.allow, so file and ext get their own rule.
+    // Only the transports of git: no ext:: and no remote helper. The rule of a transport overrides
+    // protocol.allow, so file and ext get their own rule.
     "protocol.allow=never",
-    "protocol.file.allow=never",
+    `protocol.file.allow=${file}`,
     "protocol.ext.allow=never",
     "protocol.https.allow=always",
     "protocol.http.allow=always",
@@ -224,9 +233,8 @@ async function makeSetup(): Promise<GitRootSetup> {
 // The configuration of a repository
 // =============================================================================
 
-/** The keys (section.name, or section.subsection.name as section.*.name) that start a program or name a file outside the repository. */
-const REFUSED_KEYS: ReadonlySet<string> = new Set([
-  // Programs
+/** The keys (section.name, or section.subsection.name as section.*.name) that start a program. */
+const PROGRAM_KEYS: ReadonlySet<string> = new Set([
   "core.sshcommand",
   "core.gitproxy",
   "core.askpass",
@@ -260,7 +268,12 @@ const REFUSED_KEYS: ReadonlySet<string> = new Set([
   "uploadpack.packobjectshook",
   "trailer.*.command",
   "trailer.*.cmd",
-  // Files outside the repository
+  // A transport that the -c options do not name, for example the remote helper of foo://
+  "protocol.*.allow",
+]);
+
+/** The keys that name a file outside the repository. */
+const OUTSIDE_KEYS: ReadonlySet<string> = new Set([
   "core.worktree",
   "core.excludesfile",
   "core.attributesfile",
@@ -281,12 +294,11 @@ const REFUSED_KEYS: ReadonlySet<string> = new Set([
   ]),
 ]);
 
-/**
- * The sections that a root refuses as a whole: `pager.<command>` and the hooks of the
- * configuration start a program, `protocol.*` allows a transport again, and a bundle URI can be
- * a local file.
- */
-const REFUSED_SECTIONS: ReadonlySet<string> = new Set(["pager", "hook", "protocol", "bundle"]);
+/** The sections that start a program: `pager.<command>` and the hooks of the configuration. */
+const PROGRAM_SECTIONS: ReadonlySet<string> = new Set(["pager", "hook"]);
+
+/** The sections that a root also refuses as a whole: `protocol.*` allows a transport again, and a bundle URI can be a local file. */
+const ROOT_SECTIONS: ReadonlySet<string> = new Set(["protocol", "bundle"]);
 
 /** The keys that start the signing program when they are not false. */
 const SIGNING_KEYS: ReadonlySet<string> = new Set(["commit.gpgsign", "tag.gpgsign", "tag.forcesignannotated", "push.gpgsign"]);
@@ -306,15 +318,27 @@ function partsOf(key: string): { section: string; subsection: string | undefined
   };
 }
 
-/** True when a key of the configuration of a repository starts a program or names a file outside it. */
+/** True when a set of keys has the key of these parts. */
+function hasKey(keys: ReadonlySet<string>, section: string, subsection: string | undefined, name: string): boolean {
+  if (keys.has(subsection === undefined ? `${section}.${name}` : `${section}.*.${name}`)) return true;
+  // gpg.ssh.defaultKeyCommand and gpg.ssh.allowedSignersFile have a fixed subsection
+  return subsection !== undefined && keys.has(`${section}.${subsection.toLowerCase()}.${name}`);
+}
+
+/** True when a key of the configuration of a repository starts a program or names a file outside it. A root refuses these keys. */
 export function isRefusedConfigKey(key: string, value: string | undefined): boolean {
   const { section, subsection, name } = partsOf(key);
-  if (REFUSED_SECTIONS.has(section)) return true;
-  const pattern = subsection === undefined ? `${section}.${name}` : `${section}.*.${name}`;
-  if (REFUSED_KEYS.has(pattern)) return true;
-  // gpg.ssh.defaultKeyCommand and gpg.ssh.allowedSignersFile have a fixed subsection
-  if (subsection !== undefined && REFUSED_KEYS.has(`${section}.${subsection.toLowerCase()}.${name}`)) return true;
-  if (SIGNING_KEYS.has(pattern)) return !FALSE_VALUES.has((value ?? "true").trim().toLowerCase());
+  return ROOT_SECTIONS.has(section) || hasKey(OUTSIDE_KEYS, section, subsection, name) || startsProgram(key, value);
+}
+
+/**
+ * True when a key of the configuration of a repository starts a program. The key counts also when
+ * the next git command does not start that program: the examination does not know the next commands.
+ */
+export function startsProgram(key: string, value: string | undefined): boolean {
+  const { section, subsection, name } = partsOf(key);
+  if (PROGRAM_SECTIONS.has(section) || hasKey(PROGRAM_KEYS, section, subsection, name)) return true;
+  if (subsection === undefined && SIGNING_KEYS.has(`${section}.${name}`)) return !FALSE_VALUES.has((value ?? "true").trim().toLowerCase());
   // A remote helper: `<transport>::<address>`, also as the base of url.<base>.insteadOf
   if (section === "remote" && (name === "url" || name === "pushurl")) return (value ?? "").includes("::");
   if (section === "url" && (subsection ?? "").includes("::")) return true;
@@ -330,6 +354,12 @@ export interface ConfigEntry {
   readonly value: string | undefined;
 }
 
+/**
+ * The scopes of the configuration of the host: its programs are programs of the host, not of the
+ * project. A root has no system configuration, and its global configuration is a file of this process.
+ */
+const HOST_SCOPES: ReadonlySet<string> = new Set(["system", "global", "command"]);
+
 /** This function reads the output of `git config --list --show-scope -z`: the scope, then the key and the value. */
 export function parseConfigList(output: string): ConfigEntry[] {
   const fields = output.split("\0");
@@ -344,15 +374,15 @@ export function parseConfigList(output: string): ConfigEntry[] {
 }
 
 /**
- * This function gives the keys of the configuration of a repository that a root refuses. It
- * examines the files of the repository (the scopes `local` and `worktree`), not the global
- * configuration of this process and not the `-c` options.
+ * This function gives the keys of the configuration of a repository that `refuses` refuses. The
+ * default is the rule of a root, `isRefusedConfigKey()`. It examines the files of the repository
+ * (the scopes `local` and `worktree`), not the configuration of the host (`HOST_SCOPES`).
  */
-export function refusedConfigKeys(entries: readonly ConfigEntry[]): string[] {
+export function refusedConfigKeys(entries: readonly ConfigEntry[], refuses: (key: string, value: string | undefined) => boolean = isRefusedConfigKey): string[] {
   const refused = new Set<string>();
   for (const entry of entries) {
-    if (entry.scope === "global" || entry.scope === "command") continue;
-    if (isRefusedConfigKey(entry.key, entry.value)) refused.add(entry.key);
+    if (HOST_SCOPES.has(entry.scope)) continue;
+    if (refuses(entry.key, entry.value)) refused.add(entry.key);
   }
   return [...refused];
 }
@@ -372,7 +402,7 @@ async function isInRoot(root: ResolvedRoot, path: string): Promise<boolean> {
 }
 
 /** True when a file or a folder exists. */
-async function exists(path: string): Promise<boolean> {
+export async function exists(path: string): Promise<boolean> {
   return access(path).then(
     () => true,
     () => false,
