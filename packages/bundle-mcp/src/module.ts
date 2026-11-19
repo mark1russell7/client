@@ -71,11 +71,14 @@ export default bundleMcpModule;
  * `cli` is not one: `cli.run` runs any `mark` command, also `shell exec`, so it would give back what
  * the list keeps out (deep dive CLI-5, TRN-2). `db` is not one: version 0.4.0 renamed the
  * procedures of `@procedures/sqlite` to `sqlite.*`, and 0.6.0 removed the old names. `dag` is not one: `dag.traverse` runs refs, and a tool list does not need it.
+ * `handle` is one: `sqlite.openDatabase` gives a handle, `handle.list` gives the open handles of the
+ * session, and `handle.close` closes one. The end of a session closes its handles (d40-handles).
  */
 export const mcpNamespaces: readonly string[] = [
   "client",
   "cue",
   "docker",
+  "handle",
   "json",
   "lib",
   "logs",
@@ -96,9 +99,8 @@ export const mcpNamespaces: readonly string[] = [
  * - `mongo.watch` is a stream without an end, `mongo.documents.bulk` and `sqlite.transaction`
  *   change data in bulk, and `sqlite.migrate` and `sqlite.backup` change or copy the database
  *   file (roadmap R44);
- * - the generated procedures of `@mark1russell7/sqlite` (d40-handles) take or give a database
- *   handle. They stay out until the tool samples and the snapshots have them. The next change of
- *   the wrap adds seven of them as tools. `sqlite.clearDatabase` and `sqlite.snapshot` stay out;
+ * - `sqlite.clearDatabase` drops each table of a database, and `sqlite.snapshot` replaces the file
+ *   at its path. The other generated procedures of `@mark1russell7/sqlite` are tools (d40-handles);
  * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@procedures/store`
  *   (roadmap 3.2). The bundle does not import that package, so the MCP server does not have them.
  *   The names stay here: if a host adds the package, they stay out of the tools. They work only on
@@ -112,15 +114,8 @@ export const mcpExclude: readonly string[] = [
   "sqlite.backup",
   "sqlite.migrate",
   "sqlite.transaction",
-  "sqlite.addMissingColumns",
-  "sqlite.checkIntegrity",
-  "sqlite.checkpoint",
   "sqlite.clearDatabase",
-  "sqlite.openDatabase",
-  "sqlite.schemaVersion",
   "sqlite.snapshot",
-  "sqlite.tableColumns",
-  "sqlite.userVersion",
   "mongo.documents.bulk",
   "mongo.watch",
   "vitest.watch",

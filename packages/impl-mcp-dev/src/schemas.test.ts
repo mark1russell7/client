@@ -26,10 +26,11 @@ interface Property {
 }
 
 describe("the input schemas of the MCP tools", () => {
-  it("has the 94 tools of the snapshot", () => {
+  it("has the 103 tools of the snapshot", () => {
     // procedure.manifest is the 63rd (roadmap R17), program.check and program.compile came with R22,
-    // program.diagram and program.explain with R23, client.trace with AG1-B, procedure.search with d40
-    expect(tools.length).toBe(94);
+    // program.diagram and program.explain with R23, client.trace with AG1-B, procedure.search with d40,
+    // handle.list, handle.close and seven generated sqlite procedures with d40-handles
+    expect(tools.length).toBe(103);
   });
 
   for (const procedure of tools) {

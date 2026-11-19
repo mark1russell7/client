@@ -1244,8 +1244,8 @@ importers:
   packages/client-sqlite:
     dependencies:
       '@mark1russell7/sqlite':
-        specifier: ^0.3.9
-        version: 0.3.9
+        specifier: ^0.3.11
+        version: 0.3.11
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -4043,6 +4043,10 @@ packages:
   '@mark1russell7/splay@0.2.2':
     resolution: {integrity: sha512-hraH78EAk4354LZY08EbUls6vpj+BC4bxVVr0rkFf97fW/yNqidmNLaH18qUIkPZ8N/YwtpqS4it1NCQodTPzA==}
     engines: {node: '>=22'}
+
+  '@mark1russell7/sqlite@0.3.11':
+    resolution: {integrity: sha512-SsZWjl2NGtPiHkdK//CwYRruBTytJ5/YKWzBOEP5nHg++Ij6guL1Cb4kTQtZap4Mgc1OtivGlT8vCKTHZwVydA==}
+    engines: {node: '>=22.13'}
 
   '@mark1russell7/sqlite@0.3.9':
     resolution: {integrity: sha512-H+dMOGwhOLFvxDfodTJvFjIIQaHcm5YaLCh5HC72NxSIJCZ8xRIoGFVPNMgGjTqe+6KEb71nUU2GE7N7Hw7LPg==}
@@ -8022,6 +8026,8 @@ snapshots:
       '@mark1russell7/rigor-statistics': 0.2.8
 
   '@mark1russell7/splay@0.2.2': {}
+
+  '@mark1russell7/sqlite@0.3.11': {}
 
   '@mark1russell7/sqlite@0.3.9': {}
 
