@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/generators",
-  "version": "0.67.0",
+  "version": "0.68.0",
   "description": "The functions of @mark1russell7/rigor-generators as procedures, made from its types: seeds, hashes, canonical JSON, draws and designs as typed calls, MCP tools and CLI commands.",
   "keywords": [
     "random",
