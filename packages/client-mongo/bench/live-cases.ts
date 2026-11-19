@@ -47,6 +47,17 @@ export function plannedSets(writers: number): number {
   return writers * SETS_PER_SECOND * (LOAD_MS / 1000);
 }
 
+/**
+ * This function gives the replies of a child for each second, from the start of the load to its last reply.
+ * The window of each arm ends at its own last reply, so the rate of an arm that refuses the excess does not include the grace.
+ * A child with no reply time has no rate.
+ */
+export function replyRate(row: Pick<LiveCount, "replied" | "lastReplyMs">): number | null {
+  const last = row.lastReplyMs;
+  if (last === undefined || last === null || !(last > 0)) return null;
+  return row.replied / (last / 1000);
+}
+
 /** The line of one child in the file of the counts. */
 export interface LiveCount {
   readonly job: number;
@@ -54,6 +65,14 @@ export interface LiveCount {
   readonly case: string;
   readonly planned: number;
   readonly replied: number;
+  /**
+   * The replies that came in the load, before the grace. Each arm gets the same window, so these counts of two arms compare.
+   * An arm without a bound keeps a queue and replies in the grace too. A record from before CLI-132 step 3b has no count.
+   */
+  readonly repliedInLoad?: number;
+  /** The time from the start of the load to the first and to the last reply, in milliseconds. A child with no reply has null. */
+  readonly firstReplyMs?: number | null;
+  readonly lastReplyMs?: number | null;
   /** The sets that the in-flight bound refused with `RATE_LIMITED`. Only the arm `storebound` has a bound. A refusal is not a failure. */
   readonly refused: number;
   readonly failures: number;

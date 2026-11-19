@@ -122,6 +122,12 @@ let readerBytes = 0;
 let replied = 0;
 let failures = 0;
 let refused = 0;
+// The replies in the load, and the times of the first and the last reply from the start of the load (CLI-132 step 3b)
+let repliedInLoad = 0;
+let firstReplyMs: number | null = null;
+let lastReplyMs: number | null = null;
+/** The start of the load. The load loop sets it before the first send. */
+let loadStart = Number.NaN;
 
 function failed(error: unknown): void {
   failures += 1;
@@ -200,8 +206,13 @@ function send(client: Client, writer: number, round: number): void {
   const payload = arm === "live" ? { topic, key: `w${writer}`, value } : { id: `w${writer}`, value };
   void client.call<typeof payload, unknown>(setMethod, payload).then(
     () => {
+      const now = performance.now();
       replied += 1;
-      replyTimes.push(performance.now() - sentAt);
+      replyTimes.push(now - sentAt);
+      const sinceStart = now - loadStart;
+      if (sinceStart <= LOAD_MS) repliedInLoad += 1;
+      firstReplyMs = firstReplyMs === null ? sinceStart : Math.min(firstReplyMs, sinceStart);
+      lastReplyMs = lastReplyMs === null ? sinceStart : Math.max(lastReplyMs, sinceStart);
     },
     (error: unknown) => {
       // A refusal of the in-flight bound is the answer of the bound, not a failure: its work did not start.
@@ -221,6 +232,7 @@ const beforeCpu = process.cpuUsage();
 // Each writer has its own turn in the period, and sends on a fixed schedule whatever the replies do
 const period = 1000 / SETS_PER_SECOND;
 const start = performance.now();
+loadStart = start;
 await Promise.all(clients.map(async (client, writer) => {
   const offset = (writer / writers) * period;
   for (let round = 0; round < (LOAD_MS / 1000) * SETS_PER_SECOND; round += 1) {
@@ -245,6 +257,9 @@ const line: LiveCount = {
   case: caseName,
   planned: plannedSets(writers),
   replied,
+  repliedInLoad,
+  firstReplyMs,
+  lastReplyMs,
   refused,
   failures,
   storeWrites: afterWrites - beforeWrites,

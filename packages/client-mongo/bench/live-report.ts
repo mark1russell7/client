@@ -8,7 +8,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { median } from "@mark1russell7/rigor-statistics";
-import { LIVE_ARMS, LIVE_CASES, keptUp, type LiveCount } from "./live-cases.js";
+import { LIVE_ARMS, LIVE_CASES, keptUp, replyRate, type LiveCount } from "./live-cases.js";
 
 const { values } = parseArgs({ options: { jobs: { type: "string" }, out: { type: "string" }, run: { type: "string" } } });
 if (values.jobs === undefined || values.out === undefined) throw new RangeError("this report needs --jobs and --out");
@@ -44,6 +44,10 @@ const cases = LIVE_CASES.map((name) => ({
       keptUp: own.filter(keptUp).length,
       planned: own[0]!.planned,
       replied: summary(own, (row) => row.replied),
+      // The same window for each arm: the replies in the load, and the replies for each second up to the last reply
+      repliedInLoad: summary(own, (row) => row.repliedInLoad ?? null),
+      lastReplyMs: summary(own, (row) => row.lastReplyMs ?? null),
+      replyRate: summary(own, replyRate),
       refused: summary(own, (row) => row.refused),
       // The share of the plan with an answer in the load and the grace: a reply or a refusal
       answeredShare: summary(own, (row) => (row.replied + row.refused) / row.planned),
