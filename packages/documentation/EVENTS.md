@@ -201,7 +201,7 @@ The bench `Event fan-out` measures the longest block of the event loop in one pu
 - The budget of a size is the worst median of the 6 runs plus the spread of the medians, rounded up to a whole millisecond.
 - Each night, the bench fails when the median of a size goes past its budget. `packages/client/bench/fan-out-budget.ts` holds the values, the runs and the check.
 - The jobs of the 6 runs had 5 CPU models: AMD EPYC 7763, 9V45 and 9V74, Intel Xeon Platinum 8573C and Intel Xeon 6975P-C. A block with a job on another model is no read.
-- The cause of the linear growth is not known. One slice of 256 handlers takes approximately 1.6 ms. At 100,000 handlers, the longest GC event is approximately a third of the block.
+- The cause of the linear growth is not known (roadmap CLI-137). One slice of 256 handlers takes approximately 1.6 ms. At 100,000 handlers, the longest GC event is approximately a third of the block.
 
 ## The resubscribe after a reconnect
 
