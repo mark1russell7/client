@@ -1,5 +1,13 @@
 # @procedures/procedure
 
+## 0.68.0
+
+### Patch Changes
+
+- Updated dependencies [da6b790]
+- Updated dependencies [500a6cf]
+  - @procedures/client@0.68.0
+
 ## 0.67.0
 
 ### Patch Changes
