@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@procedures/mcp-dev-tools?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/mcp-dev-tools)
 
-`mcp-dev-tools` is the MCP server that gives procedures to Claude as tools. Its folder in the monorepo is `packages/impl-mcp-dev`. Claude Code (or Claude Desktop) starts it over stdio. By default it loads `bundle-mcp`, which selects 91 tools.
+`mcp-dev-tools` is the MCP server that gives procedures to Claude as tools. Its folder in the monorepo is `packages/impl-mcp-dev`. Claude Code (or Claude Desktop) starts it over stdio. By default it loads `bundle-mcp`, which selects 103 tools.
 
 ## Set up Claude Code
 
@@ -146,7 +146,7 @@ A process with a state, for example a daemon, keeps its procedures in its own pr
 
 ## The tool list
 
-`tools.snapshot.txt` has the names of the 94 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
+`tools.snapshot.txt` has the names of the 103 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
 
 ## The cost of the search listing
 
@@ -159,10 +159,10 @@ The bytes are a measure of the tokens. A task is the search listing, one result 
 
 | Measure | Bytes |
 |---|---|
-| The list of each tool (94 tools) | 121582 |
+| The list of each tool (103 tools) | 130647 |
 | The search listing (3 tools) | 1420 |
-| A task, on average | 4714 |
-| The worst task | 9686 |
+| A task, on average | 4803 |
+| The worst task | 9806 |
 
 `listing.cost.json` has two limits. The bytes of the search listing are exact. The share of the worst task in the list of each tool has a ceiling of 0.08. A new tool makes the list of each tool larger, so it does not fail the gate. To accept a change, start the test with `UPDATE_LISTING_COST=1` and examine the diff.
 

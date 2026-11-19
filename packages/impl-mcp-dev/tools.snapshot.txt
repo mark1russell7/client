@@ -41,6 +41,8 @@ docker.stop
 docker.tag
 docker.volume.create
 docker.volume.list
+handle.close
+handle.list
 json.diff
 json.merge
 json.patch
@@ -84,10 +86,17 @@ program.check
 program.compile
 program.diagram
 program.explain
+sqlite.addMissingColumns
+sqlite.checkIntegrity
+sqlite.checkpoint
 sqlite.execute
+sqlite.openDatabase
 sqlite.query
 sqlite.schema
+sqlite.schemaVersion
+sqlite.tableColumns
 sqlite.tables
+sqlite.userVersion
 vitest.coverage
 vitest.run
 yaml.parse

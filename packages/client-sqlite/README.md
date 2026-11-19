@@ -515,7 +515,7 @@ const { logs } = await client.exec(
 
 ## The generated procedures
 
-The package has a procedure for each function of `@mark1russell7/sqlite` with JSON inputs and a JSON output. These are 9 of the 25 functions. The generator of `@procedures/compiler` makes them from the types of the library. Thus a procedure cannot drift from its function.
+The package has a procedure for each function of `@mark1russell7/sqlite` with JSON inputs and a JSON output. These are 9 of the 26 functions. The generator of `@procedures/compiler` makes them from the types of the library. Thus a procedure cannot drift from its function.
 
 - `sqlite.openDatabase` opens a database and gives a handle, for example `{ "handle": "h_..." }`. The handle is in the scope of the caller.
 - The other 8 procedures take the handle in the input `db`: `sqlite.userVersion`, `sqlite.schemaVersion`, `sqlite.tableColumns`, `sqlite.addMissingColumns`, `sqlite.checkIntegrity`, `sqlite.checkpoint`, `sqlite.snapshot` and `sqlite.clearDatabase`.
@@ -524,7 +524,7 @@ The package has a procedure for each function of `@mark1russell7/sqlite` with JS
 - Under the root of a host, a relative `path` starts at the root. The host refuses a path outside the root. `:memory:` is not a path.
 - The first call loads `@mark1russell7/sqlite`, as the other procedures do.
 
-`sqliteManifest` gives the names, the schemas and the effects of each procedure. The MCP server of `@procedures/bundle-mcp` does not show these procedures as tools. A later change adds seven of them as tools.
+`sqliteManifest` gives the names, the schemas and the effects of each procedure. The MCP server of `@procedures/bundle-mcp` shows seven of them as tools. `sqlite.clearDatabase` and `sqlite.snapshot` are not tools, because they destroy data. Each MCP session has its own handles, and the end of the session closes them.
 
 ```ts
 import { createRegistry, HandleScope, invokePath, outputValue } from "@procedures/client";

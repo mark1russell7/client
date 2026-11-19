@@ -22,18 +22,21 @@ export interface HandleListOutput {
 }
 
 const HandleInfoSchema = z.object({
-  handle: z.string(),
-  kind: z.string(),
-  label: z.string().optional(),
-  openedAt: z.number(),
-  usedAt: z.number(),
+  handle: z.string().describe("The id of the handle"),
+  kind: z.string().describe('The kind of the object, for example "sqlite.Database"'),
+  label: z.string().optional().describe("A short text that tells the object apart, for example the path of a file"),
+  openedAt: z.number().describe("The time of the open, in milliseconds since the epoch"),
+  usedAt: z.number().describe("The time of the last use (the open, or the last get), in milliseconds since the epoch"),
 });
 
 /** The procedure `handle.list`: the open objects of the caller, in the order of their open. */
 export const handleListProcedure: Procedure<HandleListInput, HandleListOutput, ProcedureMetadata> = defineProcedure({
   path: ["handle", "list"],
   input: z.object({ kind: z.string().optional().describe("Only the objects of this kind") }) as z.ZodType<HandleListInput>,
-  output: z.object({ handles: z.array(HandleInfoSchema), count: z.number() }) as z.ZodType<HandleListOutput>,
+  output: z.object({
+    handles: z.array(HandleInfoSchema).describe("The open objects of the caller, in the order of their open"),
+    count: z.number().describe("The count of the handles in the list"),
+  }) as z.ZodType<HandleListOutput>,
   metadata: {
     description: "The open handles of the caller: the objects with a state that its procedures opened",
     tags: ["core", "handles"],
@@ -59,7 +62,7 @@ export interface HandleCloseInput {
 export const handleCloseProcedure: Procedure<HandleCloseInput, { closed: boolean }, ProcedureMetadata> = defineProcedure({
   path: ["handle", "close"],
   input: z.object({ handle: z.string().min(1).describe("The id of the handle") }) as z.ZodType<HandleCloseInput>,
-  output: z.object({ closed: z.boolean() }),
+  output: z.object({ closed: z.boolean().describe("True when the handle was open and is now closed. False for a handle that is not open.") }),
   metadata: {
     description: "Close a handle of the caller and its object, for example a database",
     tags: ["core", "handles"],

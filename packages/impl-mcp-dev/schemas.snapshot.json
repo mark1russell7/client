@@ -1064,6 +1064,28 @@
       }
     }
   },
+  "handle.close": {
+    "type": "object",
+    "properties": {
+      "handle": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The id of the handle"
+      }
+    },
+    "required": [
+      "handle"
+    ]
+  },
+  "handle.list": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "description": "Only the objects of this kind",
+        "type": "string"
+      }
+    }
+  },
   "json.diff": {
     "type": "object",
     "properties": {
@@ -2635,6 +2657,120 @@
       "program"
     ]
   },
+  "sqlite.addMissingColumns": {
+    "type": "object",
+    "properties": {
+      "db": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of the handle. The procedure that opens the object gives it."
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "additionalProperties": false,
+        "x-procedures-handle": "node:sqlite#DatabaseSync",
+        "description": "The connection. A handle of a node:sqlite#DatabaseSync. The procedure that opens it gives it, and handle.close closes it."
+      },
+      "table": {
+        "type": "string",
+        "description": "The name of the table. The table must exist."
+      },
+      "columns": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "The columns that the table must have."
+      }
+    },
+    "required": [
+      "db",
+      "table",
+      "columns"
+    ],
+    "additionalProperties": false
+  },
+  "sqlite.checkIntegrity": {
+    "type": "object",
+    "properties": {
+      "db": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of the handle. The procedure that opens the object gives it."
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "additionalProperties": false,
+        "x-procedures-handle": "node:sqlite#DatabaseSync",
+        "description": "The connection. A handle of a node:sqlite#DatabaseSync. The procedure that opens it gives it, and handle.close closes it."
+      },
+      "options": {
+        "type": "object",
+        "properties": {
+          "quick": {
+            "type": "boolean",
+            "description": "This value selects `PRAGMA quick_check`. It is faster, but it does not compare the indexes with their tables. The default is `false`."
+          },
+          "limit": {
+            "type": "number",
+            "description": "This value is the highest count of problems that the check gives. The default is 100."
+          }
+        },
+        "additionalProperties": {},
+        "description": "The kind of check and the highest count of problems."
+      }
+    },
+    "required": [
+      "db"
+    ],
+    "additionalProperties": false
+  },
+  "sqlite.checkpoint": {
+    "type": "object",
+    "properties": {
+      "db": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of the handle. The procedure that opens the object gives it."
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "additionalProperties": false,
+        "x-procedures-handle": "node:sqlite#DatabaseSync",
+        "description": "The connection. A handle of a node:sqlite#DatabaseSync. The procedure that opens it gives it, and handle.close closes it."
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "FULL",
+          "PASSIVE",
+          "RESTART",
+          "TRUNCATE"
+        ],
+        "description": "The mode of `PRAGMA wal_checkpoint`. The default is `PASSIVE`: it does not wait for other connections."
+      }
+    },
+    "required": [
+      "db"
+    ],
+    "additionalProperties": false
+  },
   "sqlite.execute": {
     "type": "object",
     "properties": {
@@ -2655,6 +2791,64 @@
     "required": [
       "sql"
     ]
+  },
+  "sqlite.openDatabase": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "The path of the file, or `:memory:`."
+      },
+      "options": {
+        "type": "object",
+        "properties": {
+          "wal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string",
+                "const": "when-writable"
+              }
+            ],
+            "description": "This value turns on the write-ahead log (WAL). The default is true. Then readers do not stop a writer. A database with no file keeps its journal in memory."
+          },
+          "readOnly": {
+            "type": "boolean",
+            "description": "This value opens the file to read only. The default is false. The file must exist. The open does not change the journal mode, and each write throws. Do not give `wal: true` or `makeFolder: true` with it."
+          },
+          "synchronous": {
+            "type": "string",
+            "enum": [
+              "EXTRA",
+              "FULL",
+              "NORMAL",
+              "OFF"
+            ],
+            "description": "This value is the pragma `synchronous`. The default is `FULL`: a commit is on the disk when the call ends. With WAL, `NORMAL` can lose the last commits at a power cut, and the file stays good. On a connection with `NORMAL`, `syncedTransaction` gives the sync of `FULL` to one commit."
+          },
+          "busyTimeoutMs": {
+            "type": "number",
+            "description": "This value is the time in milliseconds that a statement waits for the lock of a different connection. The default is 0: then the statement fails at once with \"database is locked\"."
+          },
+          "makeFolder": {
+            "type": "boolean",
+            "description": "This value makes the folder of the file when the folder is not there. The default is false."
+          },
+          "folderMode": {
+            "type": "number",
+            "description": "This value is the mode of the folders that `makeFolder` makes, for example `0o700`."
+          }
+        },
+        "additionalProperties": {},
+        "description": "The pragmas and the folder."
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "additionalProperties": false
   },
   "sqlite.query": {
     "type": "object",
@@ -2695,6 +2889,65 @@
       "table"
     ]
   },
+  "sqlite.schemaVersion": {
+    "type": "object",
+    "properties": {
+      "db": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of the handle. The procedure that opens the object gives it."
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "additionalProperties": false,
+        "x-procedures-handle": "node:sqlite#DatabaseSync",
+        "description": "The connection. A handle of a node:sqlite#DatabaseSync. The procedure that opens it gives it, and handle.close closes it."
+      },
+      "part": {
+        "type": "string",
+        "description": "The name of a part of the file."
+      }
+    },
+    "required": [
+      "db"
+    ],
+    "additionalProperties": false
+  },
+  "sqlite.tableColumns": {
+    "type": "object",
+    "properties": {
+      "db": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of the handle. The procedure that opens the object gives it."
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "additionalProperties": false,
+        "x-procedures-handle": "node:sqlite#DatabaseSync",
+        "description": "The connection. A handle of a node:sqlite#DatabaseSync. The procedure that opens it gives it, and handle.close closes it."
+      },
+      "table": {
+        "type": "string",
+        "description": "The name of the table."
+      }
+    },
+    "required": [
+      "db",
+      "table"
+    ],
+    "additionalProperties": false
+  },
   "sqlite.tables": {
     "type": "object",
     "properties": {
@@ -2708,6 +2961,31 @@
         "minLength": 1
       }
     }
+  },
+  "sqlite.userVersion": {
+    "type": "object",
+    "properties": {
+      "db": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of the handle. The procedure that opens the object gives it."
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "additionalProperties": false,
+        "x-procedures-handle": "node:sqlite#DatabaseSync",
+        "description": "A handle of a node:sqlite#DatabaseSync. The procedure that opens it gives it, and handle.close closes it."
+      }
+    },
+    "required": [
+      "db"
+    ],
+    "additionalProperties": false
   },
   "vitest.coverage": {
     "type": "object",

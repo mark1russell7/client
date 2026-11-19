@@ -12,27 +12,29 @@ npm install @procedures/bundle-mcp
 
 `src/register.ts` exports these lists:
 
-- `mcpNamespaces`: the namespaces whose procedures are tools. At this time: `client`, `cue`, `docker`, `json`, `lib`, `logs`, `mongo`, `procedure`, `program`, `sqlite`, `vitest` and `yaml`.
+- `mcpNamespaces`: the namespaces whose procedures are tools. At this time: `client`, `cue`, `docker`, `handle`, `json`, `lib`, `logs`, `mongo`, `procedure`, `program`, `sqlite`, `vitest` and `yaml`.
 - `mcpExclude`: procedures of those namespaces that are not tools.
   - `vitest.watch`, `vitest.stop` and `vitest.list` manage processes that live longer than a tool call.
   - `docker.prune` deletes in bulk, and `docker.volume.remove` deletes the data of a volume. `docker.push` can carry an image out to any registry.
   - `mongo.watch` is a stream without an end. `mongo.documents.bulk` and `sqlite.transaction` change data in bulk. `sqlite.migrate` and `sqlite.backup` change or copy the database file.
+  - `sqlite.clearDatabase` drops each table of a database. `sqlite.snapshot` replaces the file at its path.
   - `procedure.store`, `procedure.load`, `procedure.sync`, `procedure.remote` and `procedure.register` need a procedure store, and the MCP server has none.
 
-The result is 91 tools (October 2026):
+The result is 103 tools (November 2026):
 
 | Namespace | Tools |
 |---|---|
-| `client` | 15: the control-flow procedures (`chain`, `parallel`, `conditional`, `tryCatch`, `map`, `reduce`, `and`, `or`) and `all`, `any`, `none`, `not`, `identity`, `constant`, `throw` |
+| `client` | 16: the control-flow procedures (`chain`, `parallel`, `conditional`, `tryCatch`, `map`, `reduce`, `and`, `or`) and `all`, `any`, `none`, `not`, `identity`, `constant`, `throw`, `trace` |
 | `cue` | 5: `add`, `generate`, `init`, `remove`, `validate` |
 | `docker` | 22: `build`, `compose.build`, `compose.down`, `compose.logs`, `compose.ps`, `compose.restart`, `compose.up`, `exec`, `images`, `inspect`, `logs`, `network.create`, `network.list`, `network.remove`, `ps`, `pull`, `rm`, `run`, `stop`, `tag`, `volume.create`, `volume.list` |
+| `handle` | 2: `list`, `close`. A handle is an object that a tool opened, for example a database. The end of the session closes its handles. |
 | `json` | 5: `diff`, `merge`, `patch`, `query`, `validate`. They are pure. |
-| `lib` | 5: `audit`, `graph`, `new`, `rename`, `scan` |
+| `lib` | 6: `audit`, `graph`, `importCycles`, `new`, `rename`, `scan` |
 | `logs` | 2: `query`, `store` |
 | `mongo` | 18: the `collections`, `database`, `documents` and `indexes` procedures, with `documents.distinct` and `documents.explain` |
-| `procedure` | 7: `define`, `delete`, `export`, `get`, `list`, `manifest`, `new` |
+| `procedure` | 8: `define`, `delete`, `export`, `get`, `list`, `manifest`, `new`, `search` |
 | `program` | 4: `check`, `compile`, `diagram`, `explain`. They examine a program before it starts. The program stays data. |
-| `sqlite` | 4: `execute`, `query`, `schema`, `tables` |
+| `sqlite` | 11: `execute`, `query`, `schema`, `tables`, and the generated `openDatabase`, `userVersion`, `schemaVersion`, `tableColumns`, `addMissingColumns`, `checkIntegrity`, `checkpoint`. `openDatabase` gives a handle, and the others take it. |
 | `vitest` | 2: `coverage`, `run` |
 | `yaml` | 2: `parse`, `stringify`. They are pure. |
 

@@ -29,4 +29,13 @@ describe("bundle-mcp", () => {
     expect(mcpExclude).toEqual(expect.arrayContaining(["sqlite.transaction", "sqlite.migrate", "sqlite.backup"]));
     expect(mcpExclude.filter((key) => key.startsWith("db."))).toEqual([]);
   });
+
+  it("exposes the handles and the generated sqlite procedures, not the two that destroy data", () => {
+    expect(mcpNamespaces).toContain("handle");
+    for (const key of ["handle.list", "handle.close", "sqlite.openDatabase", "sqlite.tableColumns"]) {
+      expect(PROCEDURE_REGISTRY.get(key.split("."))?.handler, key).toBeDefined();
+      expect(mcpExclude, key).not.toContain(key);
+    }
+    expect(mcpExclude).toEqual(expect.arrayContaining(["sqlite.clearDatabase", "sqlite.snapshot"]));
+  });
 });
