@@ -7,7 +7,8 @@
  * A run with fewer than 5 A/A cases gives no band. Then the field `aa` shows no read with its reason,
  * and each `bound` is null. A skipped case of the A/A arm gives such a run.
  *
- * The field `worstMs` of a `block` case is the budget candidate: the worst sliced time of all rounds.
+ * The field `worstMs` of a `block` case is the worst sliced time of all rounds. The field `budget` reads the median of
+ * the sliced block of each size against its budget (`fan-out-budget.ts`). A median of a size with no read is null.
  *
  * The fields `plainGcMs` and `slicedGcMs` are the median GC time of a child in its timed publishes, over all rounds.
  * The fields `plainGcMaxMs` and `slicedGcMaxMs` are the median of the longest GC event of a child. The field
@@ -24,6 +25,7 @@ import { parseArgs } from "node:util";
 import { type GrowthVerdict, aaBand, caseIntervals, caseRatios, poolRecords, pooledVerdict, type PairedTime } from "@mark1russell7/rigor-bench";
 import type { ChildFields } from "@mark1russell7/rigor-bench/fresh";
 import { median } from "@mark1russell7/rigor-statistics";
+import { blockBudget } from "./fan-out-budget.js";
 import { parseCase } from "./fan-out-cases.js";
 import { blockLessGc, childGc } from "./fan-out-gc.js";
 import { type GrowthSkip, fanOutGrowth } from "./fan-out-growth.js";
@@ -91,6 +93,7 @@ const cases = caseIntervals(pool.candidate).map((entry) => ({
 }));
 
 const growth = fanOutGrowth(jobs);
+const budget = blockBudget(jobs);
 const steps = (verdict: GrowthVerdict) =>
   verdict.steps.map((step) => ({ from: step.from, to: step.to, median: round(step.median, 2), low: round(step.low, 2), high: round(step.high, 2), exponent: round(step.exponent, 3), outcome: step.outcome, growths: step.growths.map((g) => round(g, 2)) }));
 
@@ -108,6 +111,12 @@ const report = {
     reason: growth.reason ?? "",
     gate: growth.gate && { plain: steps(growth.gate.plain), sliced: steps(growth.gate.sliced) },
     report: growth.report && { plain: steps(growth.report.plain), sliced: steps(growth.report.sliced) },
+  },
+  budget: {
+    outcome: budget.outcome,
+    reason: budget.reason ?? "",
+    sizes: budget.sizes.map((size) => ({ ...size, median: size.median === undefined ? null : round(size.median, 3) })),
+    uncovered: budget.uncovered,
   },
   env: jobs.map(({ job, env }) => ({ job, env })),
 };

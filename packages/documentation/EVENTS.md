@@ -187,6 +187,22 @@ A subscriber that joins a call after its confirmation gets the same events as a 
 - The queue of the slices holds at most `fanOut.maxPending` events. The default is 1024. An `emit()` over this limit finishes the oldest event before it returns, so the bus loses no event.
 - `DefaultEventBus.drained()` resolves when no event waits. A host calls it before it stops.
 
+#### The longest block of the event loop
+
+The bench `Event fan-out` measures the longest block of the event loop in one publish, with `sliceSize: 256`. The slices do not make this block constant: it grows linearly with the handlers.
+
+| Handlers | Median of a run | Budget | Worst child |
+| --- | --- | --- | --- |
+| 1,000 | 3.1 to 3.9 ms | 5 ms | 6.4 ms |
+| 10,000 | 8.4 to 9.6 ms | 11 ms | 15.8 ms |
+| 100,000 | 90.3 to 93.2 ms | 97 ms | 174.0 ms |
+
+- The values come from 6 nights of the bench on `main`. Each run has 5 jobs of 6 rounds, so 30 children at each size.
+- The budget of a size is the worst median of the 6 runs plus the spread of the medians, rounded up to a whole millisecond.
+- Each night, the bench fails when the median of a size goes past its budget. `packages/client/bench/fan-out-budget.ts` holds the values, the runs and the check.
+- The jobs of the 6 runs had 5 CPU models: AMD EPYC 7763, 9V45 and 9V74, Intel Xeon Platinum 8573C and Intel Xeon 6975P-C. A block with a job on another model is no read.
+- The cause of the linear growth is not known (roadmap CLI-137). One slice of 256 handlers takes approximately 1.6 ms. At 100,000 handlers, the longest GC event is approximately a third of the block.
+
 ## The resubscribe after a reconnect
 
 - The WebSocket client keeps each subscription until its unsubscribe or `close()`.
