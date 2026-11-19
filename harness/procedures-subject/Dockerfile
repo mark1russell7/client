@@ -13,7 +13,7 @@
 #
 # The base is the Node image of the procedures subject that the harness ships, by the same digest.
 # Thus a difference between the two subjects is a difference of the release, not of Node.
-FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS build
+FROM node:24.22.2-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS build
 ENV CI=true
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -27,7 +27,7 @@ RUN rm -rf packages/client/dist packages/client/*.tsbuildinfo \
   && pnpm --filter @procedures/client build \
   && pnpm --filter @procedures/client deploy --prod /opt/subject
 
-FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+FROM node:24.22.2-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8
 WORKDIR /opt/subject
 COPY --from=build /opt/subject ./
 COPY harness/procedures-subject/lines.ts harness/procedures-subject/client-ws.ts harness/procedures-subject/server-ws.ts ./
