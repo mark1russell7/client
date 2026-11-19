@@ -1,5 +1,12 @@
 # @procedures/pdf
 
+## 0.67.0
+
+### Patch Changes
+
+- @procedures/browser@0.67.0
+  - @procedures/client@0.67.0
+
 ## 0.66.0
 
 ### Patch Changes
