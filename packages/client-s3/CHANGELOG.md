@@ -1,5 +1,14 @@
 # @procedures/s3
 
+## 0.68.0
+
+### Patch Changes
+
+- da6b790: The new function `permitsEffects(capability, effects)` of `@procedures/client` gives true when a capability permits the reads and the writes of `effects`. A capability without `effects` permits all effects. `permitsUpload()` of `@procedures/s3` uses it, with the same result.
+- Updated dependencies [da6b790]
+- Updated dependencies [500a6cf]
+  - @procedures/client@0.68.0
+
 ## 0.67.0
 
 ### Patch Changes

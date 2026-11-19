@@ -26,7 +26,14 @@
  * the heap is measured at rest (`heapMidMb`). The record gives the growth of each half
  * (`firstHalfMb`, `secondHalfMb`). A leak that grows with the time gives two halves of the same
  * size. A state with a bound gives its growth in the first half, and the second half stays near 0.
- * The gate stays on `leakMb`: the halves of 5 nightly runs decide the next limit.
+ *
+ * The second half (roadmap O99): 5 nightly runs on main give its limits. The runs are run
+ * 44214941138 (jobs 1 to 3), run 44223778146 and run 44444867016. Their runs had 3 CPU models: two
+ * AMD EPYC models and one Intel Xeon model.
+ * - The second half of WebSocket stays near 0, from -0.23 to 0.16 MB. Its growth has a bound.
+ * - The two halves of HTTP have the same size in each run, from 0.18 to 0.32 MB. The HTTP heap
+ *   grows with the time, approximately 3 bytes for each call. Roadmap O114 finds the cause.
+ *   Until then, the limit of its second half keeps the growth at its rate in the 5 runs.
  */
 
 import { describe, it, expect } from "vitest";
@@ -71,6 +78,8 @@ const LIMITS = {
   ws: {
     // The leak in MB, from the warm-up to the end. 1.62 + (1.62 - 1.12) = 2.12, so 2.2 (O99).
     leakMb: gateLimit([1.28, 1.62, 1.49, 1.12, 1.28], "ceiling", 0.1),
+    // The growth of the second half in MB. 0.16 + (0.16 + 0.23) = 0.55, so 0.6 (O99).
+    secondHalfMb: gateLimit([-0.19, 0.16, -0.21, -0.02, -0.23], "ceiling", 0.1),
     // The calls. 961695 - (1096935 - 961695) = 826455, so 826000 (O85: 641000).
     calls: gateLimit([966_963, 1_096_935, 961_695, 1_092_157, 968_772], "floor", 1000),
     // The failures for each reconnect. 0.937 + (0.937 - 0.922) = 0.952, so 0.96 (O85: 1.5).
@@ -79,6 +88,8 @@ const LIMITS = {
   http: {
     // The leak in MB, from the warm-up to the end. 0.58 + (0.58 - 0.5) = 0.66, so 0.7 (O99).
     leakMb: gateLimit([0.5, 0.51, 0.53, 0.53, 0.58], "ceiling", 0.1),
+    // The growth of the second half in MB. 0.25 + (0.25 - 0.18) = 0.32, so 0.4 (O99, the cause in O114).
+    secondHalfMb: gateLimit([0.21, 0.2, 0.24, 0.18, 0.25], "ceiling", 0.1),
     // The calls. 175003 - (187858 - 175003) = 162148, so 162000 (O85: 116000).
     calls: gateLimit([177_093, 187_858, 175_583, 187_641, 175_003], "floor", 1000),
     // The sums of the 5 runs: their calls and their failures (0). `failureLimit` gives the limit of
@@ -86,7 +97,7 @@ const LIMITS = {
     measured: { calls: 177_093 + 187_858 + 175_583 + 187_641 + 175_003, failures: 0 },
   },
 };
-/** `SOAK_HEAP_MB` sets the two limits of the leak, in megabytes, for a run by hand. */
+/** `SOAK_HEAP_MB` sets the limits of the heap (the leak and the second half), in megabytes, for a run by hand. */
 const heapOverride = process.env["SOAK_HEAP_MB"] ? Number(process.env["SOAK_HEAP_MB"]) : undefined;
 /** The warm-up is this part of the time of a soak (O99) */
 const WARMUP_SHARE = 0.1;
@@ -318,6 +329,8 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     expect(serverMaps.every((size) => size === 0)).toBe(true);
     expect(host.callsInFlight).toBe(0);
     expect(heap.leakMb).toBeLessThan(heapOverride ?? LIMITS.ws.leakMb);
+    // A leak that grows with the time gives a second half near the first half (O99)
+    expect(heap.secondHalfMb).toBeLessThan(heapOverride ?? LIMITS.ws.secondHalfMb);
     // Each long subscription got events, and it resubscribed after each reconnect of its client
     for (let index = 0; index < transports.length; index++) {
       expect(ticks[index]).toBeGreaterThan(0);
@@ -423,5 +436,7 @@ describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
     expect(report.timersStarted).toBeGreaterThan(0);
     expect(report.callsInFlight).toBe(0);
     expect(heap.leakMb).toBeLessThan(heapOverride ?? LIMITS.http.leakMb);
+    // The second half holds the growth of the HTTP heap at its rate in the 5 runs (O99, O114)
+    expect(heap.secondHalfMb).toBeLessThan(heapOverride ?? LIMITS.http.secondHalfMb);
   }, (minutes + 2) * 60_000);
 });
