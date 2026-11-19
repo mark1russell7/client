@@ -7,7 +7,7 @@
  */
 
 
-import { definePackage, createProcedure, type AnyProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
+import { definePackage, createProcedure, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
 import {
@@ -66,6 +66,16 @@ import {
 // Procedures
 // =============================================================================
 
+/**
+ * These are the effects of each pnpm command, also of a command that only reads, for example
+ * `pnpm list`. Before each command, pnpm reads the configuration of the working folder. Then it
+ * installs the config dependencies of the project from the registry, and it loads the
+ * `.pnpmfile.cjs` of the project. It can also start the pnpm that the field `packageManager` names.
+ * These steps are code of the project, so each command writes `process` (rule 12 of
+ * CAPABILITIES-2026-10).
+ */
+const PNPM_COMMAND: Effects = { reads: ["fs", "network"], writes: ["fs", "process"] };
+
 const pnpmInstallProcedure = createProcedure()
   .path(["pnpm", "install"])
   .input(PnpmInstallInputSchema)
@@ -75,7 +85,7 @@ const pnpmInstallProcedure = createProcedure()
     calls: ["shell.run"],
     // pnpm reads the npm registry, rewrites node_modules and the lockfile, and runs the
     // lifecycle scripts and the pnpmfile of the project
-    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
+    effects: PNPM_COMMAND,
     shorts: { cwd: "C", dev: "D", frozen: "F" },
     output: "json",
   })
@@ -91,7 +101,7 @@ const pnpmAddProcedure = createProcedure()
   .meta({
     description: "Add packages using pnpm",
     calls: ["shell.run"],
-    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
+    effects: PNPM_COMMAND,
     args: ["packages"],
     shorts: { cwd: "C", dev: "D", global: "g" },
     output: "json",
@@ -109,7 +119,7 @@ const pnpmRemoveProcedure = createProcedure()
     description: "Remove packages using pnpm",
     calls: ["shell.run"],
     // pnpm resolves the remaining dependencies again, so it can read the npm registry
-    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
+    effects: PNPM_COMMAND,
     args: ["packages"],
     shorts: { cwd: "C", global: "g" },
     output: "json",
@@ -126,7 +136,7 @@ const pnpmLinkProcedure = createProcedure()
   .meta({
     description: "Link packages using pnpm",
     calls: ["shell.run"],
-    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
+    effects: PNPM_COMMAND,
     shorts: { cwd: "C", global: "g" },
     output: "json",
   })
@@ -143,7 +153,7 @@ const pnpmRunProcedure = createProcedure()
     description: "Run package scripts using pnpm",
     calls: ["shell.run"],
     // A package script is code of the project: it can do anything
-    effects: { reads: ["fs"], writes: ["process"] },
+    effects: PNPM_COMMAND,
     args: ["script"],
     shorts: { cwd: "C" },
     output: "json",
@@ -160,8 +170,8 @@ const pnpmStorePathProcedure = createProcedure()
   .meta({
     description: "Get pnpm store path for snapshot/restore",
     calls: ["shell.run"],
-    // `pnpm store path` only reads the configuration of pnpm
-    effects: { reads: ["fs"], writes: [] },
+    // `pnpm store path` reads the configuration of the working folder, as each pnpm command does
+    effects: PNPM_COMMAND,
     args: [],
     shorts: { cwd: "C" },
     output: "json",
@@ -183,7 +193,7 @@ const pnpmExecProcedure = createProcedure()
     description: "Run a program of the dependencies (node_modules/.bin) with pnpm exec",
     calls: ["shell.run"],
     // The program is any program of the dependencies: it can do anything, as pnpm.run
-    effects: { reads: ["fs"], writes: ["process"] },
+    effects: PNPM_COMMAND,
     args: ["command", "args"],
     shorts: { cwd: "C", recursive: "r" },
     output: "json",
@@ -199,7 +209,7 @@ const pnpmListProcedure = createProcedure()
     description: "List the installed packages: data is the JSON of pnpm list --json",
     calls: ["shell.run"],
     // It reads package.json, the lockfile and node_modules
-    effects: { reads: ["fs"], writes: [] },
+    effects: PNPM_COMMAND,
     args: ["packages"],
     shorts: { cwd: "C", depth: "d", recursive: "r" },
     output: "json",
@@ -214,7 +224,7 @@ const pnpmWhyProcedure = createProcedure()
   .meta({
     description: "Show the packages that depend on a package: data is the JSON of pnpm why --json",
     calls: ["shell.run"],
-    effects: { reads: ["fs"], writes: [] },
+    effects: PNPM_COMMAND,
     args: ["packages"],
     shorts: { cwd: "C", depth: "d", recursive: "r" },
     output: "json",
@@ -230,7 +240,7 @@ const pnpmOutdatedProcedure = createProcedure()
     description: "List the outdated packages: data is the JSON of pnpm outdated",
     calls: ["shell.run"],
     // pnpm reads the versions of the npm registry
-    effects: { reads: ["fs", "network"], writes: [] },
+    effects: PNPM_COMMAND,
     args: ["packages"],
     shorts: { cwd: "C", recursive: "r" },
     output: "json",
@@ -246,7 +256,7 @@ const pnpmUpdateProcedure = createProcedure()
     description: "Update packages to their newest versions in the ranges, or with latest to the latest versions",
     calls: ["shell.run"],
     // As pnpm.install: the registry, node_modules, the lockfile and the lifecycle scripts
-    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
+    effects: PNPM_COMMAND,
     args: ["packages"],
     shorts: { cwd: "C", latest: "L", recursive: "r" },
     output: "json",
@@ -263,7 +273,7 @@ const pnpmPackProcedure = createProcedure()
     calls: ["shell.run"],
     // It writes the tarball (it replaces a tarball of the same name), and pnpm runs the prepack,
     // prepare and postpack scripts of the package
-    effects: { reads: ["fs"], writes: ["fs", "process"] },
+    effects: PNPM_COMMAND,
     args: [],
     shorts: { cwd: "C", destination: "d", dryRun: "n" },
     output: "json",

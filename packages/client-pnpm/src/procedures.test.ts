@@ -1,11 +1,11 @@
 /**
  * The procedures and options of roadmap R41: `--filter` and `--recursive`, and pnpm.exec, list,
- * why, outdated, update and pack. A fake shell.run records the argument list. One test runs the
- * real pnpm list in an empty temporary project, with no network.
+ * why, outdated, update and pack. A fake shell.run records the argument list. Two tests start the
+ * real pnpm list in a temporary project, with no network. One of the projects has a `.pnpmfile.cjs`.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRegistry, invokePath, outputValue, type Effects, type ProcedureContext } from "@procedures/client";
@@ -152,26 +152,45 @@ describe("pnpm.update and pnpm.pack", () => {
 });
 
 describe("the module", () => {
-  const READS: Effects = { reads: ["fs"], writes: [] };
-  const INSTALLS: Effects = { reads: ["fs", "network"], writes: ["fs", "process"] };
+  // Each pnpm command installs the config dependencies of the project and loads its pnpmfile first
+  const PNPM_COMMAND: Effects = { reads: ["fs", "network"], writes: ["fs", "process"] };
 
   it("declares the effects of each procedure", () => {
     const declared = Object.fromEntries(pnpmModule.procedures.map((procedure) => [procedure.path.join("."), procedure.metadata.effects]));
     expect(declared).toEqual({
-      "pnpm.install": INSTALLS,
-      "pnpm.add": INSTALLS,
-      "pnpm.remove": INSTALLS,
-      "pnpm.link": INSTALLS,
-      "pnpm.run": { reads: ["fs"], writes: ["process"] },
-      "pnpm.store.path": READS,
-      "pnpm.exec": { reads: ["fs"], writes: ["process"] },
-      "pnpm.list": READS,
-      "pnpm.why": READS,
-      "pnpm.outdated": { reads: ["fs", "network"], writes: [] },
-      "pnpm.update": INSTALLS,
-      "pnpm.pack": { reads: ["fs"], writes: ["fs", "process"] },
+      "pnpm.install": PNPM_COMMAND,
+      "pnpm.add": PNPM_COMMAND,
+      "pnpm.remove": PNPM_COMMAND,
+      "pnpm.link": PNPM_COMMAND,
+      "pnpm.run": PNPM_COMMAND,
+      "pnpm.store.path": PNPM_COMMAND,
+      "pnpm.exec": PNPM_COMMAND,
+      "pnpm.list": PNPM_COMMAND,
+      "pnpm.why": PNPM_COMMAND,
+      "pnpm.outdated": PNPM_COMMAND,
+      "pnpm.update": PNPM_COMMAND,
+      "pnpm.pack": PNPM_COMMAND,
     });
   });
+
+  it("starts the pnpmfile of the project in a command that only reads", async () => {
+    const project = mkdtempSync(join(tmpdir(), "pnpm-pnpmfile-"));
+    const marker = join(project, "pnpmfile-ran");
+    try {
+      writeFileSync(join(project, "package.json"), JSON.stringify({ name: "fixture", version: "1.0.0" }));
+      // The hook updateConfig runs while pnpm reads the configuration, before the command
+      writeFileSync(
+        join(project, ".pnpmfile.cjs"),
+        `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "x");\nmodule.exports = { hooks: { updateConfig: (config) => config } };\n`,
+      );
+      const registry = createRegistry(pnpmModule);
+      const result = await outputValue(await invokePath<PnpmJsonOutput>(["pnpm", "list"], { cwd: project, timeout: 60_000 }, { registry }), ["pnpm", "list"]);
+      expect(result.success, result.stderr).toBe(true);
+      expect(existsSync(marker)).toBe(true);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  }, 90_000);
 
   it("validates the input of a call", async () => {
     const registry = createRegistry(pnpmModule);
