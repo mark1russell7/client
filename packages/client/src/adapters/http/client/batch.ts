@@ -14,12 +14,14 @@
  *   each call alone, now and later.
  */
 
+import { context as otelContext, type Context } from "@opentelemetry/api";
 import type { Message, Metadata, ResponseItem, Status } from "../../../client/types.js";
 import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, capacityFieldsOf, isNotSentError } from "../../../client/middleware/items.js";
 import { StreamSequence, streamItemMetadata } from "../../sequence.js";
 import { foldedErrorCode, PROTOCOL_HEADER, PROTOCOL_VERSION } from "../../../protocol.js";
 import { toMs, type Duration } from "../../../duration.js";
 import { HTTPHeaders, createAbortError, createErrorFromException, decodeMetadataHeader } from "../shared/index.js";
+import { iterateInContext } from "../../../tracing/otel.js";
 
 /** The header of a batch request, and of the answer of a server that takes batches. */
 const BATCH_HEADER = HTTPHeaders.BATCH;
@@ -132,6 +134,8 @@ interface Pending {
   readonly message: Message;
   readonly headers: Record<string, string>;
   readonly channel: Channel<ResponseItem<unknown>>;
+  /** The active context of the call. Its request starts in it, so the span of the call is the parent of the span of the request. */
+  readonly context: Context;
   /** "queued" before the request; "alone" in a request of one call; "sent" in a batch */
   state: "queued" | "alone" | "sent";
   /** The call has its last item, or the caller stopped reading */
@@ -191,7 +195,7 @@ export class HttpBatcher {
       yield* this.host.sendOne<TRes>(message);
       return;
     }
-    const pending: Pending = { message, headers, channel: new Channel(), state: "queued", ended: false, detached: false, started: false };
+    const pending: Pending = { message, headers, channel: new Channel(), context: otelContext.active(), state: "queued", ended: false, detached: false, started: false };
     const onAbort = (): void => this.abort(pending);
     message.signal?.addEventListener("abort", onAbort, { once: true });
     this.enqueue(pending);
@@ -241,7 +245,7 @@ export class HttpBatcher {
   private async alone(pending: Pending): Promise<void> {
     pending.state = "alone";
     try {
-      for await (const item of this.host.sendOne(pending.message)) {
+      for await (const item of iterateInContext(pending.context, () => this.host.sendOne(pending.message))) {
         if (pending.detached) break;
         await pending.channel.push(item);
       }
@@ -328,7 +332,9 @@ export class HttpBatcher {
     }
     const live = (): Pending[] => calls.filter((pending) => !pending.ended);
     try {
-      const response = await this.host.fetch(this.host.url, {
+      // The request of many calls starts in the context of its first call. So the span of the
+      // request is in the trace of that call, and the request makes no trace of its own.
+      const response = await otelContext.with(calls[0]!.context, () => this.host.fetch(this.host.url, {
         ...init,
         method: "POST",
         headers: {
@@ -341,7 +347,7 @@ export class HttpBatcher {
         },
         body: JSON.stringify(body),
         signal: controller.signal,
-      });
+      }));
       const metadata = this.host.metadataOf(response.headers);
       const batchAnswer = response.headers.get(BATCH_HEADER) === "1";
       if (!batchAnswer && NO_BATCH_STATUSES.has(response.status)) {

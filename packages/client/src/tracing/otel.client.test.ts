@@ -10,7 +10,7 @@ import express from "express";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import * as z from "zod";
-import { context, propagation, ROOT_CONTEXT, SpanKind, trace, type Context, type TextMapPropagator, type TextMapSetter } from "@opentelemetry/api";
+import { context, propagation, ROOT_CONTEXT, SpanKind, trace, type Context, type ContextManager, type TextMapPropagator, type TextMapSetter } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { CompositePropagator, W3CBaggagePropagator, W3CTraceContextPropagator } from "@opentelemetry/core";
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
@@ -24,8 +24,10 @@ import { hostPolicy, procedureServerOptions } from "../server/host-policy.js";
 import { LOCAL_CREDENTIALS } from "../server/request-auth.js";
 import { pathToMethod } from "../server/method.js";
 import { HttpTransport } from "../adapters/http/client/transport.js";
+import type { HttpTransportOptions } from "../adapters/http/client/types.js";
+import { decodeMetadataHeader } from "../adapters/http/shared/index.js";
 import { HttpServerTransport } from "../adapters/http/server/transport.js";
-import { INTERNAL_CALL_KEY, asInternalCall, callerContext, startApiSpan } from "./otel.js";
+import { INTERNAL_CALL_KEY, asInternalCall, callerContext, iterateInContext, startApiSpan } from "./otel.js";
 
 const exporter = new InMemorySpanExporter();
 /** Each carrier that the propagator wrote, with the mark of an internal call of its context */
@@ -59,7 +61,10 @@ afterEach(() => {
 });
 
 /** A server on the loopback with `outer`, which calls `inner`, and the spans of its interceptor */
-const started = async (interceptors: "tracing" | "metrics" = "tracing", options: ProcedureServerOptions & { bearer?: string } = {}) => {
+const started = async (
+  interceptors: "tracing" | "metrics" = "tracing",
+  options: ProcedureServerOptions & { bearer?: string; transport?: Pick<HttpTransportOptions, "fetch" | "batch"> } = {},
+) => {
   const spans: InvocationSpan[] = [];
   const seen: Array<{ traceId: string | undefined; tenant: string | undefined }> = [];
   const registry = createRegistry({
@@ -88,7 +93,7 @@ const started = async (interceptors: "tracing" | "metrics" = "tracing", options:
     ],
   });
   const interceptor = interceptors === "tracing" ? tracingInterceptor({ onSpan: (span) => spans.push(span) }) : metricsInterceptor().interceptor;
-  const { bearer, ...serverOptions } = options;
+  const { bearer, transport, ...serverOptions } = options;
   const server = new ProcedureServer({ ...serverOptions, registry, interceptors: [interceptor] });
   server.registerFromRegistry();
   const app = express();
@@ -100,6 +105,7 @@ const started = async (interceptors: "tracing" | "metrics" = "tracing", options:
     new HttpTransport({
       baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`,
       defaultHeaders: bearer === undefined ? {} : { Authorization: `Bearer ${bearer}` },
+      ...transport,
     }),
   );
   const stop = async (): Promise<void> => {
@@ -310,6 +316,158 @@ describe("the handler runs in the context of its caller (C10)", () => {
     expect(propagation.getBaggage(callerContext({}, true, active))?.getEntry("tenant")?.value).toBe("spoof");
     // The baggage of a trusted caller replaces it
     expect(propagation.getBaggage(callerContext({ baggage: "tenant=acme" }, true, active))?.getAllEntries()).toEqual([["tenant", { value: "acme" }]]);
+  });
+});
+
+/**
+ * A context manager with no async context, as the stack context manager of a browser: a context is
+ * active only during the synchronous function of `with`.
+ */
+class SyncContextManager implements ContextManager {
+  private current: Context = ROOT_CONTEXT;
+  active(): Context {
+    return this.current;
+  }
+  with<A extends unknown[], F extends (...args: A) => ReturnType<F>>(from: Context, fn: F, thisArg?: ThisParameterType<F>, ...args: A): ReturnType<F> {
+    const before = this.current;
+    this.current = from;
+    try {
+      return fn.call(thisArg, ...args);
+    } finally {
+      this.current = before;
+    }
+  }
+  bind<T>(_from: Context, target: T): T {
+    return target;
+  }
+  enable(): this {
+    return this;
+  }
+  disable(): this {
+    this.current = ROOT_CONTEXT;
+    return this;
+  }
+}
+
+/**
+ * The fetch of an instrumentation: it starts its span in the active context, and writes the
+ * context of that span over the `traceparent` header. It records the headers of each request.
+ */
+const instrumentedFetch = (sent: Array<Record<string, string>>): typeof fetch =>
+  (async (url: string | URL | Request, init?: RequestInit) => {
+    const parent = context.active();
+    const span = trace.getTracer("fetch").startSpan(`HTTP ${init?.method ?? "GET"}`, { kind: SpanKind.CLIENT }, parent);
+    const headers = { ...(init?.headers as Record<string, string>) };
+    new W3CTraceContextPropagator().inject(trace.setSpan(parent, span), headers, {
+      set: (carrier, key, value) => {
+        (carrier as Record<string, string>)[key] = value;
+      },
+    });
+    sent.push(headers);
+    try {
+      return await fetch(url, { ...init, headers });
+    } finally {
+      span.end();
+    }
+  }) as typeof fetch;
+
+/** The trace id of a `traceparent` value. */
+const traceOf = (traceparent: string | undefined): string | undefined => traceparent?.split("-")[1];
+
+describe("one trace for each call, in the HTTP header and in the metadata", () => {
+  const managers: Array<[string, () => ContextManager]> = [
+    ["async context (Node)", () => new AsyncLocalStorageContextManager().enable()],
+    ["sync context (browser)", () => new SyncContextManager()],
+  ];
+
+  it.each(managers)("starts the request in the span of the call, with an %s", async (_name, manager) => {
+    context.disable();
+    context.setGlobalContextManager(manager());
+    const sent: Array<Record<string, string>> = [];
+    const { client, stop } = await started("tracing", { transport: { fetch: instrumentedFetch(sent) } });
+    try {
+      expect(await client.call({ service: "test", operation: "outer" }, {})).toBe(7);
+      const spans = exporter.getFinishedSpans();
+      const call = spans.find((span) => span.name === "test.outer" && span.kind === SpanKind.CLIENT)!;
+      const request = spans.find((span) => span.name === "HTTP POST")!;
+      const traceId = call.spanContext().traceId;
+      // The span of the request is a child of the span of the call, so the call makes one trace
+      expect(request.parentSpanContext?.spanId).toBe(call.spanContext().spanId);
+      expect(new Set(spans.map((span) => span.spanContext().traceId))).toEqual(new Set([traceId]));
+      // The HTTP header and the metadata carry the same trace
+      expect(sent).toHaveLength(1);
+      expect(traceOf(sent[0]!["traceparent"])).toBe(traceId);
+      expect(traceOf(decodeMetadataHeader(sent[0]!["X-Metadata"])?.["traceparent"] as string | undefined)).toBe(traceId);
+    } finally {
+      await stop();
+    }
+  });
+
+  it.each(managers)("starts a batched request in the span of its first call, with an %s", async (_name, manager) => {
+    context.disable();
+    context.setGlobalContextManager(manager());
+    const sent: Array<Record<string, string>> = [];
+    const { client, stop } = await started("tracing", { transport: { fetch: instrumentedFetch(sent), batch: true } });
+    try {
+      // One call alone, then two calls in one request
+      expect(await client.call({ service: "test", operation: "outer" }, {})).toBe(7);
+      const pair = await Promise.all([client.call({ service: "test", operation: "outer" }, {}), client.call({ service: "test", operation: "outer" }, {})]);
+      expect(pair).toEqual([7, 7]);
+      const spans = exporter.getFinishedSpans();
+      const calls = spans.filter((span) => span.name === "test.outer" && span.kind === SpanKind.CLIENT);
+      const requests = spans.filter((span) => span.name === "HTTP POST");
+      expect(calls).toHaveLength(3);
+      expect(requests).toHaveLength(2);
+      // Each request is in the trace of a call, so no request makes a trace of its own
+      expect(new Set(spans.map((span) => span.spanContext().traceId))).toEqual(new Set(calls.map((span) => span.spanContext().traceId)));
+      const callIds = new Set(calls.map((span) => span.spanContext().spanId));
+      expect(requests.every((span) => callIds.has(span.parentSpanContext?.spanId ?? ""))).toBe(true);
+      // The call alone carries one trace in the HTTP header and in the metadata
+      const alone = calls.find((span) => span.spanContext().spanId === requests[0]!.parentSpanContext?.spanId)!;
+      expect(traceOf(sent[0]!["traceparent"])).toBe(alone.spanContext().traceId);
+      expect(traceOf(decodeMetadataHeader(sent[0]!["X-Metadata"])?.["traceparent"] as string | undefined)).toBe(alone.spanContext().traceId);
+    } finally {
+      await stop();
+    }
+  });
+});
+
+describe("iterateInContext", () => {
+  it("starts the iterator and each step in the context, also with a sync context manager", async () => {
+    context.disable();
+    context.setGlobalContextManager(new SyncContextManager());
+    const key = Symbol("step");
+    const from = ROOT_CONTEXT.setValue(key, "in");
+    const seen: string[] = [];
+    const mark = (step: string): void => {
+      seen.push(`${step} ${String(context.active().getValue(key))}`);
+    };
+    let count = 0;
+    const source: AsyncIterable<number> = {
+      [Symbol.asyncIterator]: () => {
+        mark("open");
+        return {
+          next: async () => {
+            mark("next");
+            count += 1;
+            return { done: false, value: count };
+          },
+          return: async () => {
+            mark("return");
+            return { done: true, value: undefined };
+          },
+        };
+      },
+    };
+    const items: number[] = [];
+    for await (const item of iterateInContext(from, () => source)) {
+      items.push(item);
+      mark("reader");
+      if (item === 2) break;
+    }
+    expect(items).toEqual([1, 2]);
+    // The reader of the items is not in the context. The early stop of the reader closes the iterator in the context.
+    expect(seen).toEqual(["open in", "next in", "reader undefined", "next in", "reader undefined", "return in"]);
   });
 });
 
