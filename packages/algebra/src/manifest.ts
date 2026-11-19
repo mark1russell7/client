@@ -152,32 +152,6 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {
             "kind": {
-              "const": "sent"
-            },
-            "at": {
-              "type": "number",
-              "description": "This value is the time that the packet leaves the qdisc, in nanoseconds."
-            },
-            "ahead": {
-              "type": "number",
-              "description": "This value is the packets in the queue at the arrival of the packet."
-            },
-            "bytes": {
-              "type": "number",
-              "description": "This value is the bytes in the queue at the arrival of the packet."
-            }
-          },
-          "required": [
-            "kind",
-            "at",
-            "ahead",
-            "bytes"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
               "const": "dropped"
             },
             "why": {
@@ -197,6 +171,32 @@ export const manifest: ExportsManifest = {
           "required": [
             "kind",
             "why",
+            "ahead",
+            "bytes"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "sent"
+            },
+            "at": {
+              "type": "number",
+              "description": "This value is the time that the packet leaves the qdisc, in nanoseconds."
+            },
+            "ahead": {
+              "type": "number",
+              "description": "This value is the packets in the queue at the arrival of the packet."
+            },
+            "bytes": {
+              "type": "number",
+              "description": "This value is the bytes in the queue at the arrival of the packet."
+            }
+          },
+          "required": [
+            "kind",
+            "at",
             "ahead",
             "bytes"
           ]
@@ -240,21 +240,6 @@ export const manifest: ExportsManifest = {
         {
           "type": "object",
           "properties": {
-            "knob": {
-              "type": "string"
-            },
-            "unit": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "knob",
-            "unit"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
             "expr": {
               "type": "string"
             },
@@ -264,6 +249,21 @@ export const manifest: ExportsManifest = {
           },
           "required": [
             "expr",
+            "unit"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "knob": {
+              "type": "string"
+            },
+            "unit": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "knob",
             "unit"
           ]
         },
@@ -357,11 +357,11 @@ export const manifest: ExportsManifest = {
               },
               "rung": {
                 "enum": [
-                  "normative",
-                  "implemented",
+                  "derived",
                   "documented",
-                  "observed",
-                  "derived"
+                  "implemented",
+                  "normative",
+                  "observed"
                 ]
               },
               "note": {
@@ -403,13 +403,13 @@ export const manifest: ExportsManifest = {
             "properties": {
               "kind": {
                 "enum": [
-                  "rx",
-                  "tx",
                   "app",
-                  "timer",
                   "local",
                   "packet",
-                  "peer"
+                  "peer",
+                  "rx",
+                  "timer",
+                  "tx"
                 ]
               },
               "note": {
@@ -515,10 +515,10 @@ export const manifest: ExportsManifest = {
               },
               "fidelity": {
                 "enum": [
-                  "derived",
                   "complete",
-                  "sampled",
-                  "lossy"
+                  "derived",
+                  "lossy",
+                  "sampled"
                 ]
               },
               "note": {
@@ -625,21 +625,6 @@ export const manifest: ExportsManifest = {
                   {
                     "type": "object",
                     "properties": {
-                      "knob": {
-                        "type": "string"
-                      },
-                      "unit": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "knob",
-                      "unit"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
                       "expr": {
                         "type": "string"
                       },
@@ -649,6 +634,21 @@ export const manifest: ExportsManifest = {
                     },
                     "required": [
                       "expr",
+                      "unit"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "knob": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "knob",
                       "unit"
                     ]
                   },
@@ -696,21 +696,6 @@ export const manifest: ExportsManifest = {
                   {
                     "type": "object",
                     "properties": {
-                      "knob": {
-                        "type": "string"
-                      },
-                      "unit": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "knob",
-                      "unit"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
                       "expr": {
                         "type": "string"
                       },
@@ -720,6 +705,21 @@ export const manifest: ExportsManifest = {
                     },
                     "required": [
                       "expr",
+                      "unit"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "knob": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "knob",
                       "unit"
                     ]
                   },
@@ -767,21 +767,6 @@ export const manifest: ExportsManifest = {
                   {
                     "type": "object",
                     "properties": {
-                      "knob": {
-                        "type": "string"
-                      },
-                      "unit": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "knob",
-                      "unit"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
                       "expr": {
                         "type": "string"
                       },
@@ -791,6 +776,21 @@ export const manifest: ExportsManifest = {
                     },
                     "required": [
                       "expr",
+                      "unit"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "knob": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "knob",
                       "unit"
                     ]
                   },
@@ -953,15 +953,24 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {
             "op": {
-              "const": "num"
+              "enum": [
+                "*",
+                "+",
+                "-",
+                "/"
+              ]
             },
-            "n": {
-              "$ref": "#/$defs/Rational"
+            "a": {
+              "$ref": "#/$defs/Node"
+            },
+            "b": {
+              "$ref": "#/$defs/Node"
             }
           },
           "required": [
             "op",
-            "n"
+            "a",
+            "b"
           ]
         },
         {
@@ -984,23 +993,23 @@ export const manifest: ExportsManifest = {
           "properties": {
             "op": {
               "enum": [
-                "+",
-                "-",
-                "*",
-                "/"
+                "ceil",
+                "floor",
+                "max",
+                "min",
+                "pow"
               ]
             },
-            "a": {
-              "$ref": "#/$defs/Node"
-            },
-            "b": {
-              "$ref": "#/$defs/Node"
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Node"
+              }
             }
           },
           "required": [
             "op",
-            "a",
-            "b"
+            "args"
           ]
         },
         {
@@ -1022,24 +1031,15 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {
             "op": {
-              "enum": [
-                "min",
-                "max",
-                "floor",
-                "ceil",
-                "pow"
-              ]
+              "const": "num"
             },
-            "args": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Node"
-              }
+            "n": {
+              "$ref": "#/$defs/Rational"
             }
           },
           "required": [
             "op",
-            "args"
+            "n"
           ]
         }
       ]
@@ -1141,8 +1141,8 @@ export const manifest: ExportsManifest = {
         },
         "linklayer": {
           "enum": [
-            "ethernet",
-            "atm"
+            "atm",
+            "ethernet"
           ],
           "description": "An ATM link counts the length in cells of 48 bytes, and each cell takes 53 bytes."
         }
@@ -1190,17 +1190,6 @@ export const manifest: ExportsManifest = {
         {
           "type": "object",
           "properties": {
-            "timer": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "timer"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
             "duration": {
               "$ref": "#/$defs/Expr"
             },
@@ -1224,21 +1213,6 @@ export const manifest: ExportsManifest = {
                 {
                   "type": "object",
                   "properties": {
-                    "knob": {
-                      "type": "string"
-                    },
-                    "unit": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "knob",
-                    "unit"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
                     "expr": {
                       "type": "string"
                     },
@@ -1248,6 +1222,21 @@ export const manifest: ExportsManifest = {
                   },
                   "required": [
                     "expr",
+                    "unit"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "knob": {
+                      "type": "string"
+                    },
+                    "unit": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "knob",
                     "unit"
                   ]
                 },
@@ -1295,21 +1284,6 @@ export const manifest: ExportsManifest = {
                 {
                   "type": "object",
                   "properties": {
-                    "knob": {
-                      "type": "string"
-                    },
-                    "unit": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "knob",
-                    "unit"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
                     "expr": {
                       "type": "string"
                     },
@@ -1319,6 +1293,21 @@ export const manifest: ExportsManifest = {
                   },
                   "required": [
                     "expr",
+                    "unit"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "knob": {
+                      "type": "string"
+                    },
+                    "unit": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "knob",
                     "unit"
                   ]
                 },
@@ -1352,6 +1341,17 @@ export const manifest: ExportsManifest = {
           },
           "required": [
             "duration"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "timer": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "timer"
           ]
         }
       ]
@@ -1550,8 +1550,8 @@ export const manifest: ExportsManifest = {
         },
         "linklayer": {
           "enum": [
-            "ethernet",
-            "atm"
+            "atm",
+            "ethernet"
           ],
           "description": "An ATM link counts the length in cells of 48 bytes, and each cell takes 53 bytes."
         }
@@ -1609,21 +1609,6 @@ export const manifest: ExportsManifest = {
             {
               "type": "object",
               "properties": {
-                "knob": {
-                  "type": "string"
-                },
-                "unit": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "knob",
-                "unit"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
                 "expr": {
                   "type": "string"
                 },
@@ -1633,6 +1618,21 @@ export const manifest: ExportsManifest = {
               },
               "required": [
                 "expr",
+                "unit"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "knob": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "knob",
                 "unit"
               ]
             },
@@ -1680,21 +1680,6 @@ export const manifest: ExportsManifest = {
             {
               "type": "object",
               "properties": {
-                "knob": {
-                  "type": "string"
-                },
-                "unit": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "knob",
-                "unit"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
                 "expr": {
                   "type": "string"
                 },
@@ -1704,6 +1689,21 @@ export const manifest: ExportsManifest = {
               },
               "required": [
                 "expr",
+                "unit"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "knob": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "knob",
                 "unit"
               ]
             },
@@ -1945,15 +1945,15 @@ export const manifest: ExportsManifest = {
     },
     "Vantage": {
       "enum": [
-        "wire",
+        "canary",
+        "driver",
+        "injector",
         "kernel",
         "middlebox",
         "proxy",
-        "driver",
+        "self",
         "server",
-        "canary",
-        "injector",
-        "self"
+        "wire"
       ]
     }
   },
@@ -2428,8 +2428,8 @@ export const manifest: ExportsManifest = {
         "properties": {
           "kind": {
             "enum": [
-              "pfifo",
-              "bfifo"
+              "bfifo",
+              "pfifo"
             ]
           },
           "txQueueLen": {
@@ -3589,10 +3589,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Unknown"
+            "$ref": "#/$defs/Recovery"
           },
           {
-            "$ref": "#/$defs/Recovery"
+            "$ref": "#/$defs/Unknown"
           }
         ]
       },
@@ -3918,10 +3918,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Unknown"
+            "$ref": "#/$defs/Band"
           },
           {
-            "$ref": "#/$defs/Band"
+            "$ref": "#/$defs/Unknown"
           }
         ]
       },

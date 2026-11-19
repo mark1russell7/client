@@ -77,6 +77,7 @@ mcpListToolsProcedure: dist/procedures/mcp/list-tools.d.ts#mcpListToolsProcedure
 mcpModule: dist/module.d.ts#mcpModule
 mcpServeProcedure: dist/procedures/mcp/serve.d.ts#mcpServeProcedure
 mcpTaskShareKey: dist/tasks.d.ts#mcpTaskShareKey
+mergeInstructions: dist/surface.d.ts#mergeInstructions
 mergeSurfaces: dist/surface.d.ts#mergeSurfaces
 prepareServe: dist/procedures/mcp/serve.d.ts#prepareServe
 procedureToMcpTool: @procedures/mcp#procedureToMcpTool (external)
@@ -299,6 +300,7 @@ export declare function prepareServe(input: ServeOptions, from?: string, registr
 export interface BundleSurfaceModule {
     mcpNamespaces?: readonly string[];
     mcpExclude?: readonly string[];
+    mcpInstructions?: string;
 }
 
 ### dist/surface.d.ts#exposeRule
@@ -306,6 +308,9 @@ export declare function exposeRule(surface: ToolSurface): (path: ProcedurePath) 
 
 ### dist/surface.d.ts#importBundles
 export declare function importBundles(bundles: readonly string[], from?: string): Promise<BundleSurfaceModule[]>;
+
+### dist/surface.d.ts#mergeInstructions
+export declare function mergeInstructions(modules: readonly BundleSurfaceModule[]): string | undefined;
 
 ### dist/surface.d.ts#mergeSurfaces
 export declare function mergeSurfaces(modules: readonly BundleSurfaceModule[]): ToolSurface | undefined;
@@ -480,6 +485,7 @@ export interface McpServerTransportOptions {
     instructions?: string | undefined;
     stdio?: StdioTransportOptions | undefined;
     elicitation?: ElicitationPolicy | undefined;
+    handles?: HandleScopeOptions | undefined;
     untrusted?: UntrustedContentOptions | undefined;
     content?: McpToolContentHook | undefined;
     json?: "pretty" | "compact" | undefined;

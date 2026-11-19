@@ -170,7 +170,9 @@ The owner accepted the default answer of each question. These decisions complete
 The declarations of phase D added these decisions:
 
 11. **The static check compares the resources, not the flags.** A caller cannot touch fewer resources than its callees: a caller of `fs.write` writes `fs`. But `destructive` and `idempotent` depend on the input that the caller gives: `lib.new` makes new files with `fs.write`, so it is additive. These flags are the claim of the caller, and the effects snapshot shows them in a review.
-12. **Code of the project is `process`.** A test file, a build plugin, a package script and a git hook can do anything. So `vitest.run`, `vite.build`, `pnpm.install`, `lib.new` (it starts the cue CLI of the workspace) and the git procedures that start hooks write `process`. Under a capability without `process`, the other git procedures start no program of the repository. The section [Git under a capability without `process`](#git-under-a-capability-without-process) gives the rules.
+12. **Code of the project is `process`.** A test file, a build plugin, a package script and a git hook can do anything. So `vitest.run`, `vite.build`, `pnpm.install`, `lib.new` (it starts the cue CLI of the workspace) and the git procedures that start hooks write `process`. Each `pnpm.*` procedure also writes `process`, and `pnpm.list` too. Before each command, pnpm loads the `.pnpmfile.cjs` of the project and installs its config dependencies.
+
+    Under a capability without `process`, the other git procedures start no program of the repository. The section [Git under a capability without `process`](#git-under-a-capability-without-process) gives the rules.
 13. **`process` has one meaning: it starts any program.** The background processes that a host started (`node.spawn`, `vitest.watch`) are the resource `jobs`. To stop or list them is not to start a program.
 14. **A procedure has one purpose.** A procedure that reads or writes by an input flag declares the writes, so its readers declare them too. `git.remote` was such a procedure. At this time, `git.remote` reads and `git.remote.set` writes.
 

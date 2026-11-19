@@ -10,7 +10,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { procedureToMcpTool } from "@procedures/mcp-server";
+import { mergeInstructions, procedureToMcpTool } from "@procedures/mcp-server";
 import type { McpServerConfig } from "./config.js";
 import { createDevToolsHost, isModuleFile, loadBundles, loadModuleFile, moduleFileUrl, type DevToolsHost } from "./host.js";
 
@@ -45,6 +45,9 @@ beforeAll(async () => {
   writeFileSync(join(folder, "named.mjs"), `${PROBE}\nexport const mcpNamespaces = ["probehelper"];\n`);
   writeFileSync(join(folder, "no-default.mjs"), "export const tools = [];\n");
   writeFileSync(join(folder, "throws.mjs"), 'throw new Error("the probe stops");\n');
+  writeFileSync(join(folder, "instructed.mjs"), `${PROBE}\nexport const mcpInstructions = "Read probe.echo first.";\n`);
+  const two = PROBE.replace('name: "probe",', 'name: "probe-two",').replace('["probe", "echo"]', '["probetwo", "echo"]');
+  writeFileSync(join(folder, "two.mjs"), `${two}\nexport const mcpInstructions = "  probetwo.echo gives JSON text.  ";\n`);
   host = await createDevToolsHost({ ...config, bundles: ["@procedures/bundle-mcp", probe] });
 });
 
@@ -105,5 +108,18 @@ describe("the host with a module file next to a bundle", () => {
     const response = await host.server.handle({ id: "probe", method: { service: "probe", operation: "echo" }, payload: { a: 1 }, metadata: {} });
     expect(response.status).toMatchObject({ type: "success" });
     expect(response.payload).toBe('{"a":1}');
+  });
+});
+
+describe("the instructions of the bundles", () => {
+  it("joins the texts in their order with a blank line, once each, and gives undefined without a text", () => {
+    expect(mergeInstructions([{ mcpInstructions: "A." }, {}, { mcpInstructions: " B. " }, { mcpInstructions: "A." }, { mcpInstructions: "  " }])).toBe("A.\n\nB.");
+    expect(mergeInstructions([{ mcpNamespaces: ["docker"] }, {}])).toBeUndefined();
+  });
+
+  it("gives the server the instructions of its module files, and no instructions when no bundle has them", async () => {
+    const instructed = await createDevToolsHost({ ...config, bundles: ["@procedures/bundle-mcp", join(folder, "instructed.mjs"), join(folder, "two.mjs")] });
+    expect(instructed.instructions).toBe("Read probe.echo first.\n\nprobetwo.echo gives JSON text.");
+    expect(host.instructions).toBeUndefined();
   });
 });

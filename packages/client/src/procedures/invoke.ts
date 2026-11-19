@@ -43,6 +43,7 @@ import { NARROWING_METADATA_KEY, narrowWithin, narrowingOf, type NarrowingNote }
 import { timeoutAfterMs } from "./interceptors.js";
 import { carryUntrustedMarks, markUntrusted, untrustedFieldsOf } from "./untrusted.js";
 import type { Elicit } from "./elicit.js";
+import type { HandleScope } from "./handles.js";
 import type { ReportProgress } from "./progress.js";
 import type { EventBus } from "../events/types.js";
 import type { Principal } from "../server/types.js";
@@ -79,6 +80,8 @@ export type InvocationErrorCode =
  *   partition of a call (roadmap CLI-17).
  * - `write-not-allowed`: the guard of a collection (`admission.guard`) refuses a write (roadmap
  *   CLI-41).
+ * - `depth`: the nested call is deeper than the depth limit of the host (`maxDepth`, 64 by
+ *   default).
  */
 export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed" | "depth";
 
@@ -90,8 +93,8 @@ export class InvocationError extends Error {
   readonly retryable: boolean = false;
   /**
    * The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`,
-   * `deadline`, `outside-root`, `host-not-allowed`, `topic-not-allowed`, `partition-not-allowed` or
-   * `write-not-allowed`.
+   * `deadline`, `outside-root`, `host-not-allowed`, `topic-not-allowed`, `partition-not-allowed`,
+   * `write-not-allowed` or `depth`.
    */
   readonly reason: ForbiddenReason | undefined;
 
@@ -103,40 +106,22 @@ export class InvocationError extends Error {
   }
 }
 
-/** The depth over which a call tree without `maxDepth` writes a warning. */
-const DEPTH_WARNING = 64;
-
-/** True after the warning of the depth: the process writes it one time. */
-let depthWarned = false;
+/** The highest depth of a nested call when the options give no `maxDepth`. */
+const DEFAULT_MAX_DEPTH = 64;
 
 /**
  * This function refuses an invocation over the depth limit with `FORBIDDEN` and the reason
- * `depth`. Without a limit, it writes one warning for the first invocation over the depth 64.
+ * `depth`. The limit is `maxDepth`, or 64 when the options give no value.
  */
 function checkDepth(invocation: Invocation, maxDepth: number | undefined): void {
-  const { depth, path } = invocation;
-  if (maxDepth !== undefined) {
-    if (!Number.isSafeInteger(maxDepth) || maxDepth < 0) throw new TypeError(`The option maxDepth is a whole number of 0 or more, not ${String(maxDepth)}`);
-    if (depth > maxDepth) {
-      throw new InvocationError("FORBIDDEN", `The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls, over the limit ${String(maxDepth)}`, path, "depth");
-    }
-    return;
+  if (maxDepth !== undefined && (!Number.isSafeInteger(maxDepth) || maxDepth < 0)) {
+    throw new TypeError(`The option maxDepth is a whole number of 0 or more, not ${String(maxDepth)}`);
   }
-  if (depth <= DEPTH_WARNING || depthWarned) return;
-  depthWarned = true;
-  console.warn(
-    `[procedures] The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls. ` +
-      `@procedures/client 0.65.0 refuses a call over the depth ${String(DEPTH_WARNING)}. Set the option maxDepth to keep a larger limit.`,
-  );
-}
-
-/**
- * This function sets the warning of the depth back to its start, for a test.
- *
- * @internal
- */
-export function resetDepthWarning(): void {
-  depthWarned = false;
+  const limit = maxDepth ?? DEFAULT_MAX_DEPTH;
+  const { depth, path } = invocation;
+  if (depth > limit) {
+    throw new InvocationError("FORBIDDEN", `The call of ${pathToKey(path)} is at the depth ${String(depth)} of nested calls, over the limit ${String(limit)}`, path, "depth");
+  }
 }
 
 function abortError(path: ProcedurePath): InvocationError {
@@ -171,6 +156,8 @@ export interface InvokeOptions {
    * gives it. The nested calls get the same function.
    */
   elicit?: Elicit | undefined;
+  /** The handle scope of the owner of the call (`ctx.handles`, d40-handles). The nested calls get the same scope. */
+  handles?: HandleScope | undefined;
   /**
    * The function that tells the caller the progress of the call (`ctx.progress`). Only the call
    * of the host gets it in its context, not its nested calls.
@@ -200,10 +187,9 @@ export interface InvokeOptions {
   /** The invocation whose handler makes this call. The context client sets it for a nested call. */
   parent?: Invocation | undefined;
   /**
-   * The highest depth of a nested call: a whole number of 0 or more. A call at a larger depth gets
-   * `FORBIDDEN` with the reason `depth`, and its handler does not start. Without a value, the depth
-   * has no limit, and the first call over the depth 64 in the process writes a warning. The nested
-   * calls get it too.
+   * The highest depth of a nested call: a whole number of 0 or more. The default is 64. A call at
+   * a larger depth gets `FORBIDDEN` with the reason `depth`, and its handler does not start. The
+   * nested calls get the same limit.
    */
   maxDepth?: number | undefined;
   /**
@@ -737,6 +723,7 @@ export function createProcedureContext(
   // What the face of the call offers (CLI-12): the nested calls ask the same person, and only
   // the call of the host reports its progress, so the values of one call stay in order
   if (options.elicit) context.elicit = options.elicit;
+  if (options.handles) context.handles = options.handles;
   if (options.progress && !invocation?.parent && !options.parent) context.progress = options.progress;
   return context;
 }

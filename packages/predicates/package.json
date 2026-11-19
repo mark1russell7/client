@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/predicates",
-  "version": "0.63.0",
+  "version": "0.66.0",
   "description": "The functions of @mark1russell7/predicates as procedures, made from its types: robust orientation, in-circle and segment tests as typed calls, MCP tools and CLI commands.",
   "keywords": [
     "geometry",

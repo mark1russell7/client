@@ -12,8 +12,8 @@ export const manifest: ExportsManifest = {
   "$defs": {
     "PointLocation": {
       "enum": [
-        "inside",
         "boundary",
+        "inside",
         "outside"
       ]
     },
@@ -47,17 +47,17 @@ export const manifest: ExportsManifest = {
     },
     "SegmentRelation": {
       "enum": [
-        "disjoint",
         "cross",
-        "touch",
-        "overlap"
+        "disjoint",
+        "overlap",
+        "touch"
       ]
     },
     "Sign": {
       "enum": [
+        -1,
         0,
-        1,
-        -1
+        1
       ]
     },
     "SignResult": {
@@ -77,8 +77,8 @@ export const manifest: ExportsManifest = {
     },
     "Stage": {
       "enum": [
-        "filter",
-        "exact"
+        "exact",
+        "filter"
       ]
     }
   },

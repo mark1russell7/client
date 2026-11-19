@@ -155,9 +155,9 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "enum": [
+          -1,
           0,
-          1,
-          -1
+          1
         ]
       },
       "effects": {
@@ -194,9 +194,9 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "enum": [
+          -1,
           0,
-          1,
-          -1
+          1
         ]
       },
       "effects": {
@@ -746,9 +746,9 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "enum": [
+          -1,
           0,
-          1,
-          -1
+          1
         ]
       },
       "effects": {

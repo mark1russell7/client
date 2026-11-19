@@ -95,7 +95,7 @@ The engine owns:
 - Stop parts in the shape of the runner: `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. The storages are dependency handles. The engine uses only structural types of the runner (CLI-5).
 - The host authentication to a principal. One request hook of the host policy reads the credentials and a narrowing from a cookie, a header or the query (CLI-2a).
 - One admission of a network request before its calls (`admission()`, CLI-2b). A face that carries the calls of one request gives its admitted credentials to those calls, so the checks run one time.
-- The limits of the calls in the admission path, after the authentication. Each limit of the host policy is a keyed limiter of `systems` with a key over the call, for example the tenant of the principal. A refusal is `RATE_LIMITED` on each face (CLI-40). A limit with `nested: true` also counts the nested calls of a procedure.
+- The limits of the calls in the admission path, after the authentication. Each limit of the host policy is a keyed limiter of `systems` with a key over the call, for example the tenant of the principal. A refusal is `RATE_LIMITED` on each face (CLI-40). A limit also counts the nested calls of a procedure. A limit with `nested: false` counts only the calls of a caller.
 - One exported constant-time `tokenMatches`, which is browser-safe.
 - The client side: `Client`, `HttpTransport` with a `credentials` option for `fetch` (CLI-18), `WebSocketTransport` and `PortTransport`.
 

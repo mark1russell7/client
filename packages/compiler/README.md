@@ -251,8 +251,8 @@ Each other function gets an exemption with its reason and the part of the signat
 | Reason | The cause | The plan |
 |---|---|---|
 | `function-parameter` | A sub-program cannot give the function: it has more than one signature, a type parameter, a rest parameter, a promise, no value or a type that is not JSON. | No change. |
-| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes, or a type that does not resolve. | An object with methods becomes a handle. |
-| `output-not-json` | The output is not JSON, for example a class instance or an `Iterable`. | The handle of the instance. |
+| `input-not-json` | An input is not JSON and has no codec: a `Date`, a `WeakMap`, an object with methods that no pure factory makes and no class of the package satisfies, or a type that does not resolve. | No change. |
+| `output-not-json` | The output is not JSON, for example an `Iterable` or a class instance inside an object. | The handle of an instance inside an object. |
 | `overload` | The function has more than one signature. | One procedure for each signature. |
 | `overlay` | The overlay exempts the function. | No change. |
 | `unresolved` | A re-export does not resolve, for example because its module is not installed. | Install the module. |
@@ -324,6 +324,64 @@ A parameter that is not JSON, for example a `Random` with methods, gets a constr
 - When more than one factory gives the type, the field `constructors` of the overlay names one. Without it, the function stays exempt, and the detail names the factories.
 - Only a parameter of the function gets a constructed input, not a property of a parameter.
 - Before each call, the loader makes a new value with the factory. Thus a call does not change the next call.
+
+### A handle
+
+An instance of a class is not JSON, and it can have a state, for example an open database. A parameter or an output of a class type gets a handle:
+
+```json
+{ "$proc": ["sqlite", "open"], "input": { "path": "/data/orders.db" } }
+```
+
+- The output of `open` is `{ "handle": "h_<32 hex digits>" }`. The next calls give this value for the parameter of the class.
+- The schema of the handle has the keyword `x-procedures-handle`. Its value is the kind of the handle: the module and the class, for example `node:sqlite#DatabaseSync`.
+- The module of the kind is the name of an ambient module, the package of the declaration file, or the package of the manifest.
+- The loader keeps the object of an output in the handle scope of the caller. For the input of a handle, it gets the object from the same scope.
+- An optional object gives `null` or a handle. An absent object opens nothing.
+- A face with no handle scope refuses the call with `NOT_ACCEPTABLE`, before the function makes an object.
+- When the scope refuses an object, for example over its limit, the loader closes the object.
+- A procedure that takes a handle reads `handles`. A procedure that gives a handle writes `handles`. Unknown effects stay unknown.
+- The module brings `handleModule` of `@procedures/client`, for `handle.list` and `handle.close`.
+- A parameter of an interface takes a handle of each class of the package that is assignable to it. For example, a `SqlConnection` takes a `node:sqlite#DatabaseSync`.
+- The classes of the package are the classes at the top of a parameter or of the output of its functions.
+- A parameter of a type parameter uses its constraint. An input that takes more than one kind has the list of the kinds.
+- Only a parameter or the output gets a handle, not a class instance inside an object. An output of an interface has no kind, so it stays exempt.
+- A class instance is a handle, also when a pure function gives the class. Only when the field `constructors` of the overlay names a factory of the class does the parameter get a constructed input.
+
+## An HTTP API operation as data
+
+The entry `@procedures/compiler/api` reads the format `api-operation/1`. One document gives one operation of an HTTP API: the service, the input schema, the request and the response. Each value is a term of the formula kit of `@mark1russell7/coeval`, with its standard operations (`STD_OPS`).
+
+```typescript
+import { buildApiRequest, extractApiResponse, type ApiOperation } from "@procedures/compiler/api";
+
+const ref = (...path: string[]) => ({ type: "ref", value: ["names", ...path] });
+const op = (name: string, ...args: unknown[]) => ({ type: ["ops", name], value: args });
+
+const getItem: ApiOperation = {
+  format: "api-operation/1",
+  service: { origin: "https://api.example.com", auth: { scheme: "bearer", secret: "example", token: ref("credential", "token") } },
+  input: { type: "object", required: ["id"], properties: { id: { type: "string", pattern: "^[a-z0-9-]+$" } } },
+  request: { method: "GET", path: op("concat", "/v1/items/", ref("input", "id")), headers: [["accept", "application/json"]] },
+  response: { fields: [["name", ref("body", "name"), "text"], ["updatedAt", ref("body", "updated_at"), "date"]] },
+};
+
+const built = buildApiRequest(getItem, { id: "a-1" }, { example: { token } });
+if (built.ok) {
+  const response = await fetch(built.request.url, built.request);
+  const read = extractApiResponse(getItem, { status: response.status, text: await response.text(), headers: response.headers });
+}
+```
+
+- `buildApiRequest(operation, input, credentials)` checks the input against the input schema. It then evaluates the terms of the path, the query, the headers and the body. A term reads the names `input` and `credential`.
+- The validator of `@cfworker/json-schema` checks each schema. The `$schema` of a schema sets the draft: 4, 7, 2019-09 or 2020-12 (the default). Each error gives the JSON Pointer of its place and its cause. For `anyOf` and `oneOf`, the error tells how many branches fit.
+- The authentication names a credential binding. Its record is the name `credential`. The errors of a credential that does not fit its schema give only the paths, not the values.
+- A term that gives `#N/A`, for example a reference to an absent optional input, leaves out its field. A form, a query and a header take a text, a finite number or a truth value.
+- The path is a slash and segments of RFC 3986, with no dot segment. A header value has no control character. The builder refuses each other value.
+- `extractApiResponse(operation, response)` does not throw. A status outside the success range gives the kind of the first status rule that holds it. The kinds are `server`, `rate-limited`, `auth` and `refused`, and the fetch adds `network` and `timeout`.
+- The message and the code of an error answer come from terms of the error envelope. The retry rule gives the wait from the header `Retry-After`.
+- A success body that is not JSON, or does not fit the response schema, gives a failure of the kind `server`. Each field has a decoder: `text`, `integer`, `count`, `number`, `bool`, `date` or `any`.
+- `apiOperationIssues(operation)` gives the problems of the structure of a document. Both functions throw for a document with a problem.
 
 ## The procedures
 

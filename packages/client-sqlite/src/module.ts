@@ -7,9 +7,14 @@
  * sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate, sqlite.backup, logs.store
  * and logs.query. Version 0.4.0 renamed the namespace db to sqlite, and 0.6.0 removed the old names.
  * This file is referenced by package.json's client.procedures field.
+ *
+ * The module also has the generated procedures of the functions of `@mark1russell7/sqlite`, for
+ * example `sqlite.openDatabase`. They come from the types of the home: `node scripts/wraps.ts
+ * generate` writes `src/manifest.ts`, so no generated procedure can drift from its function.
  */
 
 import { definePackage, createProcedure, type AnyProcedure, type FsRootRules, type ProcedureModule, type PackageDefinition } from "@procedures/client";
+import { exportsModule } from "@procedures/compiler";
 import * as z from "zod";
 import type { DatabaseSync } from "node:sqlite";
 import {
@@ -38,7 +43,8 @@ import {
   type OpenMode,
   type SqlParam,
 } from "./procedures/db/shared.js";
-import type { Sqlite } from "./load.js";
+import { loadSqlite, type Sqlite } from "./load.js";
+import { manifest } from "./manifest.js";
 import {
   DbTablesInputSchema,
   DbTablesOutputSchema,
@@ -564,11 +570,25 @@ const sqliteProcedures: readonly AnyProcedure[] = [
 // Registration
 // =============================================================================
 
-const sqlitePackage: PackageDefinition = definePackage("@procedures/sqlite", [
-    ...sqliteProcedures,
-    logsStoreProcedure,
-    logsQueryProcedure,
-  ]);
+/** The manifest of the generated procedures: the names, the schemas, the effects and each exemption with its reason. */
+export { manifest as sqliteManifest };
+
+/**
+ * The generated module of the functions of `@mark1russell7/sqlite` (d40-handles). The database of
+ * `sqlite.openDatabase` is a handle in the scope of the caller, and the other procedures take the
+ * handle. The first call loads the package, as the other procedures do.
+ */
+const sqliteHomeModule: ProcedureModule = exportsModule(manifest, loadSqlite, { name: "@procedures/sqlite" });
+
+/** The generated procedures `sqlite.*`: one for each function of the home with JSON inputs and a JSON output. */
+export const sqliteHomeProcedures: readonly AnyProcedure[] = sqliteHomeModule.procedures;
+
+// The generated procedures use handles, so the package requires the module of handle.list and handle.close
+const sqlitePackage: PackageDefinition = definePackage(
+  "@procedures/sqlite",
+  [...sqliteProcedures, logsStoreProcedure, logsQueryProcedure, ...sqliteHomeProcedures],
+  sqliteHomeModule.requires,
+);
 
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this

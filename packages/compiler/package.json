@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/compiler",
-  "version": "0.63.0",
+  "version": "0.66.0",
   "description": "The compiler of procedure programs: it checks a JSON program before the first call (scopes, effects, schemas, capability) and writes it as a plain async function.",
   "keywords": [
     "compiler",
@@ -48,6 +48,11 @@
       "import": "./dist/runtime.js",
       "default": "./dist/runtime.js"
     },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js",
+      "default": "./dist/api.js"
+    },
     "./generate": {
       "types": "./dist/generate.d.ts",
       "import": "./dist/generate.js",
@@ -93,11 +98,13 @@
       ".",
       "./module",
       "./register",
-      "./runtime"
+      "./runtime",
+      "./api"
     ]
   },
   "dependencies": {
-    "@mark1russell7/coeval": "^0.34.0",
+    "@cfworker/json-schema": "^4.1.6",
+    "@mark1russell7/coeval": "^0.38.1",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },

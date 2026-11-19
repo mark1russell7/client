@@ -364,13 +364,14 @@ console.log(`Platform: ${store.platform}`);
 
 | Procedure | Input | Output | Effects |
 |---|---|---|---|
-| `pnpm.exec` | `command`, `args` | the result of pnpm | reads fs, writes process |
-| `pnpm.list` | `packages`, `depth`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm list --json` | reads fs |
-| `pnpm.why` | `packages` (one or more), `depth`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm why --json` | reads fs |
-| `pnpm.outdated` | `packages`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm outdated --format json` | reads fs and network |
+| `pnpm.exec` | `command`, `args` | the result of pnpm | reads fs and network, writes fs and process |
+| `pnpm.list` | `packages`, `depth`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm list --json` | reads fs and network, writes fs and process |
+| `pnpm.why` | `packages` (one or more), `depth`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm why --json` | reads fs and network, writes fs and process |
+| `pnpm.outdated` | `packages`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm outdated --format json` | reads fs and network, writes fs and process |
 | `pnpm.update` | `packages`, `latest`, `prod`, `dev` | the result of pnpm | reads fs and network, writes fs and process |
-| `pnpm.pack` | `destination`, `dryRun` | the result, and `data`: the JSON of `pnpm pack --json` | reads fs, writes fs and process |
+| `pnpm.pack` | `destination`, `dryRun` | the result, and `data`: the JSON of `pnpm pack --json` | reads fs and network, writes fs and process |
 
+- Each pnpm procedure has the same effects, also a procedure that only reads. Before each command, pnpm installs the config dependencies of the project and loads its `.pnpmfile.cjs`. It can also start the pnpm that `packageManager` names. A host without `process` refuses each pnpm procedure.
 - The result of pnpm has `exitCode`, `stdout`, `stderr`, `success` and `duration`. A failed command does not throw.
 - `pnpm.exec` puts `--` before the program. pnpm reads no option after it, and no shell reads the arguments.
 - `pnpm.outdated` gives `success: true` for exit code 1 when the output is JSON. pnpm exits with 1 when a package is outdated.

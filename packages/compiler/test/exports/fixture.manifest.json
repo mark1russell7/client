@@ -54,8 +54,8 @@
     },
     "MaybeSide": {
       "enum": [
-        "less",
         "greater",
+        "less",
         "two-sided"
       ]
     },
@@ -93,8 +93,8 @@
       "properties": {
         "side": {
           "enum": [
-            "less",
             "greater",
+            "less",
             "two-sided"
           ]
         },
@@ -418,6 +418,55 @@
       }
     },
     {
+      "name": "bump",
+      "path": [
+        "fixture",
+        "bump"
+      ],
+      "description": "Add to a counter: a handle input with a JSON input.",
+      "params": [
+        "counter",
+        "by"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "counter": {
+            "type": "object",
+            "description": "A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "handle"
+            ],
+            "additionalProperties": false,
+            "x-procedures-handle": "fixture#Counter"
+          },
+          "by": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "counter",
+          "by"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "null"
+      },
+      "effects": {
+        "reads": [
+          "handles"
+        ],
+        "writes": []
+      }
+    },
+    {
       "name": "chain",
       "path": [
         "fixture",
@@ -557,6 +606,85 @@
       "effects": {
         "reads": [],
         "writes": []
+      }
+    },
+    {
+      "name": "countOf",
+      "path": [
+        "fixture",
+        "countOf"
+      ],
+      "description": "The count of a counter: the input is a handle.",
+      "params": [
+        "counter"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "counter": {
+            "type": "object",
+            "description": "The counter. A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "handle"
+            ],
+            "additionalProperties": false,
+            "x-procedures-handle": "fixture#Counter"
+          }
+        },
+        "required": [
+          "counter"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [
+          "handles"
+        ],
+        "writes": []
+      }
+    },
+    {
+      "name": "counter",
+      "path": [
+        "fixture",
+        "counter"
+      ],
+      "description": "A counter: the output is a class instance, so a handle.",
+      "params": [],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "description": "A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "additionalProperties": false,
+        "x-procedures-handle": "fixture#Counter"
+      },
+      "effects": {
+        "reads": [],
+        "writes": [
+          "handles"
+        ]
       }
     },
     {
@@ -802,11 +930,11 @@
           "value": {
             "anyOf": [
               {
-                "const": "7",
+                "const": "-7",
                 "x-procedures-codec": "bigint"
               },
               {
-                "const": "-7",
+                "const": "7",
                 "x-procedures-codec": "bigint"
               }
             ]
@@ -947,8 +1075,8 @@
           "side": {
             "enum": [
               null,
-              "less",
               "greater",
+              "less",
               "two-sided"
             ]
           }
@@ -961,8 +1089,8 @@
       "output": {
         "enum": [
           null,
-          "less",
           "greater",
+          "less",
           "two-sided"
         ]
       },
@@ -1201,6 +1329,57 @@
       }
     },
     {
+      "name": "maybeCounter",
+      "path": [
+        "fixture",
+        "maybeCounter"
+      ],
+      "description": "A counter or nothing: a handle or null.",
+      "params": [
+        "make"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "make": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "make"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "type": "object",
+            "description": "A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "handle"
+            ],
+            "additionalProperties": false,
+            "x-procedures-handle": "fixture#Counter"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": [
+          "handles"
+        ]
+      }
+    },
+    {
       "name": "maybeRoll",
       "path": [
         "fixture",
@@ -1392,6 +1571,53 @@
       }
     },
     {
+      "name": "peek",
+      "path": [
+        "fixture",
+        "peek"
+      ],
+      "description": "The count of a countable of a type parameter: its constraint decides.",
+      "params": [
+        "countable"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "countable": {
+            "type": "object",
+            "description": "A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "handle"
+            ],
+            "additionalProperties": false,
+            "x-procedures-handle": "fixture#Counter"
+          }
+        },
+        "required": [
+          "countable"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "generics": [
+        "C"
+      ],
+      "effects": {
+        "reads": [
+          "handles"
+        ],
+        "writes": []
+      }
+    },
+    {
       "name": "pick",
       "path": [
         "fixture",
@@ -1524,6 +1750,50 @@
       },
       "effects": {
         "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "reset",
+      "path": [
+        "fixture",
+        "reset"
+      ],
+      "description": "Set a countable back to 0: an input of an interface takes the handles of the classes that it accepts.",
+      "params": [
+        "countable"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "countable": {
+            "type": "object",
+            "description": "A handle of a fixture#Counter. The procedure that opens it gives it, and handle.close closes it.",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "handle"
+            ],
+            "additionalProperties": false,
+            "x-procedures-handle": "fixture#Counter"
+          }
+        },
+        "required": [
+          "countable"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "null"
+      },
+      "effects": {
+        "reads": [
+          "handles"
+        ],
         "writes": []
       }
     },
@@ -2074,8 +2344,8 @@
           },
           "mode": {
             "enum": [
-              2,
-              1
+              1,
+              2
             ]
           }
         },
@@ -2306,6 +2576,11 @@
       "detail": "an object with the method take"
     },
     {
+      "name": "boxed",
+      "reason": "output-not-json",
+      "detail": "counter: an instance of the class Counter"
+    },
+    {
       "name": "broken",
       "reason": "input-not-json",
       "detail": "value: a type that does not resolve"
@@ -2314,11 +2589,6 @@
       "name": "coin",
       "reason": "output-not-json",
       "detail": "an object with the method flip"
-    },
-    {
-      "name": "counter",
-      "reason": "output-not-json",
-      "detail": "an instance of the class Counter"
     },
     {
       "name": "curried",
@@ -2431,6 +2701,6 @@
       "Counter"
     ],
     "values": 1,
-    "types": 17
+    "types": 18
   }
 }

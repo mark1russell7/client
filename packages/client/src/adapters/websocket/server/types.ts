@@ -10,6 +10,7 @@ import type { WebSocket } from "ws";
 import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 import type { Duration } from "../../../duration.js";
 import type { Logger } from "../../../logger.js";
+import type { HandleScopeOptions } from "../../../procedures/handles.js";
 
 /**
  * WebSocket authentication handler.
@@ -118,6 +119,12 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
    * errors go to it. The default is the logger of the server. Without both, each line goes to the console as before.
    */
   logger?: Logger | undefined;
+
+  /**
+   * The options of the handle scope of each connection (d40-handles): the count limit and the idle
+   * time limit of its objects with a state. The close of a connection closes its objects.
+   */
+  handles?: HandleScopeOptions | undefined;
 }
 
 /**

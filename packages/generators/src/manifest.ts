@@ -100,63 +100,6 @@ export const manifest: ExportsManifest = {
               "type": "object",
               "properties": {
                 "family": {
-                  "const": "lognormal"
-                },
-                "mu": {
-                  "$ref": "#/$defs/Param"
-                },
-                "sigma": {
-                  "$ref": "#/$defs/Param"
-                }
-              },
-              "required": [
-                "family",
-                "mu",
-                "sigma"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "family": {
-                  "const": "pareto"
-                },
-                "scale": {
-                  "$ref": "#/$defs/Param"
-                },
-                "shape": {
-                  "$ref": "#/$defs/Param"
-                }
-              },
-              "required": [
-                "family",
-                "scale",
-                "shape"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "family": {
-                  "const": "zipf"
-                },
-                "n": {
-                  "type": "number"
-                },
-                "exponent": {
-                  "$ref": "#/$defs/Param"
-                }
-              },
-              "required": [
-                "family",
-                "n",
-                "exponent"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "family": {
                   "const": "beta"
                 },
                 "a": {
@@ -170,6 +113,25 @@ export const manifest: ExportsManifest = {
                 "family",
                 "a",
                 "b"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "family": {
+                  "const": "lognormal"
+                },
+                "mu": {
+                  "$ref": "#/$defs/Param"
+                },
+                "sigma": {
+                  "$ref": "#/$defs/Param"
+                }
+              },
+              "required": [
+                "family",
+                "mu",
+                "sigma"
               ]
             },
             {
@@ -206,6 +168,25 @@ export const manifest: ExportsManifest = {
               "type": "object",
               "properties": {
                 "family": {
+                  "const": "pareto"
+                },
+                "scale": {
+                  "$ref": "#/$defs/Param"
+                },
+                "shape": {
+                  "$ref": "#/$defs/Param"
+                }
+              },
+              "required": [
+                "family",
+                "scale",
+                "shape"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "family": {
                   "const": "recorded"
                 },
                 "values": {
@@ -218,6 +199,25 @@ export const manifest: ExportsManifest = {
               "required": [
                 "family",
                 "values"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "family": {
+                  "const": "zipf"
+                },
+                "n": {
+                  "type": "number"
+                },
+                "exponent": {
+                  "$ref": "#/$defs/Param"
+                }
+              },
+              "required": [
+                "family",
+                "n",
+                "exponent"
               ]
             }
           ],
@@ -247,63 +247,6 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {
             "family": {
-              "const": "lognormal"
-            },
-            "mu": {
-              "$ref": "#/$defs/Param"
-            },
-            "sigma": {
-              "$ref": "#/$defs/Param"
-            }
-          },
-          "required": [
-            "family",
-            "mu",
-            "sigma"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "family": {
-              "const": "pareto"
-            },
-            "scale": {
-              "$ref": "#/$defs/Param"
-            },
-            "shape": {
-              "$ref": "#/$defs/Param"
-            }
-          },
-          "required": [
-            "family",
-            "scale",
-            "shape"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "family": {
-              "const": "zipf"
-            },
-            "n": {
-              "type": "number"
-            },
-            "exponent": {
-              "$ref": "#/$defs/Param"
-            }
-          },
-          "required": [
-            "family",
-            "n",
-            "exponent"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "family": {
               "const": "beta"
             },
             "a": {
@@ -317,6 +260,25 @@ export const manifest: ExportsManifest = {
             "family",
             "a",
             "b"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "family": {
+              "const": "lognormal"
+            },
+            "mu": {
+              "$ref": "#/$defs/Param"
+            },
+            "sigma": {
+              "$ref": "#/$defs/Param"
+            }
+          },
+          "required": [
+            "family",
+            "mu",
+            "sigma"
           ]
         },
         {
@@ -353,6 +315,25 @@ export const manifest: ExportsManifest = {
           "type": "object",
           "properties": {
             "family": {
+              "const": "pareto"
+            },
+            "scale": {
+              "$ref": "#/$defs/Param"
+            },
+            "shape": {
+              "$ref": "#/$defs/Param"
+            }
+          },
+          "required": [
+            "family",
+            "scale",
+            "shape"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "family": {
               "const": "recorded"
             },
             "values": {
@@ -365,6 +346,25 @@ export const manifest: ExportsManifest = {
           "required": [
             "family",
             "values"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "family": {
+              "const": "zipf"
+            },
+            "n": {
+              "type": "number"
+            },
+            "exponent": {
+              "$ref": "#/$defs/Param"
+            }
+          },
+          "required": [
+            "family",
+            "n",
+            "exponent"
           ]
         }
       ]
@@ -921,8 +921,8 @@ export const manifest: ExportsManifest = {
             "properties": {
               "input": {
                 "enum": [
-                  "utf8",
                   "utf16",
+                  "utf8",
                   "wtf8"
                 ]
               }
@@ -1334,8 +1334,8 @@ export const manifest: ExportsManifest = {
           },
           "base": {
             "enum": [
-              "random",
-              "latin"
+              "latin",
+              "random"
             ]
           }
         },
