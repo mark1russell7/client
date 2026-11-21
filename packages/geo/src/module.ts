@@ -2,7 +2,7 @@
  * The procedures of @procedures/geo as data. Importing this file registers nothing.
  *
  * The module has two parts. The hand-written procedures call the network (`geo.geocode`,
- * `geo.route`) or keep an older form (`geo.distance`, `geo.geohash`). The generated procedures
+ * `geo.route`, `geo.osmFeatures`, `geo.arcgisFeatures`) or keep an older form (`geo.distance`, `geo.geohash`). The generated procedures
  * come from the types of `@mark1russell7/geo`: `node scripts/wraps.ts generate` writes
  * `src/manifest.ts`, so no generated procedure can drift from its function.
  */
@@ -26,8 +26,8 @@ export const geoModule: ProcedureModule = geoPackage.module;
 export default geoModule;
 
 /**
- * This function gives the module with the settings of the host: the `fetch` of `geo.geocode` and
- * `geo.route`. Without options, it gives `geoModule`. A Node host that takes calls from others
+ * This function gives the module with the settings of the host: the `fetch` of the procedures
+ * that use the network, and the pace of the map data procedures. Without options, it gives `geoModule`. A Node host that takes calls from others
  * gives `createHostFetch()` of `@procedures/http`, so the host policy examines each `baseUrl`.
  *
  * ```ts
@@ -35,7 +35,7 @@ export default geoModule;
  * ```
  */
 export function createGeoModule(options: GeoProceduresOptions = {}): ProcedureModule {
-  if (options.fetch === undefined) return geoModule;
+  if (options.fetch === undefined && options.pace === undefined) return geoModule;
   return defineModule("@procedures/geo", [...createGeoProcedures(options), ...geoHomeProcedures]);
 }
 

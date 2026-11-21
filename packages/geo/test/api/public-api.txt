@@ -6,47 +6,92 @@
 
 ## . (dist/index.d.ts): names
 
+ArcgisFeature: dist/features.d.ts#ArcgisFeature
+ArcgisPage: dist/features.d.ts#ArcgisPage
+ArcgisQuery: dist/features.d.ts#ArcgisQuery
 DEFAULT_GEOHASH_PRECISION: dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
 EARTH_RADIUS_KM: dist/distance.d.ts#EARTH_RADIUS_KM
 FetchJson: dist/geo.d.ts#FetchJson
 FitZoomOptions: dist/mercator.d.ts#FitZoomOptions
 GEOHASH_ALPHABET: dist/geohash.d.ts#GEOHASH_ALPHABET
+GeoArcgisFeaturesInput: dist/types.d.ts#GeoArcgisFeaturesInput
+GeoArcgisFeaturesInputSchema: dist/types.d.ts#GeoArcgisFeaturesInputSchema
+GeoArcgisFeaturesOutput: dist/types.d.ts#GeoArcgisFeaturesOutput
+GeoArcgisFeaturesOutputSchema: dist/types.d.ts#GeoArcgisFeaturesOutputSchema
+GeoBox: dist/types.d.ts#GeoBox
 GeoDistanceInput: dist/types.d.ts#GeoDistanceInput
 GeoDistanceInputSchema: dist/types.d.ts#GeoDistanceInputSchema
 GeoDistanceOutput: dist/types.d.ts#GeoDistanceOutput
 GeoDistanceOutputSchema: dist/types.d.ts#GeoDistanceOutputSchema
+GeoFeatureCollectionOutput: dist/types.d.ts#GeoFeatureCollectionOutput
+GeoFeatureOutput: dist/types.d.ts#GeoFeatureOutput
+GeoFetch: dist/polite.d.ts#GeoFetch
+GeoFetchHeaders: dist/polite.d.ts#GeoFetchHeaders
+GeoFetchResponse: dist/polite.d.ts#GeoFetchResponse
 GeoGeohashInput: dist/types.d.ts#GeoGeohashInput
 GeoGeohashInputSchema: dist/types.d.ts#GeoGeohashInputSchema
 GeoGeohashOutput: dist/types.d.ts#GeoGeohashOutput
 GeoGeohashOutputSchema: dist/types.d.ts#GeoGeohashOutputSchema
+GeoOsmFeaturesInput: dist/types.d.ts#GeoOsmFeaturesInput
+GeoOsmFeaturesInputSchema: dist/types.d.ts#GeoOsmFeaturesInputSchema
+GeoOsmFeaturesOutput: dist/types.d.ts#GeoOsmFeaturesOutput
+GeoOsmFeaturesOutputSchema: dist/types.d.ts#GeoOsmFeaturesOutputSchema
 GeoProceduresOptions: dist/procedures.d.ts#GeoProceduresOptions
+GeoRequest: dist/polite.d.ts#GeoRequest
 GeocodeResult: dist/geo.d.ts#GeocodeResult
 GeohashCell: dist/geohash.d.ts#GeohashCell
 MAX_GEOHASH_PRECISION: dist/geohash.d.ts#MAX_GEOHASH_PRECISION
+MAX_URL_LENGTH: dist/features.d.ts#MAX_URL_LENGTH
+MapDataContext: dist/polite.d.ts#MapDataContext
 NOMINATIM_URL: dist/geo.d.ts#NOMINATIM_URL
+OSM_AREA_RULES: dist/features.d.ts#OSM_AREA_RULES
+OSM_ATTRIBUTION: dist/features.d.ts#OSM_ATTRIBUTION
 OSRM_URL: dist/geo.d.ts#OSRM_URL
+OVERPASS_URL: dist/features.d.ts#OVERPASS_URL
+OsmFeature: dist/features.d.ts#OsmFeature
+OsmFeatures: dist/features.d.ts#OsmFeatures
+OsmFeaturesOptions: dist/features.d.ts#OsmFeaturesOptions
+OsmKind: dist/features.d.ts#OsmKind
+OsmSelector: dist/features.d.ts#OsmSelector
 Pixel: dist/mercator.d.ts#Pixel
 Point: dist/geo.d.ts#Point
 RouteResult: dist/geo.d.ts#RouteResult
+SkippedElement: dist/features.d.ts#SkippedElement
 TILE_SIZE: dist/mercator.d.ts#TILE_SIZE
 ViewTile: dist/mercator.d.ts#ViewTile
+answerJson: dist/polite.d.ts#answerJson
+arcgisExchange: dist/features.d.ts#arcgisExchange
+arcgisPage: dist/features.d.ts#arcgisPage
+bboxParts: dist/features.d.ts#bboxParts
 createGeoModule: dist/module.d.ts#createGeoModule
 createGeoProcedures: dist/procedures.d.ts#createGeoProcedures
 decodeGeohash: dist/geohash.d.ts#decodeGeohash
 drivingRoute: dist/geo.d.ts#drivingRoute
+fetchLikeOf: dist/polite.d.ts#fetchLikeOf
 fitZoom: dist/mercator.d.ts#fitZoom
+geoArcgisFeaturesProcedure: dist/procedures.d.ts#geoArcgisFeaturesProcedure
 geoDistanceProcedure: dist/procedures.d.ts#geoDistanceProcedure
 geoGeocodeProcedure: dist/procedures.d.ts#geoGeocodeProcedure
 geoGeohashProcedure: dist/procedures.d.ts#geoGeohashProcedure
 geoHomeProcedures: dist/module.d.ts#geoHomeProcedures
 geoManifest: dist/manifest.d.ts#manifest
 geoModule: dist/module.d.ts#geoModule
+geoOsmFeaturesProcedure: dist/procedures.d.ts#geoOsmFeaturesProcedure
+geoPace: dist/polite.d.ts#geoPace
 geoProcedures: dist/procedures.d.ts#geoProcedures
 geoRouteProcedure: dist/procedures.d.ts#geoRouteProcedure
+geoSend: dist/polite.d.ts#geoSend
+geoTransport: dist/polite.d.ts#geoTransport
 geocode: dist/geo.d.ts#geocode
 geohash: dist/geohash.d.ts#geohash
 getJson: dist/geo.d.ts#getJson
 greatCircleKm: dist/distance.d.ts#greatCircleKm
+isArcgisLayerUrl: dist/features.d.ts#isArcgisLayerUrl
+isOsmArea: dist/features.d.ts#isOsmArea
+joinRings: dist/features.d.ts#joinRings
+osmFeatures: dist/features.d.ts#osmFeatures
+overpassExchange: dist/features.d.ts#overpassExchange
+overpassQuery: dist/features.d.ts#overpassQuery
 project: dist/mercator.d.ts#project
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 tilesFor: dist/mercator.d.ts#tilesFor
@@ -85,6 +130,117 @@ export declare const EARTH_RADIUS_KM = 6371;
 
 ### dist/distance.d.ts#greatCircleKm
 export declare const greatCircleKm: (a: Point, b: Point) => number;
+
+### dist/features.d.ts#ArcgisFeature
+export type ArcgisFeature = {
+    readonly type: "Feature";
+    readonly id?: string | number | undefined;
+    readonly geometry: Geometry | null;
+    readonly properties: Readonly<Record<string, unknown>> | null;
+};
+
+### dist/features.d.ts#ArcgisPage
+export type ArcgisPage = {
+    readonly features: readonly ArcgisFeature[];
+    readonly more: boolean;
+};
+
+### dist/features.d.ts#ArcgisQuery
+export interface ArcgisQuery {
+    readonly layerUrl: string;
+    readonly bbox: BBox;
+    readonly where?: string | undefined;
+    readonly outFields?: readonly string[] | undefined;
+    readonly offset: number;
+    readonly pageSize: number;
+    readonly userAgent: string;
+}
+
+### dist/features.d.ts#MAX_URL_LENGTH
+export declare const MAX_URL_LENGTH = 8000;
+
+### dist/features.d.ts#OSM_AREA_RULES
+export declare const OSM_AREA_RULES: Readonly<Record<string, "all" | {
+    readonly only: readonly string[];
+} | {
+    readonly except: readonly string[];
+}>>;
+
+### dist/features.d.ts#OSM_ATTRIBUTION
+export declare const OSM_ATTRIBUTION = "\u00A9 OpenStreetMap contributors, ODbL 1.0";
+
+### dist/features.d.ts#OVERPASS_URL
+export declare const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+
+### dist/features.d.ts#OsmFeature
+export type OsmFeature = {
+    readonly type: "Feature";
+    readonly id: string;
+    readonly geometry: Geometry;
+    readonly properties: Readonly<Record<string, string>>;
+};
+
+### dist/features.d.ts#OsmFeatures
+export type OsmFeatures = {
+    readonly collection: {
+        readonly type: "FeatureCollection";
+        readonly features: readonly OsmFeature[];
+    };
+    readonly skipped: readonly SkippedElement[];
+    readonly dataAt?: string | undefined;
+    readonly attribution: string;
+};
+
+### dist/features.d.ts#OsmFeaturesOptions
+export interface OsmFeaturesOptions {
+    readonly isArea?: ((tags: Readonly<Record<string, string>>) => boolean) | undefined;
+}
+
+### dist/features.d.ts#OsmKind
+export type OsmKind = "node" | "way" | "relation";
+
+### dist/features.d.ts#OsmSelector
+export interface OsmSelector {
+    readonly key: string;
+    readonly values?: readonly string[] | undefined;
+    readonly kinds?: readonly OsmKind[] | undefined;
+}
+
+### dist/features.d.ts#SkippedElement
+export type SkippedElement = {
+    readonly id: string;
+    readonly reason: string;
+};
+
+### dist/features.d.ts#arcgisExchange
+export declare function arcgisExchange(query: ArcgisQuery): Exchange;
+
+### dist/features.d.ts#arcgisPage
+export declare function arcgisPage(answer: unknown): ArcgisPage;
+
+### dist/features.d.ts#bboxParts
+export declare function bboxParts(box: BBox): BBox[];
+
+### dist/features.d.ts#isArcgisLayerUrl
+export declare function isArcgisLayerUrl(url: string): boolean;
+
+### dist/features.d.ts#isOsmArea
+export declare function isOsmArea(tags: Readonly<Record<string, string>>): boolean;
+
+### dist/features.d.ts#joinRings
+export declare function joinRings(lines: readonly (readonly Position[])[]): {
+    rings: Position[][];
+    open: number;
+};
+
+### dist/features.d.ts#osmFeatures
+export declare function osmFeatures(answer: unknown, options?: OsmFeaturesOptions): OsmFeatures;
+
+### dist/features.d.ts#overpassExchange
+export declare function overpassExchange(query: string, userAgent: string, baseUrl?: string): Exchange;
+
+### dist/features.d.ts#overpassQuery
+export declare function overpassQuery(box: BBox, selectors: readonly OsmSelector[], timeoutSeconds?: number): string;
 
 ### dist/geo.d.ts#FetchJson
 export type FetchJson = (url: string, init: {
@@ -214,13 +370,69 @@ export declare const geoModule: ProcedureModule;
 ### dist/module.d.ts#registerGeoProcedures
 export declare const registerGeoProcedures: PackageDefinition["register"];
 
+### dist/polite.d.ts#GeoFetch
+export type GeoFetch = (url: string, init: {
+    headers: Record<string, string>;
+    signal: AbortSignal;
+    redirect?: "manual";
+}) => Promise<GeoFetchResponse>;
+
+### dist/polite.d.ts#GeoFetchHeaders
+export type GeoFetchHeaders = {
+    forEach(callback: (value: string, name: string) => void): void;
+} | Readonly<Record<string, string | readonly string[]>>;
+
+### dist/polite.d.ts#GeoFetchResponse
+export interface GeoFetchResponse {
+    readonly ok: boolean;
+    readonly status: number;
+    readonly statusText?: string | undefined;
+    readonly headers?: GeoFetchHeaders | undefined;
+    json(): Promise<unknown>;
+    text?(): Promise<string>;
+}
+
+### dist/polite.d.ts#GeoRequest
+export interface GeoRequest {
+    readonly source: string;
+    readonly what: string;
+    readonly exchange: Exchange;
+    readonly timeoutMs: number;
+}
+
+### dist/polite.d.ts#MapDataContext
+export interface MapDataContext {
+    readonly fetch: GeoFetch;
+    readonly pace: Pace;
+    readonly signal?: AbortSignal | undefined;
+}
+
+### dist/polite.d.ts#answerJson
+export declare function answerJson(reply: Reply, source: string): unknown;
+
+### dist/polite.d.ts#fetchLikeOf
+export declare function fetchLikeOf(fetch: GeoFetch): FetchLike;
+
+### dist/polite.d.ts#geoPace
+export declare function geoPace(): Pace;
+
+### dist/polite.d.ts#geoSend
+export declare function geoSend(context: MapDataContext, request: GeoRequest): Promise<Reply>;
+
+### dist/polite.d.ts#geoTransport
+export declare function geoTransport(fetch: GeoFetch, timeoutMs: number): Transport;
+
 ### dist/procedures.d.ts#GeoProceduresOptions
 export interface GeoProceduresOptions {
-    readonly fetch?: FetchJson | undefined;
+    readonly fetch?: GeoFetch | undefined;
+    readonly pace?: Pace | undefined;
 }
 
 ### dist/procedures.d.ts#createGeoProcedures
 export declare function createGeoProcedures(options?: GeoProceduresOptions): AnyProcedure[];
+
+### dist/procedures.d.ts#geoArcgisFeaturesProcedure
+export declare const geoArcgisFeaturesProcedure: AnyProcedure;
 
 ### dist/procedures.d.ts#geoDistanceProcedure
 export declare const geoDistanceProcedure: AnyProcedure;
@@ -230,6 +442,9 @@ export declare const geoGeocodeProcedure: AnyProcedure;
 
 ### dist/procedures.d.ts#geoGeohashProcedure
 export declare const geoGeohashProcedure: AnyProcedure;
+
+### dist/procedures.d.ts#geoOsmFeaturesProcedure
+export declare const geoOsmFeaturesProcedure: AnyProcedure;
 
 ### dist/procedures.d.ts#geoProcedures
 export declare const geoProcedures: AnyProcedure[];
@@ -277,6 +492,39 @@ export declare function isTile(tile: Tile, maxZoom?: number): boolean;
 ### dist/tiles.d.ts#tileUrl
 export declare function tileUrl(template: string, tile: Tile): string;
 
+### dist/types.d.ts#GeoArcgisFeaturesInput
+export interface GeoArcgisFeaturesInput {
+    layerUrl: string;
+    bbox: GeoBox;
+    where?: string | undefined;
+    outFields?: string[] | undefined;
+    userAgent: string;
+    pageSize?: number | undefined;
+    maxFeatures?: number | undefined;
+    timeoutMs?: number | undefined;
+}
+
+### dist/types.d.ts#GeoArcgisFeaturesInputSchema
+export declare const GeoArcgisFeaturesInputSchema: z.ZodType<GeoArcgisFeaturesInput>;
+
+### dist/types.d.ts#GeoArcgisFeaturesOutput
+export interface GeoArcgisFeaturesOutput {
+    collection: GeoFeatureCollectionOutput;
+    requests: number;
+    truncated: boolean;
+}
+
+### dist/types.d.ts#GeoArcgisFeaturesOutputSchema
+export declare const GeoArcgisFeaturesOutputSchema: z.ZodType<GeoArcgisFeaturesOutput>;
+
+### dist/types.d.ts#GeoBox
+export interface GeoBox {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+}
+
 ### dist/types.d.ts#GeoDistanceInput
 export interface GeoDistanceInput {
     from: Point;
@@ -293,6 +541,20 @@ export interface GeoDistanceOutput {
 
 ### dist/types.d.ts#GeoDistanceOutputSchema
 export declare const GeoDistanceOutputSchema: z.ZodType<GeoDistanceOutput>;
+
+### dist/types.d.ts#GeoFeatureCollectionOutput
+export interface GeoFeatureCollectionOutput {
+    type: "FeatureCollection";
+    features: readonly GeoFeatureOutput[];
+}
+
+### dist/types.d.ts#GeoFeatureOutput
+export interface GeoFeatureOutput {
+    type: "Feature";
+    id?: string | number | undefined;
+    geometry?: unknown;
+    properties: Readonly<Record<string, unknown>> | null;
+}
 
 ### dist/types.d.ts#GeoGeohashInput
 export interface GeoGeohashInput {
@@ -314,3 +576,33 @@ export interface GeoGeohashOutput {
 
 ### dist/types.d.ts#GeoGeohashOutputSchema
 export declare const GeoGeohashOutputSchema: z.ZodType<GeoGeohashOutput>;
+
+### dist/types.d.ts#GeoOsmFeaturesInput
+export interface GeoOsmFeaturesInput {
+    bbox: GeoBox;
+    selectors: {
+        key: string;
+        values?: string[] | undefined;
+        kinds?: ("node" | "way" | "relation")[] | undefined;
+    }[];
+    userAgent: string;
+    baseUrl?: string | undefined;
+    timeoutSeconds?: number | undefined;
+}
+
+### dist/types.d.ts#GeoOsmFeaturesInputSchema
+export declare const GeoOsmFeaturesInputSchema: z.ZodType<GeoOsmFeaturesInput>;
+
+### dist/types.d.ts#GeoOsmFeaturesOutput
+export interface GeoOsmFeaturesOutput {
+    collection: GeoFeatureCollectionOutput;
+    skipped: readonly {
+        id: string;
+        reason: string;
+    }[];
+    dataAt?: string | undefined;
+    attribution: string;
+}
+
+### dist/types.d.ts#GeoOsmFeaturesOutputSchema
+export declare const GeoOsmFeaturesOutputSchema: z.ZodType<GeoOsmFeaturesOutput>;

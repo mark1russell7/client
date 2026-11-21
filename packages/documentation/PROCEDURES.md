@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 604 across 58 namespaces. Loaded 54 package register(s).
+**Total procedures:** 606 across 58 namespaces. Loaded 54 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 46 procedure(s)
+- [`geo.*`](#geo) — 48 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`handle.*`](#handle) — 2 procedure(s)
@@ -301,6 +301,7 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `geo.arcgisFeatures` | Give the features of an ArcGIS layer in a box as GeoJSON, for example the evacuation zones of an official map service |
 | `geo.bboxCenter` | This function gives the middle of a box. Its latitude is the middle of the latitudes of the box. Its longitude is the middle of the arc of longitudes from the west to the east. For a box that crosses the antimeridian, the middle is on the arc across the antimeridian. |
 | `geo.bboxContains` | This function gives `true` when the closed box has the point. A box that reaches a pole has the pole for each longitude. |
 | `geo.bboxIntersects` | This function gives `true` when the two closed boxes have a common point. Two boxes that touch on an edge have a common point. Two boxes that reach the same pole have the pole. |
@@ -338,6 +339,7 @@
 | `geo.latLon` | This function gives a point with a normalized longitude. |
 | `geo.locatePoint` | This function gives the location of a point against a Polygon or a MultiPolygon: `inside`, `boundary` or `outside`. The rules are in the description of this module. A point on the boundary of one part and inside another part is `inside`. A closed polygon contains the point when the result is not `outside`. |
 | `geo.normalizeLon` | This function gives the longitude in the range from -180 to less than 180. A longitude of 180 becomes -180, and -0 becomes 0. The result has no rounding: it is the longitude plus a multiple of 360. So the function does not change a longitude that is already in the range, other than -0. |
+| `geo.osmFeatures` | Give the features of OpenStreetMap in a box as GeoJSON (the Overpass API), for example the shelters or the roads of a town |
 | `geo.polygonIntersectsBBox` | This function gives `true` when a closed polygon and a closed box have a common point. A box that crosses the antimeridian is two rectangles, one on each side. |
 | `geo.polygonsIntersect` | This function gives `true` when two closed polygons have a common point. Polygons that touch at one point intersect. A polygon in a hole of the other polygon does not intersect it, unless they touch. The rules are in the description of this module. The result is the same when `a` and `b` change places. |
 | `geo.rewind` | This function gives a copy of the polygon that follows the right-hand rule of RFC 7946. It reverses each clockwise exterior ring and each counterclockwise hole. It does not change a degenerate ring. The copy keeps the other members of the object. |

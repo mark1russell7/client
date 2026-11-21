@@ -65,3 +65,136 @@ export const GeoGeohashOutputSchema: z.ZodType<GeoGeohashOutput> = z.object({
     })
     .describe("The cell of the geohash: its edges and its center (degrees)"),
 });
+
+
+// =============================================================================
+// geo.osmFeatures and geo.arcgisFeatures Types - the map data of a box
+// =============================================================================
+
+/** A box on the map, in degrees. When `west` is more than `east`, the box crosses the antimeridian. */
+export interface GeoBox {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+const lon = z.number().min(-180).max(180);
+const lat = z.number().min(-90).max(90);
+const box: z.ZodType<GeoBox> = z
+  .object({ west: lon, south: lat, east: lon, north: lat })
+  .refine((value) => value.south <= value.north, "The south of the box is north of its north")
+  .describe("The box (degrees). When west is more than east, the box crosses the antimeridian");
+const userAgent = z
+  .string()
+  .min(3)
+  .max(300)
+  .regex(/^[\x20-\x7e]+$/, "The User-Agent has a character that is not printable ASCII")
+  .describe("The User-Agent that names your application and a contact. The policies of the public servers require it");
+const noControl = /^[^\u0000-\u001f\u007f]+$/;
+
+/** A feature in the output: GeoJSON (RFC 7946), in WGS84 longitude and latitude. */
+export interface GeoFeatureOutput {
+  type: "Feature";
+  id?: string | number | undefined;
+  geometry?: unknown;
+  properties: Readonly<Record<string, unknown>> | null;
+}
+
+/** A collection of features in the output. */
+export interface GeoFeatureCollectionOutput {
+  type: "FeatureCollection";
+  features: readonly GeoFeatureOutput[];
+}
+
+const featureCollection: z.ZodType<GeoFeatureCollectionOutput> = z
+  .object({
+    type: z.literal("FeatureCollection"),
+    features: z.array(
+      z.object({
+        type: z.literal("Feature"),
+        id: z.union([z.string(), z.number()]).optional(),
+        geometry: z.unknown().describe("A GeoJSON geometry, or null"),
+        properties: z.record(z.string(), z.unknown()).nullable(),
+      })
+    ),
+  })
+  .describe("The features as a GeoJSON feature collection (RFC 7946)");
+
+/** The input of `geo.osmFeatures`: a box, the selectors of the elements, and the server. */
+export interface GeoOsmFeaturesInput {
+  bbox: GeoBox;
+  selectors: { key: string; values?: string[] | undefined; kinds?: ("node" | "way" | "relation")[] | undefined }[];
+  userAgent: string;
+  baseUrl?: string | undefined;
+  timeoutSeconds?: number | undefined;
+}
+
+export const GeoOsmFeaturesInputSchema: z.ZodType<GeoOsmFeaturesInput> = z.object({
+  bbox: box,
+  selectors: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(100).regex(noControl).describe("A tag key, for example amenity"),
+        values: z.array(z.string().min(1).max(255).regex(noControl)).min(1).max(50).optional().describe("The values of the key (default: each value)"),
+        kinds: z.array(z.enum(["node", "way", "relation"])).min(1).optional().describe("The kinds of elements (default: each kind)"),
+      })
+    )
+    .min(1)
+    .max(20)
+    .describe("The selectors. An element that one selector selects is in the output"),
+  userAgent,
+  baseUrl: z.url().optional().describe("Another Overpass server (default: the main public server)"),
+  timeoutSeconds: z.number().int().min(1).max(180).optional().describe("The time limit of the query on the server, in seconds (default: 60)"),
+});
+
+/** The output of `geo.osmFeatures`: the features, the elements with no feature, and the facts of the data. */
+export interface GeoOsmFeaturesOutput {
+  collection: GeoFeatureCollectionOutput;
+  skipped: readonly { id: string; reason: string }[];
+  dataAt?: string | undefined;
+  attribution: string;
+}
+
+export const GeoOsmFeaturesOutputSchema: z.ZodType<GeoOsmFeaturesOutput> = z.object({
+  collection: featureCollection,
+  skipped: z.array(z.object({ id: z.string(), reason: z.string() })).describe("The elements with no feature or with an incomplete feature, and the reason"),
+  dataAt: z.string().optional().describe("The time of the OpenStreetMap data of the server"),
+  attribution: z.string().describe("The copyright text of the data. A map of the data shows it"),
+});
+
+/** The input of `geo.arcgisFeatures`: a layer, a box, a condition, the fields and the limits. */
+export interface GeoArcgisFeaturesInput {
+  layerUrl: string;
+  bbox: GeoBox;
+  where?: string | undefined;
+  outFields?: string[] | undefined;
+  userAgent: string;
+  pageSize?: number | undefined;
+  maxFeatures?: number | undefined;
+  timeoutMs?: number | undefined;
+}
+
+export const GeoArcgisFeaturesInputSchema: z.ZodType<GeoArcgisFeaturesInput> = z.object({
+  layerUrl: z.url().describe("The URL of the layer, for example https://host/arcgis/rest/services/Name/FeatureServer/0"),
+  bbox: box,
+  where: z.string().min(1).max(2000).regex(noControl).optional().describe("The SQL condition of the query (default: 1=1, each feature)"),
+  outFields: z.array(z.string().min(1).max(100).regex(/^[A-Za-z0-9_.]+$/)).max(100).optional().describe("The fields of each feature (default: each field)"),
+  userAgent,
+  pageSize: z.number().int().min(1).max(2000).optional().describe("The largest number of features of one request (default: 1000)"),
+  maxFeatures: z.number().int().min(1).max(100_000).optional().describe("The largest number of features of the output (default: 10000)"),
+  timeoutMs: z.number().int().positive().max(120_000).optional().describe("The time limit of one request, in milliseconds (default: 30000)"),
+});
+
+/** The output of `geo.arcgisFeatures`: the features, the number of requests, and if the limit stopped the pages. */
+export interface GeoArcgisFeaturesOutput {
+  collection: GeoFeatureCollectionOutput;
+  requests: number;
+  truncated: boolean;
+}
+
+export const GeoArcgisFeaturesOutputSchema: z.ZodType<GeoArcgisFeaturesOutput> = z.object({
+  collection: featureCollection,
+  requests: z.number().int().describe("The number of requests to the layer"),
+  truncated: z.boolean().describe("True when the layer has more features than maxFeatures, or when it stopped the pages"),
+});
