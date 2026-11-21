@@ -1,5 +1,13 @@
 # @procedures/optional
 
+## 0.68.1
+
+### Patch Changes
+
+- 0ef71c5: An automated dependency update changes the shipped files, so this PATCH ships them.
+- @procedures/client@0.68.1
+  - @procedures/compiler@0.68.1
+
 ## 0.68.0
 
 ### Patch Changes

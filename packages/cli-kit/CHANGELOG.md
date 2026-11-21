@@ -1,5 +1,11 @@
 # @procedures/cli-kit
 
+## 0.68.1
+
+### Patch Changes
+
+- @procedures/client@0.68.1
+
 ## 0.68.0
 
 ### Patch Changes
