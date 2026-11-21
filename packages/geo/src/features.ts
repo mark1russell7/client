@@ -124,9 +124,8 @@ function qlString(text: string): string {
   return `"${text.replace(/[\\"]/g, "\\$&")}"`;
 }
 
-/** This function gives a number of a box for Overpass QL, with no exponent. */
+/** This function gives a number of a box for Overpass QL, with no exponent. `checkBox` refuses each value that is not on the map first. */
 function qlNumber(value: number): string {
-  if (!Number.isFinite(value)) throw new RangeError("The box has a value that is not a finite number");
   return value.toFixed(7);
 }
 
@@ -251,7 +250,7 @@ function areaOf(members: readonly Readonly<Record<string, unknown>>[]): { geomet
   }
   const outer = joinRings(outerLines);
   const inner = joinRings(innerLines);
-  if (outer.open + inner.open > 0) notes.push(`${outer.open + inner.open} member lines make no closed ring`);
+  if (outer.open + inner.open > 0) notes.push(`member lines with no closed ring: ${outer.open + inner.open}`);
   if (outer.rings.length === 0) return { notes: [...notes, "it has no closed outer ring"] };
   const polygons: Position[][][] = outer.rings.map((ring) => [ring]);
   for (const ring of inner.rings) {
@@ -285,7 +284,7 @@ function geometryOf(
   const lines = members.filter((member) => member["type"] === "way").map((member) => lineOf(member["geometry"]));
   const complete = lines.filter((line): line is Position[] => line !== undefined && line.length >= 2);
   if (complete.length === 0) return { notes: [`a relation of type ${tags["type"] ?? "unknown"} with no complete member way`] };
-  const notes = complete.length < lines.length ? [`${lines.length - complete.length} member ways have no complete geometry`] : [];
+  const notes = complete.length < lines.length ? [`member ways with no complete geometry: ${lines.length - complete.length}`] : [];
   return { geometry: { type: "MultiLineString", coordinates: complete }, notes };
 }
 
@@ -363,7 +362,9 @@ export function arcgisExchange(query: ArcgisQuery): Exchange {
   if (query.bbox.west > query.bbox.east) throw new RangeError("The box crosses the antimeridian: give each part of bboxParts to its own query");
   if (!Number.isInteger(query.offset) || query.offset < 0 || !Number.isInteger(query.pageSize) || query.pageSize < 1) throw new RangeError("The offset or the page size is not valid");
   const { west, south, east, north } = query.bbox;
-  const url = new URL(`${query.layerUrl.replace(/\/+$/, "")}/query`);
+  // The path ends with the number of the layer and at most one "/" (isArcgisLayerUrl)
+  const url = new URL(query.layerUrl);
+  url.pathname = `${url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname}/query`;
   const params: Record<string, string> = {
     where: query.where ?? "1=1",
     geometry: `${west},${south},${east},${north}`,

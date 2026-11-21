@@ -104,6 +104,12 @@ describe("joinRings", () => {
     expect(rings).toEqual([[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]);
     expect(open).toBe(1);
   });
+
+  it("joins a line that starts at the end of the ring", () => {
+    const { rings, open } = joinRings([[[0, 0], [1, 0]], [[1, 0], [1, 1]], [[1, 1], [0, 0]]]);
+    expect(rings).toEqual([[[0, 0], [1, 0], [1, 1], [0, 0]]]);
+    expect(open).toBe(0);
+  });
 });
 
 describe("osmFeatures", () => {
@@ -200,6 +206,31 @@ describe("osmFeatures", () => {
     expect(() => osmFeatures("<html>")).toThrow(/not an Overpass answer/);
     expect(() => osmFeatures(answer([], { remark: 'runtime error: Query timed out in "query" at line 1 after 60 seconds.' }))).toThrow(/Overpass stopped the query/);
   });
+
+  it("skips an element with no geometry, and tells the reason", () => {
+    const line = [point(0, 0), point(0.001, 0)];
+    const result = osmFeatures(
+      answer([
+        null,
+        { type: "way", id: 10, geometry: [null, point(0, 0)], tags: { highway: "path" } },
+        { type: "way", id: 11, geometry: [{ lat: 0 }, point(0, 0)], tags: { highway: "path" } },
+        { type: "relation", id: 12, tags: { type: "multipolygon" }, members: [{ type: "way", role: "outer" }, { type: "way", role: "outer", geometry: square }] },
+        { type: "relation", id: 13 },
+        { type: "relation", id: 14, tags: { type: "route" }, members: [{ type: "way", geometry: line }, { type: "way" }, { type: "node", ref: 1 }] },
+      ])
+    );
+    expect(result.collection.features.map((item) => [item.id, item.geometry.type])).toEqual([
+      ["relation/12", "Polygon"],
+      ["relation/14", "MultiLineString"],
+    ]);
+    expect(result.skipped).toEqual([
+      { id: "way/10", reason: "it has no complete geometry (use out geom)" },
+      { id: "way/11", reason: "it has no complete geometry (use out geom)" },
+      { id: "relation/12", reason: "the feature is not complete: a member way has no geometry" },
+      { id: "relation/13", reason: "a relation of type unknown with no complete member way" },
+      { id: "relation/14", reason: "the feature is not complete: member ways with no complete geometry: 1" },
+    ]);
+  });
 });
 
 describe("arcgisExchange", () => {
@@ -234,6 +265,8 @@ describe("arcgisExchange", () => {
     expect(() => arcgisExchange({ layerUrl: "https://gis.example.org/", bbox: box, offset: 0, pageSize: 1, userAgent: agent })).toThrow(/not the URL of an ArcGIS layer/);
     expect(() => arcgisExchange({ layerUrl, bbox: { ...box, west: 1, east: -1 }, offset: 0, pageSize: 1, userAgent: agent })).toThrow(/antimeridian/);
     expect(() => arcgisExchange({ layerUrl, bbox: box, offset: -1, pageSize: 1, userAgent: agent })).toThrow(/offset/);
+    expect(isArcgisLayerUrl("not a URL")).toBe(false);
+    expect(() => arcgisExchange({ layerUrl, bbox: box, where: `ZONE IN (${"1,".repeat(MAX_URL_LENGTH)}1)`, offset: 0, pageSize: 1, userAgent: agent })).toThrow(new RegExp(`more than ${MAX_URL_LENGTH}`));
   });
 });
 
@@ -251,5 +284,12 @@ describe("arcgisPage", () => {
     expect(() => arcgisPage({ type: "Feature" })).toThrow(/not a GeoJSON feature collection/);
     expect(() => arcgisPage({ type: "FeatureCollection", features: [{ type: "Point" }] })).toThrow(/not a GeoJSON feature/);
     expect(() => arcgisPage({ type: "FeatureCollection", features: [{ type: "Feature", geometry: 3 }] })).toThrow(/geometry/);
+    expect(() => arcgisPage({ error: {} })).toThrow(/refused the query: no code$/);
+  });
+
+  it("gives a feature with no id, no geometry and no properties", () => {
+    expect(arcgisPage({ type: "FeatureCollection", features: [{ type: "Feature", id: { a: 1 }, geometry: null, properties: "none" }] }).features).toEqual([
+      { type: "Feature", geometry: null, properties: null },
+    ]);
   });
 });

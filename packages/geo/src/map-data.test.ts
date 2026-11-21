@@ -1,11 +1,12 @@
 import { InvocationError, createRegistry, invokePath, outputValue } from "@procedures/client";
 import type { Pace } from "polite-crawler/api";
-import { HostScheduler } from "polite-crawler/politeness";
-import { describe, expect, it, vi } from "vitest";
+import { HostScheduler, realClock } from "polite-crawler/politeness";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGeoModule } from "./module.js";
 import { fetchLikeOf, geoPace, type GeoFetch, type GeoFetchResponse } from "./polite.js";
 import { geoArcgisFeatures } from "./procedures/geo/arcgisFeatures.js";
 import { geoOsmFeatures } from "./procedures/geo/osmFeatures.js";
+import { createGeoProcedures, geoProcedures } from "./procedures.js";
 
 // Made-up places near the point at latitude 0 and longitude 0.
 const box = { west: 0, south: 0, east: 0.01, north: 0.01 };
@@ -101,6 +102,13 @@ describe("geo.arcgisFeatures", () => {
     expect(output.collection.features.map((item) => item.id)).toEqual([1, 2]);
   });
 
+  it("keeps each feature with no id", async () => {
+    const noId = { type: "Feature", geometry: null, properties: null };
+    const { fetch } = scriptedFetch([{ body: { type: "FeatureCollection", features: [noId, noId] } }]);
+    const output = await geoArcgisFeatures({ layerUrl, bbox: box, userAgent }, { fetch, pace: testPace() });
+    expect(output.collection.features).toEqual([noId, noId]);
+  });
+
   it("gives the error of the layer", async () => {
     const { fetch } = scriptedFetch([{ body: { error: { code: 498, message: "Invalid token." } } }]);
     await expect(geoArcgisFeatures({ layerUrl, bbox: box, userAgent }, { fetch, pace: testPace() })).rejects.toThrow(/refused the query: 498 Invalid token/);
@@ -118,17 +126,68 @@ describe("the transport over the fetch of the module", () => {
     await expect(like("https://example.org/", { method: "POST", headers: {}, redirect: "manual", signal: new AbortController().signal })).rejects.toThrow(/only GET/);
   });
 
+  it("reads a response with no headers, and a header with a list of values", async () => {
+    const read = async (headers: GeoFetchResponse["headers"]) => {
+      const response = await fetchLikeOf(async () => ({ ok: true, status: 200, headers, json: async () => ({}), text: async () => "{}" }))("https://example.org/", {
+        method: "GET",
+        headers: {},
+        redirect: "manual",
+        signal: new AbortController().signal,
+      });
+      const seen: string[] = [];
+      response.headers.forEach((value, name) => seen.push(`${name}=${value}`));
+      return seen;
+    };
+    expect(await read(undefined)).toEqual([]);
+    expect(await read({ Vary: ["accept", "user-agent"] })).toEqual(["vary=accept, user-agent"]);
+  });
+
+  it("gives an error of the API for a fetch that fails", async () => {
+    const fetch: GeoFetch = async () => Promise.reject(new TypeError("fetch failed"));
+    await expect(geoOsmFeatures({ bbox: box, selectors: [{ key: "amenity" }], userAgent }, { fetch, pace: testPace() })).rejects.toThrow(/Overpass API gave no answer/);
+  });
+
   it("refuses a fetch with no text()", async () => {
     const jsonOnly: GeoFetch = async (): Promise<GeoFetchResponse> => ({ ok: true, status: 200, json: async () => ({}) });
     await expect(geoOsmFeatures({ bbox: box, selectors: [{ key: "amenity" }], userAgent }, { fetch: jsonOnly, pace: testPace() })).rejects.toThrow(/no text\(\)/);
   });
 
-  it("gives one pace for the process", () => {
+  it("gives one pace for the process, on the real clock", () => {
     expect(geoPace()).toBe(geoPace());
+    const before = realClock.now();
+    expect(geoPace().now()).toBeGreaterThanOrEqual(before);
   });
 });
 
 describe("the map data procedures in a module", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("use the global fetch and the pace of the process by default", async () => {
+    const { fetch, urls } = scriptedFetch([{ body: overpassAnswer }, { body: page([1], false) }]);
+    vi.stubGlobal("fetch", fetch);
+    expect(createGeoProcedures()).toBe(geoProcedures);
+    const registry = createRegistry(createGeoModule());
+    const calls: Array<[string[], unknown]> = [
+      [["geo", "osmFeatures"], { bbox: box, selectors: [{ key: "amenity" }], userAgent, baseUrl: "https://overpass.default.example.org/api/interpreter" }],
+      [["geo", "arcgisFeatures"], { layerUrl: "https://gis.default.example.org/arcgis/rest/services/Zones/FeatureServer/0", bbox: box, userAgent }],
+    ];
+    for (const [path, input] of calls) await outputValue(await invokePath(path, input, { registry }), path);
+    expect(urls.map((url) => new URL(url).host)).toEqual(["overpass.default.example.org", "gis.default.example.org"]);
+  });
+
+  it("use the global fetch with the pace of the host", async () => {
+    const { fetch, urls } = scriptedFetch([{ body: overpassAnswer }]);
+    vi.stubGlobal("fetch", fetch);
+    const procedures = createGeoProcedures({ pace: testPace() });
+    expect(procedures).not.toBe(geoProcedures);
+    const registry = createRegistry(createGeoModule({ pace: testPace() }));
+    const path = ["geo", "osmFeatures"];
+    await outputValue(await invokePath(path, { bbox: box, selectors: [{ key: "amenity" }], userAgent }, { registry }), path);
+    expect(urls).toHaveLength(1);
+  });
+
   it("use the fetch and the pace of the host", async () => {
     const { fetch, urls } = scriptedFetch([{ body: overpassAnswer }]);
     const registry = createRegistry(createGeoModule({ fetch, pace: testPace() }));
