@@ -95,7 +95,8 @@ function modelLookup(layers: ReadonlyArray<{ outputs: Record<string, unknown>; l
 }
 
 const refName = fc.constantFrom<string>(...NAMES, "$last", "d");
-const segment = fc.oneof(fc.constantFrom<string>(...NAMES, ...PROTOTYPE_KEYS), plainKey);
+/** A field of a ref. A ref text cannot name a key with a ".": `lookupOutputRef` splits the text at each ".". */
+const segment = fc.oneof(fc.constantFrom<string>(...NAMES, ...PROTOTYPE_KEYS), plainKey.filter((key) => !key.includes(".")));
 
 describe("the resolver of references (R29)", () => {
   it("finds a name in the innermost scope that has it, and reads only own fields", () => {
