@@ -55,6 +55,22 @@ const { path, bytes } = await renderPdf({ html: "<h1>Menu</h1><p>Soup of the day
 - Give `html` or `file`, not the two.
 - After the print, the function examines the file. A file that does not start with `%PDF` gives an error.
 
+### The page count of a PDF file
+
+```ts
+import { readFileSync } from "node:fs";
+import { pdfPageCount, renderPdf } from "@procedures/browser";
+
+const { path } = await renderPdf({ file: "binder.html" });
+const pages = pdfPageCount(readFileSync(path));
+```
+
+- `pdfPageCount(bytes)` reads the page tree of the last trailer. The count of a file with incremental updates is the count of its last version.
+- It reads the plain objects, and the object streams with no filter or with the filter `/FlateDecode`. It does not decrypt.
+- A damaged object does not stop the read.
+- The time and the memory of the read grow linearly with the size of the file. A damaged file that needs a longer scan gives an error.
+- Data that is not a PDF file, or a file with no page tree that it can read, gives an error.
+
 ## The options of each render
 
 | Option | What it does |

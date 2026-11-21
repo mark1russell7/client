@@ -8,6 +8,7 @@ import { dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 import { findBrowser } from "./browser.js";
 import { renderPdf } from "./pdf.js";
+import { pdfPageCount } from "./pdf-pages.js";
 import { renderScreenshot } from "./screenshot.js";
 
 const browser = findBrowser();
@@ -26,6 +27,17 @@ describe.skipIf(browser === undefined)("renderPdf with a real browser", () => {
     try {
       expect(result.bytes).toBeGreaterThan(500);
       expect(readFileSync(result.path).subarray(0, 4).toString("latin1")).toBe("%PDF");
+      expect(pdfPageCount(readFileSync(result.path))).toBe(1);
+    } finally {
+      rmSync(dirname(result.path), { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("gives the page count of a printed page with page breaks", async () => {
+    const pages = '<section>One</section><section style="break-before: page">Two</section><section style="break-before: page">Three</section>';
+    const result = await renderPdf({ html: `<!doctype html><html><body>${pages}</body></html>`, args: extra, timeout: 90_000 });
+    try {
+      expect(pdfPageCount(readFileSync(result.path))).toBe(3);
     } finally {
       rmSync(dirname(result.path), { recursive: true, force: true });
     }

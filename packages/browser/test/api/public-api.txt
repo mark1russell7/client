@@ -51,6 +51,7 @@ isImageFile: dist/screenshot.d.ts#isImageFile
 isPdfFile: dist/pdf.d.ts#isPdfFile
 parseChromeBookmarks: dist/bookmarks.d.ts#parseChromeBookmarks
 pdfArgs: dist/pdf.d.ts#pdfArgs
+pdfPageCount: dist/pdf-pages.d.ts#pdfPageCount
 policyProxyArgs: dist/run.d.ts#policyProxyArgs
 profileNames: dist/bookmarks.d.ts#profileNames
 readBookmarkFile: dist/profiles.d.ts#readBookmarkFile
@@ -167,6 +168,9 @@ export declare function browserCandidates(platform: NodeJS.Platform, env: Readon
 
 ### dist/browser.d.ts#findBrowser
 export declare function findBrowser(options?: FindBrowserOptions): string | undefined;
+
+### dist/pdf-pages.d.ts#pdfPageCount
+export declare function pdfPageCount(pdf: Uint8Array): number;
 
 ### dist/pdf.d.ts#RenderPdfOptions
 export interface RenderPdfOptions extends HeadlessOptions {
