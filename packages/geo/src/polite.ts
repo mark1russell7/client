@@ -101,13 +101,27 @@ export interface GeoRequest {
   readonly exchange: Exchange;
   /** The time limit of the transport, in milliseconds. */
   readonly timeoutMs: number;
+  /** The largest number of sends when the answer has a status of `TRANSIENT_STATUSES`. The default is `DEFAULT_ATTEMPTS`. */
+  readonly attempts?: number | undefined;
 }
+
+/** These statuses tell that the server is busy for a time: 429, 502, 503 and 504. The pace parks the host after each of them. */
+export const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([429, 502, 503, 504]);
+
+/** The number of sends of a request when its answers have a transient status, if the request gives no number. */
+export const DEFAULT_ATTEMPTS = 3;
 
 /**
  * This function sends one request at the pace of its host, and gives the reply. A refusal of the
  * host policy (an `InvocationError` with the code `FORBIDDEN`) keeps its code and its reason.
  *
+ * - When the answer has a status of `TRANSIENT_STATUSES`, the function sends the request again, up
+ *   to `attempts` sends. The pace parks the host before each new send: for the `Retry-After` of the
+ *   server, or for a backoff with jitter.
+ * - After the last send, the function gives the last reply, with its status.
+ *
  * @throws ApiError when the request gets no answer, or when the pace stops the host.
+ * @throws RangeError when `attempts` is not a whole number from 1.
  */
 export async function geoSend(context: MapDataContext, request: GeoRequest): Promise<Reply> {
   let refusal: InvocationError | undefined;
@@ -121,9 +135,15 @@ export async function geoSend(context: MapDataContext, request: GeoRequest): Pro
     }
   };
   const { source, what, exchange } = request;
+  const attempts = request.attempts ?? DEFAULT_ATTEMPTS;
+  if (!Number.isInteger(attempts) || attempts < 1) throw new RangeError("The number of attempts is not a whole number from 1");
+  const transport = geoTransport(fetch, request.timeoutMs);
+  const host = new URL(exchange.url).host;
   try {
-    const { reply } = await send(context.pace, geoTransport(fetch, request.timeoutMs), { source, host: new URL(exchange.url).host, what, exchange }, context.signal);
-    return reply;
+    for (let attempt = 1; ; attempt += 1) {
+      const { reply } = await send(context.pace, transport, { source, host, what, exchange }, context.signal);
+      if (attempt >= attempts || !TRANSIENT_STATUSES.has(reply.status)) return reply;
+    }
   } catch (error) {
     throw refusal ?? error;
   }

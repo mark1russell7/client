@@ -134,7 +134,8 @@ A box that crosses the antimeridian has its `west` more than its `east`. It give
 Both procedures send their requests through `polite-crawler/api`:
 
 - The pace keeps one request in progress for each host, and a rest of at least one second between two requests.
-- A 429 or a 503 parks the host for its `Retry-After`. A 401 or a 403 stops the host for one hour.
+- A 429, 502, 503 or 504 parks the host for its `Retry-After`, or for a backoff. A 401 or a 403 stops the host for one hour.
+- After a 429, 502, 503 or 504, the procedure sends the request again when the park ends. It sends a request at most `DEFAULT_ATTEMPTS` (3) times.
 - `geoPace()` gives the pace of the process. Give your own pace to `createGeoModule({ pace })` to share it with your other API clients.
 - The pure parts have no network: `overpassQuery`, `overpassExchange`, `osmFeatures`, `arcgisExchange`, `arcgisPage` and `bboxParts`.
 

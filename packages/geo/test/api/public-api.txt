@@ -9,6 +9,7 @@
 ArcgisFeature: dist/features.d.ts#ArcgisFeature
 ArcgisPage: dist/features.d.ts#ArcgisPage
 ArcgisQuery: dist/features.d.ts#ArcgisQuery
+DEFAULT_ATTEMPTS: dist/polite.d.ts#DEFAULT_ATTEMPTS
 DEFAULT_GEOHASH_PRECISION: dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
 EARTH_RADIUS_KM: dist/distance.d.ts#EARTH_RADIUS_KM
 FetchJson: dist/geo.d.ts#FetchJson
@@ -58,6 +59,7 @@ Point: dist/geo.d.ts#Point
 RouteResult: dist/geo.d.ts#RouteResult
 SkippedElement: dist/features.d.ts#SkippedElement
 TILE_SIZE: dist/mercator.d.ts#TILE_SIZE
+TRANSIENT_STATUSES: dist/polite.d.ts#TRANSIENT_STATUSES
 ViewTile: dist/mercator.d.ts#ViewTile
 answerJson: dist/polite.d.ts#answerJson
 arcgisExchange: dist/features.d.ts#arcgisExchange
@@ -370,6 +372,9 @@ export declare const geoModule: ProcedureModule;
 ### dist/module.d.ts#registerGeoProcedures
 export declare const registerGeoProcedures: PackageDefinition["register"];
 
+### dist/polite.d.ts#DEFAULT_ATTEMPTS
+export declare const DEFAULT_ATTEMPTS = 3;
+
 ### dist/polite.d.ts#GeoFetch
 export type GeoFetch = (url: string, init: {
     headers: Record<string, string>;
@@ -398,6 +403,7 @@ export interface GeoRequest {
     readonly what: string;
     readonly exchange: Exchange;
     readonly timeoutMs: number;
+    readonly attempts?: number | undefined;
 }
 
 ### dist/polite.d.ts#MapDataContext
@@ -406,6 +412,9 @@ export interface MapDataContext {
     readonly pace: Pace;
     readonly signal?: AbortSignal | undefined;
 }
+
+### dist/polite.d.ts#TRANSIENT_STATUSES
+export declare const TRANSIENT_STATUSES: ReadonlySet<number>;
 
 ### dist/polite.d.ts#answerJson
 export declare function answerJson(reply: Reply, source: string): unknown;

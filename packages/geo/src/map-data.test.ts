@@ -3,7 +3,7 @@ import type { Pace } from "polite-crawler/api";
 import { HostScheduler, realClock } from "polite-crawler/politeness";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGeoModule } from "./module.js";
-import { fetchLikeOf, geoPace, type GeoFetch, type GeoFetchResponse } from "./polite.js";
+import { DEFAULT_ATTEMPTS, TRANSIENT_STATUSES, fetchLikeOf, geoPace, geoSend, type GeoFetch, type GeoFetchResponse } from "./polite.js";
 import { geoArcgisFeatures } from "./procedures/geo/arcgisFeatures.js";
 import { geoOsmFeatures } from "./procedures/geo/osmFeatures.js";
 import { createGeoProcedures, geoProcedures } from "./procedures.js";
@@ -56,20 +56,54 @@ describe("geo.osmFeatures", () => {
     expect(output.attribution).toBe("The data is from OpenStreetMap, ODbL 1.0.");
   });
 
-  it("gives an error with the status of an answer that is not 200, and parks the host after a 429", async () => {
+  it("sends the query again after a 429, when the pace ends the park of the host", async () => {
     const pace = testPace();
     const { fetch, urls } = scriptedFetch([{ status: 429, body: "busy", headers: { "retry-after": "120" } }, { body: overpassAnswer }]);
-    const input = { bbox: box, selectors: [{ key: "amenity" }], userAgent };
-    await expect(geoOsmFeatures(input, { fetch, pace })).rejects.toThrow(/Overpass API gave 429/);
     const before = pace.clock.now();
-    await geoOsmFeatures(input, { fetch, pace });
+    const output = await geoOsmFeatures({ bbox: box, selectors: [{ key: "amenity" }], userAgent }, { fetch, pace });
     expect(urls).toHaveLength(2);
     expect(pace.clock.now() - before).toBeGreaterThanOrEqual(120_000);
+    expect(output.collection.features).toHaveLength(1);
+  });
+
+  it("sends the query again after a 502, and gives the status after the last attempt", async () => {
+    const once = scriptedFetch([{ status: 502, body: "Bad Gateway" }, { body: overpassAnswer }]);
+    const input = { bbox: box, selectors: [{ key: "amenity" }], userAgent };
+    expect((await geoOsmFeatures(input, { fetch: once.fetch, pace: testPace() })).collection.features).toHaveLength(1);
+    expect(once.urls).toHaveLength(2);
+    const always = scriptedFetch([{ status: 504, body: "Gateway Timeout" }]);
+    await expect(geoOsmFeatures(input, { fetch: always.fetch, pace: testPace() })).rejects.toThrow(/Overpass API gave 504/);
+    expect(always.urls).toHaveLength(DEFAULT_ATTEMPTS);
+  });
+
+  it("does not send the query again after an error that is not transient", async () => {
+    const { fetch, urls } = scriptedFetch([{ status: 400, body: "syntax error" }, { body: overpassAnswer }]);
+    await expect(geoOsmFeatures({ bbox: box, selectors: [{ key: "amenity" }], userAgent }, { fetch, pace: testPace() })).rejects.toThrow(/Overpass API gave 400/);
+    expect(urls).toHaveLength(1);
   });
 
   it("refuses a body that is not JSON", async () => {
     const { fetch } = scriptedFetch([{ body: "<html>error</html>", headers: { "content-type": "text/html" } }]);
     await expect(geoOsmFeatures({ bbox: box, selectors: [{ key: "amenity" }], userAgent }, { fetch, pace: testPace() })).rejects.toThrow(/not JSON/);
+  });
+});
+
+describe("geoSend", () => {
+  const exchange = { method: "GET" as const, url: "https://overpass.example.org/api/interpreter?data=x", headers: { "user-agent": userAgent }, body: null };
+  it("sends one time with one attempt, and gives the transient status", async () => {
+    const { fetch, urls } = scriptedFetch([{ status: 503, body: "busy" }, { body: overpassAnswer }]);
+    const reply = await geoSend({ fetch, pace: testPace() }, { source: "Overpass API", what: "a test", exchange, timeoutMs: 1000, attempts: 1 });
+    expect(reply.status).toBe(503);
+    expect(urls).toHaveLength(1);
+    expect(TRANSIENT_STATUSES.has(reply.status)).toBe(true);
+  });
+
+  it("refuses a number of attempts that is not a whole number from 1", async () => {
+    const { fetch, urls } = scriptedFetch([{ body: overpassAnswer }]);
+    for (const attempts of [0, 1.5, Number.NaN]) {
+      await expect(geoSend({ fetch, pace: testPace() }, { source: "Overpass API", what: "a test", exchange, timeoutMs: 1000, attempts })).rejects.toThrow(RangeError);
+    }
+    expect(urls).toHaveLength(0);
   });
 });
 
