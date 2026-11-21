@@ -6,6 +6,13 @@
 
 ## . (dist/index.d.ts): names
 
+BILLING_PERMISSIONS: dist/billing.d.ts#BILLING_PERMISSIONS
+BillingAccount: dist/billing.d.ts#BillingAccount
+BillingBudget: dist/billing.d.ts#BillingBudget
+BillingEndpoint: dist/billing.d.ts#BillingEndpoint
+BillingPermission: dist/billing.d.ts#BillingPermission
+BillingUsageItem: dist/billing.d.ts#BillingUsageItem
+BillingUsagePeriod: dist/billing.d.ts#BillingUsagePeriod
 GITHUB_API_URL: dist/rest.d.ts#GITHUB_API_URL
 GITHUB_API_VERSION: dist/rest.d.ts#GITHUB_API_VERSION
 GITHUB_POINTS: dist/rest.d.ts#GITHUB_POINTS
@@ -60,11 +67,18 @@ RestRateError: dist/rest.d.ts#RestRateError
 RestReply: dist/rest.d.ts#RestReply
 RestRequest: dist/rest.d.ts#RestRequest
 RestTransport: dist/rest.d.ts#RestTransport
+billingUsageRequest: dist/billing.d.ts#billingUsageRequest
 createRestClient: dist/rest.d.ts#createRestClient
+extractBillingUsage: dist/billing.d.ts#extractBillingUsage
+extractOrganizationBudgets: dist/billing.d.ts#extractOrganizationBudgets
 ghModule: dist/module.d.ts#ghModule
 httpTransport: dist/rest.d.ts#httpTransport
 isRateRefusal: dist/rest.d.ts#isRateRefusal
+netAmountByProduct: dist/billing.d.ts#netAmountByProduct
+organizationBudgetsRequest: dist/billing.d.ts#organizationBudgetsRequest
 rateWaitMs: dist/rest.d.ts#rateWaitMs
+readBillingUsage: dist/billing.d.ts#readBillingUsage
+readOrganizationBudgets: dist/billing.d.ts#readOrganizationBudgets
 registerGhProcedures: dist/module.d.ts#registerGhProcedures
 
 ## ./module (dist/module.d.ts): names
@@ -79,6 +93,74 @@ ghModule: dist/module.d.ts#ghModule
 registerGhProcedures: dist/module.d.ts#registerGhProcedures
 
 ## Declarations
+
+### dist/billing.d.ts#BILLING_PERMISSIONS
+export declare const BILLING_PERMISSIONS: Readonly<Record<BillingEndpoint, BillingPermission>>;
+
+### dist/billing.d.ts#BillingAccount
+export interface BillingAccount {
+    readonly kind: "user" | "organization";
+    readonly login: string;
+}
+
+### dist/billing.d.ts#BillingBudget
+export interface BillingBudget {
+    readonly scope: string;
+    readonly entity: string;
+    readonly product: string;
+    readonly amount: number;
+    readonly stops: boolean;
+}
+
+### dist/billing.d.ts#BillingEndpoint
+export type BillingEndpoint = "userUsage" | "organizationUsage" | "organizationBudgets";
+
+### dist/billing.d.ts#BillingPermission
+export interface BillingPermission {
+    readonly endpoint: string;
+    readonly owner: "user" | "organization";
+    readonly permission: string;
+    readonly access: "read" | "write";
+}
+
+### dist/billing.d.ts#BillingUsageItem
+export interface BillingUsageItem {
+    readonly product: string;
+    readonly sku: string | undefined;
+    readonly date: string | undefined;
+    readonly quantity: number | undefined;
+    readonly grossAmount: number | undefined;
+    readonly discountAmount: number | undefined;
+    readonly netAmount: number;
+}
+
+### dist/billing.d.ts#BillingUsagePeriod
+export interface BillingUsagePeriod {
+    readonly year: number;
+    readonly month?: number | undefined;
+    readonly day?: number | undefined;
+}
+
+### dist/billing.d.ts#billingUsageRequest
+export declare function billingUsageRequest(account: BillingAccount, period: BillingUsagePeriod): RestRequest;
+
+### dist/billing.d.ts#extractBillingUsage
+export declare function extractBillingUsage(answer: RestAnswer): readonly BillingUsageItem[] | undefined;
+
+### dist/billing.d.ts#extractOrganizationBudgets
+export declare function extractOrganizationBudgets(answer: RestAnswer): readonly BillingBudget[] | undefined;
+
+### dist/billing.d.ts#netAmountByProduct
+export declare function netAmountByProduct(items: readonly BillingUsageItem[]): ReadonlyMap<string, number>;
+
+### dist/billing.d.ts#organizationBudgetsRequest
+export declare function organizationBudgetsRequest(organization: string): RestRequest;
+
+### dist/billing.d.ts#readBillingUsage
+export declare function readBillingUsage(client: RestClient, account: BillingAccount, period: BillingUsagePeriod, signal: AbortSignal): Promise<readonly BillingUsageItem[] | undefined>;
+
+### dist/billing.d.ts#readOrganizationBudgets
+export declare function readOrganizationBudgets(client: RestClient, organization: string, signal: AbortSignal): Promise<readonly BillingBudget[] | undefined>;
 
 ### dist/module.d.ts#ghModule
 export declare const ghModule: ProcedureModule;

@@ -80,6 +80,33 @@ const answer = await github.request({ method: "GET", path: "/repos/owner/name/ac
 - No error text of the client has the token or the body of an answer.
 - `state()` gives the counts of the client: the requests, the answers 304, the refusals for the rate and the wait.
 
+### The billing reads
+
+The billing reads give the usage report of an account and the budgets of an organization. Each read has a request builder and an extractor, so a caller can send the request with its own client.
+
+```typescript
+import { createRestClient, netAmountByProduct, readBillingUsage } from "@procedures/gh";
+
+const github = createRestClient({ token: () => readToken() });
+const items = await readBillingUsage(github, { kind: "organization", login: "lab" }, { year: 2026, month: 11 }, signal);
+const cost = items === undefined ? undefined : netAmountByProduct(items).get("actions");
+```
+
+| Function | Request | Permission of a fine-grained token |
+| --- | --- | --- |
+| `billingUsageRequest` with the kind `user` | `GET /users/{username}/settings/billing/usage` | The user permission "Plan", read |
+| `billingUsageRequest` with the kind `organization` | `GET /organizations/{org}/settings/billing/usage` | The organization permission "Administration", read |
+| `organizationBudgetsRequest` | `GET /organizations/{org}/settings/billing/budgets` | The organization permission "Administration", read |
+
+- `BILLING_PERMISSIONS` gives the same permissions as data.
+- The period of a report is a year, a month of a year or a day of a month. The query has the numbers with no zero before them.
+- `extractBillingUsage` gives the items of a report: the product, the SKU, the date, the quantity and the amounts in USD.
+- `extractOrganizationBudgets` gives each budget: the scope, the entity, the product, the amount and `stops`. `stops` is true when GitHub stops the paid use at the limit.
+- An extractor gives `undefined` for an answer that it cannot read. A status that is not 200, a body of a different shape and a list with a next page are such answers. It does not give a part of a list.
+- `netAmountByProduct` adds the net amounts of each product.
+- A builder throws a `RangeError` for a text that is not a valid login of GitHub, or for a period that is not valid. Thus a request stays on its endpoint.
+- GitHub gives the usage report only to an account on the enhanced billing platform.
+
 ## Use
 
 ```typescript
