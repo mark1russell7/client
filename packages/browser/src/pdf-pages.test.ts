@@ -94,6 +94,10 @@ describe("pdfPageCount", () => {
     ["no /N", "/First 9 /Filter /FlateDecode", deflateSync],
     ["no /First", "/N 2 /Filter /FlateDecode", deflateSync],
     ["a header that is not numbers", "/N 2 /First 9", (body: Buffer): Buffer => Buffer.from(body.toString("latin1").replace("1 0 2", "a 0 b"), "latin1")],
+    ["an array of filters that does not end", "/N 2 /First 9 /Filter [/FlateDecode", deflateSync],
+    ["a filter that is not a name", "/N 2 /First 9 /Filter 5", deflateSync],
+    // A megabyte of spaces deflates to about one kilobyte: much more than 64 bytes for each byte of the file.
+    ["data that inflates past 64 bytes for each byte of the file", "/N 2 /First 9 /Filter /FlateDecode", (): Buffer => deflateSync(Buffer.alloc(1 << 20, " "))],
   ])("does not read an object stream with %s", (_case, dict, encode) => {
     const body = Buffer.from("1 0 2 34 << /Type /Catalog /Pages 2 0 R >> << /Type /Pages /Kids [] /Count 3 >>", "latin1");
     const file = pdf(stream(5, `/Type /ObjStm ${dict}`, encode(body)), trailer(6));
@@ -171,5 +175,33 @@ describe("pdfPageCount", () => {
     expect(() => pdfPageCount(pdf(catalog, page(2, 2), trailer(3)))).toThrow(/object 2 is not the root of a page tree/);
     expect(() => pdfPageCount(pdf(catalog, trailer(3)))).toThrow(/object 2 is not the root of a page tree/);
     expect(() => pdfPageCount(pdf(catalog, "2 0 obj\n<< /Type /Pages /Count 4 0 R >>\nendobj", trailer(3)))).toThrow(/no \/Count number/);
+  });
+});
+
+// Each file of these tests needs a scan with a time that grows with the square of its size, if the
+// reader starts a scan to the end of the file at each of many positions. Such a reader takes minutes
+// for each file. A linear reader takes milliseconds.
+describe("pdfPageCount on a large damaged file", () => {
+  it("reads a long run of digits one time", () => {
+    const file = pdf(catalog, pages(6), trailer(3), `%${"1".repeat(200_000)}`);
+    expect(pdfPageCount(file)).toBe(6);
+  });
+
+  it("reads the value of /Filter one time", () => {
+    const body = deflateSync(Buffer.from("1 0 2 34 << /Type /Catalog /Pages 2 0 R >> << /Type /Pages /Kids [] /Count 3 >>", "latin1"));
+    const file = pdf(stream(5, `/Type /ObjStm /N 2 /First 9 ${"/Filter[".repeat(100_000)}`, body), trailer(6));
+    expect(() => pdfPageCount(file)).toThrow(/cannot read/);
+  });
+
+  it("finds the stream of each trailer word in one pass", () => {
+    const streams = "7 0 obj\n<< /Length 1 >>\nstream\nx\nendstream\nendobj\n".repeat(100_000);
+    const file = pdf(catalog, pages(6), trailer(3), streams, "trailer 0\n".repeat(100_000));
+    expect(pdfPageCount(file)).toBe(6);
+  });
+
+  it("stops with an error when the scan of many damaged objects needs too many steps", () => {
+    // Each object has a string that does not end, so the read of each one goes to the end of the file.
+    const file = pdf(catalog, pages(6), trailer(3), "9 0 obj\n<< /A (".repeat(100_000));
+    expect(() => pdfPageCount(file)).toThrow(/the file is damaged: its scan needs more than 16 steps for each byte/);
   });
 });
