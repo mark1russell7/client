@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@procedures/geo?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/geo)
 
-Map procedures. They give the coordinates of an address (OpenStreetMap Nominatim), the time and the distance of a drive (OSRM), and the map data of a box as GeoJSON (OpenStreetMap and ArcGIS layers). The package also has a procedure for each function of [`@mark1russell7/geo`](https://github.com/mark1russell7/geo): distances, bearings, boxes, polygons, buffers and geohashes.
+Map procedures. They give the coordinates of an address (OpenStreetMap Nominatim) and the time and the distance of a drive (OSRM). They also give the map data of a box as GeoJSON (OpenStreetMap and ArcGIS layers). The package also has a procedure for each function of [`@mark1russell7/geo`](https://github.com/mark1russell7/geo): distances, bearings, boxes, polygons, buffers and geohashes.
 
 ## Install
 

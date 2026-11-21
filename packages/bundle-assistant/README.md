@@ -25,7 +25,7 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | `weather.forecast` | It reads one public service. |
 | `exif.read` | It reads the date and the place of a photo on the host. |
 
-The dev-tools server sends the requests of `geo.geocode`, `geo.route`, `weather.forecast` and `ics.fetch` through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address.
+The dev-tools server sends the requests of `geo.geocode`, `geo.route`, `geo.osmFeatures`, `geo.arcgisFeatures`, `weather.forecast` and `ics.fetch` through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address.
 
 - `weather.forecast` uses the policy in each registry.
 - The export `mcpHostModules` gives `geo` and `ics` with the policy. The dev-tools server gives them to `createRegistry()` before the bundle, so they replace the default modules.
@@ -42,6 +42,8 @@ const registry = createRegistry(...mcpHostModules, bundleAssistantModule);
 These procedures are not tools:
 
 - `ics.fetch` fetches any URL, so a tool call can carry data out in the URL.
+- `geo.arcgisFeatures` reads a layer of any host, for the same reason.
+- `geo.osmFeatures` can give megabytes of features for one box. That is too large for a tool result.
 - `mail.headers` reads a private mailbox.
 - The other procedures of `geoManifest` are pure, but each tool adds approximately 386 tokens to the tool list of each session. The bundle has them, so a call in process can use them.
 - `notify.send`, `restic.run` and `tailscale.run` are not in the bundle. The first one posts to any topic of a public server, and the others run destructive commands.

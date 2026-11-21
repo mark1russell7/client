@@ -37,8 +37,8 @@ describe("bundle-assistant", () => {
     expect(tools).toEqual(TOOLS);
   });
 
-  it("keeps out the procedures that can carry data out or read a private mailbox", () => {
-    for (const key of ["ics.fetch", "mail.headers"]) {
+  it("keeps out the procedures that can carry data out, give a very large result or read a private mailbox", () => {
+    for (const key of ["ics.fetch", "mail.headers", "geo.arcgisFeatures", "geo.osmFeatures"]) {
       expect(registry.get(key.split("."))?.handler, key).toBeDefined();
       expect(tools).not.toContain(key);
     }
@@ -61,6 +61,8 @@ describe("bundle-assistant", () => {
     const calls: Array<[string, unknown]> = [
       ["geo.geocode", { query: "x", userAgent: "test/1.0", baseUrl: "http://127.0.0.1:8080" }],
       ["geo.route", { from: { lat: 0, lon: 0 }, to: { lat: 1, lon: 1 }, baseUrl: "http://169.254.169.254" }],
+      ["geo.osmFeatures", { bbox: { west: 0, south: 0, east: 0.01, north: 0.01 }, selectors: [{ key: "amenity" }], userAgent: "test/1.0", baseUrl: "http://127.0.0.1:8080/api/interpreter" }],
+      ["geo.arcgisFeatures", { layerUrl: "http://10.0.0.5/arcgis/rest/services/Zones/FeatureServer/0", bbox: { west: 0, south: 0, east: 0.01, north: 0.01 }, userAgent: "test/1.0" }],
       ["weather.forecast", { lat: 0, lon: 0, baseUrl: "http://10.0.0.5" }],
       ["ics.fetch", { url: "http://[::1]:5232/calendar.ics" }],
     ];

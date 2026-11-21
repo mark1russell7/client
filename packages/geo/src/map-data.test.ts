@@ -1,4 +1,4 @@
-import { createRegistry, invokePath, outputValue } from "@procedures/client";
+import { InvocationError, createRegistry, invokePath, outputValue } from "@procedures/client";
 import type { Pace } from "polite-crawler/api";
 import { HostScheduler } from "polite-crawler/politeness";
 import { describe, expect, it, vi } from "vitest";
@@ -137,6 +137,20 @@ describe("the map data procedures in a module", () => {
     expect(output.collection.features).toHaveLength(1);
     expect(urls).toHaveLength(1);
     expect(registry.get(["geo", "arcgisFeatures"])?.metadata.effects).toEqual({ reads: ["network"], writes: [] });
+  });
+
+  it("keep the refusal of the host policy, with its code and its reason", async () => {
+    const refusal = new InvocationError("FORBIDDEN", "the host of the URL is not allowed: 10.0.0.5 is a private address", ["geo", "arcgisFeatures"], "host-not-allowed");
+    const fetch = vi.fn<GeoFetch>(async () => Promise.reject(refusal));
+    const registry = createRegistry(createGeoModule({ fetch, pace: testPace() }));
+    const calls: Array<[string[], unknown]> = [
+      [["geo", "osmFeatures"], { bbox: box, selectors: [{ key: "amenity" }], userAgent, baseUrl: "http://10.0.0.5/api/interpreter" }],
+      [["geo", "arcgisFeatures"], { layerUrl: "http://10.0.0.5/arcgis/rest/services/Zones/FeatureServer/0", bbox: box, userAgent }],
+    ];
+    for (const [path, input] of calls) {
+      await expect(invokePath(path, input, { registry }).then((output) => outputValue(output, path))).rejects.toMatchObject({ code: "FORBIDDEN", reason: "host-not-allowed" });
+    }
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("refuse an input with no User-Agent, and a box with its south north of its north", async () => {

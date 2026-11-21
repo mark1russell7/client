@@ -4,9 +4,8 @@
  * Give the features of an ArcGIS layer in a box, page by page
  */
 
-import { send } from "polite-crawler/api";
 import { arcgisExchange, arcgisPage, bboxParts, type ArcgisFeature } from "../../features.js";
-import { answerJson, geoTransport, type MapDataContext } from "../../polite.js";
+import { answerJson, geoSend, type MapDataContext } from "../../polite.js";
 import type { GeoArcgisFeaturesInput, GeoArcgisFeaturesOutput } from "../../types.js";
 
 const DEFAULT_PAGE_SIZE = 1000;
@@ -21,8 +20,7 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 export async function geoArcgisFeatures(input: GeoArcgisFeaturesInput, context: MapDataContext): Promise<GeoArcgisFeaturesOutput> {
   const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
   const maxFeatures = input.maxFeatures ?? DEFAULT_MAX_FEATURES;
-  const transport = geoTransport(context.fetch, input.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const host = new URL(input.layerUrl).host;
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const features: ArcgisFeature[] = [];
   const ids = new Set<string>();
   let requests = 0;
@@ -36,7 +34,7 @@ export async function geoArcgisFeatures(input: GeoArcgisFeaturesInput, context: 
         break;
       }
       const exchange = arcgisExchange({ layerUrl: input.layerUrl, bbox: part, where: input.where, outFields: input.outFields, offset, pageSize: Math.min(pageSize, room), userAgent: input.userAgent });
-      const { reply } = await send(context.pace, transport, { source: "ArcGIS layer", host, what: `the features of the layer from ${offset}`, exchange }, context.signal);
+      const reply = await geoSend(context, { source: "ArcGIS layer", what: `the features of the layer from ${offset}`, exchange, timeoutMs });
       requests += 1;
       const page = arcgisPage(answerJson(reply, "The ArcGIS layer"));
       for (const feature of page.features) {

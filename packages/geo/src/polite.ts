@@ -3,7 +3,8 @@
  * transport of `polite-crawler/api` over the `fetch` of the module.
  */
 
-import { ApiError, fetchTransport, statusLine, type FetchLike, type Pace, type Reply, type Transport } from "polite-crawler/api";
+import { InvocationError } from "@procedures/client/browser";
+import { ApiError, fetchTransport, send, statusLine, type Exchange, type FetchLike, type Pace, type Reply, type Transport } from "polite-crawler/api";
 import { HostScheduler, realClock } from "polite-crawler/politeness";
 
 /** The headers of a response: a `Headers` of `fetch`, or a record with names in lowercase. */
@@ -89,6 +90,43 @@ export interface MapDataContext {
   readonly fetch: GeoFetch;
   readonly pace: Pace;
   readonly signal?: AbortSignal | undefined;
+}
+
+/** One request of a map data procedure. */
+export interface GeoRequest {
+  /** The name of the server in the errors, for example `Overpass API`. */
+  readonly source: string;
+  /** The text that tells what the request asks for, in the errors. */
+  readonly what: string;
+  readonly exchange: Exchange;
+  /** The time limit of the transport, in milliseconds. */
+  readonly timeoutMs: number;
+}
+
+/**
+ * This function sends one request at the pace of its host, and gives the reply. A refusal of the
+ * host policy (an `InvocationError` with the code `FORBIDDEN`) keeps its code and its reason.
+ *
+ * @throws ApiError when the request gets no answer, or when the pace stops the host.
+ */
+export async function geoSend(context: MapDataContext, request: GeoRequest): Promise<Reply> {
+  let refusal: InvocationError | undefined;
+  const fetch: GeoFetch = async (url, init) => {
+    try {
+      return await context.fetch(url, init);
+    } catch (error) {
+      // send() of polite-crawler gives a new ApiError for an error of the transport, with no cause
+      if (error instanceof InvocationError && error.code === "FORBIDDEN") refusal = error;
+      throw error;
+    }
+  };
+  const { source, what, exchange } = request;
+  try {
+    const { reply } = await send(context.pace, geoTransport(fetch, request.timeoutMs), { source, host: new URL(exchange.url).host, what, exchange }, context.signal);
+    return reply;
+  } catch (error) {
+    throw refusal ?? error;
+  }
 }
 
 /**
