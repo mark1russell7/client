@@ -1,6 +1,6 @@
 // The pack step of the publish (.github/workflows/release.yml, the job "build").
 //
-//   node scripts/publish-ci.mjs <release folder> <plan file>
+//   node scripts/publish-ci.ts <release folder> <plan file>
 //
 // The release has two sides. The job "build" runs the code of this repository, with no OIDC token:
 // this script runs there. The job "publish" holds the OIDC token and runs no code of this
@@ -19,18 +19,18 @@
 //
 // pnpm packs, and the npm CLI publishes. On 2026-10-16 the publish of pnpm 12 got HTTP 404 for
 // each package: it did not use the OIDC token of the job. The npm CLI is the reference client of
-// trusted publishing, and scripts/npm-bootstrap.mjs publishes the first versions the same way.
+// trusted publishing, and scripts/npm-bootstrap.ts publishes the first versions the same way.
 //
 // The npm-publish action also skips each version that is on npm, so a new start continues a
 // release that stopped. Start `pnpm build` before this script: the tarballs hold dist/.
 
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { changelogSection, publicPackages, run } from "./lib/workspace.mjs";
+import { changelogSection, publicPackages, run } from "./lib/workspace.ts";
 
 const [out, planFile] = process.argv.slice(2);
 if (out === undefined || planFile === undefined) {
-  console.error("usage: node scripts/publish-ci.mjs <release folder> <plan file>");
+  console.error("usage: node scripts/publish-ci.ts <release folder> <plan file>");
   process.exit(2);
 }
 const release = resolve(out);
@@ -42,18 +42,18 @@ const LATEST = "@procedures/client";
 const MAX_NOTES = 100_000;
 
 /** This function tells if npm has this version of a package. The query string goes around the cache of the registry. */
-async function onNpm(name, version) {
+async function onNpm(name: string, version: string): Promise<boolean> {
   const response = await fetch(`https://registry.npmjs.org/${name.replaceAll("/", "%2f")}?t=${Date.now()}`, {
     headers: { accept: "application/vnd.npm.install-v1+json" },
   });
   if (response.status === 404) return false;
   if (!response.ok) throw new Error(`The registry gave HTTP ${response.status} for ${name}.`);
-  const packument = await response.json();
+  const packument = (await response.json()) as { versions?: Record<string, unknown> };
   return packument.versions?.[version] !== undefined;
 }
 
 const packages = publicPackages();
-const lines = [];
+const lines: string[] = [];
 for (const pkg of packages) {
   if (await onNpm(pkg.name, pkg.version)) {
     console.log(`skip  ${pkg.name}@${pkg.version}: on npm`);

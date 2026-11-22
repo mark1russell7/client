@@ -33,7 +33,7 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, type ParserPlugin } from "@babel/parser";
-import { root } from "./lib/workspace.mjs";
+import { root } from "./lib/workspace.ts";
 
 /** The files of the codec (D36): the rule "path" does not examine them. */
 export const CODEC_FILES: ReadonlySet<string> = new Set([

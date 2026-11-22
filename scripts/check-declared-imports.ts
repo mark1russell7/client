@@ -31,7 +31,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { isBuiltin, type CheckedPackage } from "./check-browser-entries.ts";
-import { publicPackages, type Manifest } from "./lib/workspace.mjs";
+import { publicPackages, type Manifest } from "./lib/workspace.ts";
 
 /** One import of a package that an entry reaches: the file (relative to the package) and the import. */
 interface ExternalImport {

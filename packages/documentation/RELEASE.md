@@ -4,7 +4,7 @@ This document tells how the packages of the monorepo go to npm. The first releas
 
 ## The packages
 
-- The npm scope of the packages is `@procedures`. The npm name can differ from the folder (the root README has the table). Until 2026-10-12 the scope was `@mark1russell7`. `scripts/lib/old-names.mjs` maps each old name to its new name.
+- The npm scope of the packages is `@procedures`. The npm name can differ from the folder (the root README has the table). Until 2026-10-12 the scope was `@mark1russell7`. `scripts/lib/old-names.ts` maps each old name to its new name.
 - The 30 public packages have one version together. The `fixed` group of `.changeset/config.json` names each one.
 - `site` and `documentation` are private. They are not published.
 - The MCP server of `packages/impl-mcp-dev` is published as `@procedures/mcp-dev-tools`, with the bin `mcp-dev-tools`.
@@ -48,8 +48,8 @@ The script examines that each version is on npm. Then it changes the specifiers,
 
 ```sh
 npm login
-node scripts/npm-bootstrap.mjs --dry-run
-node scripts/npm-bootstrap.mjs
+node scripts/npm-bootstrap.ts --dry-run
+node scripts/npm-bootstrap.ts
 ```
 
 The script packs each public package with pnpm and stages it with `npm stage publish`. It skips a version that is on npm or staged. It refuses a package with a git dependency.
@@ -57,7 +57,7 @@ The script packs each public package with pnpm and stages it with `npm stage pub
 To publish without the approval step, publish directly. Start this command in a terminal. npm opens the browser for the 2FA. The command stops at the first failure. Start it again: it skips the versions on npm. Step 3 is then not necessary:
 
 ```sh
-node scripts/npm-bootstrap.mjs --publish
+node scripts/npm-bootstrap.ts --publish
 ```
 
 npm limits the number of new packages of one account. Then each new package fails with HTTP 429 ("rate limited exceeded"), for the staged and the direct publish. On 2026-10-12, this occurred after 25 new packages. Wait for the limit to reset, or ask npm support for a higher limit.
@@ -67,7 +67,7 @@ npm limits the number of new packages of one account. Then each new package fail
 Start this command in a terminal. For each staged version of the packages, it starts `npm stage approve <id>`, and npm opens the browser for the 2FA:
 
 ```sh
-node scripts/npm-bootstrap.mjs --approve
+node scripts/npm-bootstrap.ts --approve
 ```
 
 You can also approve each staged version on npmjs.com.
@@ -75,7 +75,7 @@ You can also approve each staged version on npmjs.com.
 ### 4. Connect each package to the release workflow
 
 ```sh
-node scripts/npm-bootstrap.mjs --trust
+node scripts/npm-bootstrap.ts --trust
 ```
 
 The script starts `npm trust github <package> --file release.yml --repo mark1russell7/client --allow-publish` for each package, in the terminal, so npm can open the browser for the 2FA. It skips a package that trusts the workflow already, and a package that is not on npm. You can start it again at any time.
@@ -87,7 +87,7 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 - After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package. Start this command in a terminal. npm opens the browser for the 2FA:
 
   ```sh
-  node scripts/npm-bootstrap.mjs --lock
+  node scripts/npm-bootstrap.ts --lock
   ```
 
 ### 6. Point the old packages to the new names
@@ -95,8 +95,8 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 22 packages went to npm as `@mark1russell7/*` 0.1.0 before the scope change. After the `@procedures` packages are on npm, start this command in a terminal. For each old package on npm, it starts `npm deprecate` with the new name, and npm opens the browser for the 2FA:
 
 ```sh
-node scripts/npm-bootstrap.mjs --deprecate-old --dry-run
-node scripts/npm-bootstrap.mjs --deprecate-old
+node scripts/npm-bootstrap.ts --deprecate-old --dry-run
+node scripts/npm-bootstrap.ts --deprecate-old
 ```
 
 A user who installs an old package sees "Moved to `@procedures/<name>`". The old versions stay on npm, so nothing breaks. The command does not deprecate an old package before its new package is on npm. Start it again after the last publish.
@@ -107,9 +107,9 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 2. Start `gh workflow run release.yml --repo mark1russell7/client`, or "Release" from Actions on GitHub. With changesets on `main`, the workflow opens or updates the pull request "Version the packages". It sets the new versions and writes the change logs.
 3. GitHub starts no checks for a pull request that the workflow token opens. To start the checks, close the version pull request and open it again.
 4. Merge the version pull request when its checks are green. Merge it with your own account: a merge with the workflow token starts no workflow. The merge starts the release workflow, and no second start is necessary. The run waits for the green CI run of the merge on `main`, and then it publishes.
-5. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` packs each version that is not on npm. A different job publishes the tarballs with provenance.
+5. The workflow does the checks and the strict package check. Then `scripts/publish-ci.ts` packs each version that is not on npm. A different job publishes the tarballs with provenance.
 6. For each version that it publishes, the workflow makes the git tag `<name>@<version>` and a GitHub release with the change log of that version.
-   - If a release made no tags or no GitHub releases, start `node scripts/release-tags.mjs --commit <sha of "Version the packages">`. It makes the missing ones, and `--dry-run` tells them first. The tags and releases of 0.3.0 come from this script.
+   - If a release made no tags or no GitHub releases, start `node scripts/release-tags.ts --commit <sha of "Version the packages">`. It makes the missing ones, and `--dry-run` tells them first. The tags and releases of 0.3.0 come from this script.
 7. If the publish stops, open the run on GitHub and start "Re-run failed jobs". The jobs skip the versions that are on npm.
 8. npm shows a new version some minutes after the publish. Until then, `npm view` shows the previous version.
 
@@ -158,7 +158,7 @@ The workflow has six jobs. Only one job starts the code of this repository, and 
 
 - The jobs `gate` and `ci` do no checkout. They read only data from the GitHub API.
 - The job `build` installs, builds and tests the code of this repository. Its write permissions are only for the version pull request.
-- `scripts/publish-ci.mjs` writes two artifacts of the run. The artifact `release` has `packages.txt` and the tarballs. The artifact `tags` has the plan of the GitHub releases.
+- `scripts/publish-ci.ts` writes two artifacts of the run. The artifact `release` has `packages.txt` and the tarballs. The artifact `tags` has the plan of the GitHub releases.
 - pnpm packs each package, so the tarballs have the versions of the `workspace:*` dependencies.
 - On 2026-10-16, the publish of pnpm 12 got HTTP 404 for each package. Thus the npm CLI publishes the tarballs.
 - The jobs `publish`, `github-release` and `latest` do no checkout and no install. They start only the pinned action and workflow of the template, and `gh`.
@@ -174,7 +174,7 @@ A release publishes only a commit that is on `main`. The job `build` compares th
 - A manual run on the branch of a pull request publishes nothing. Merge the pull request first.
 - A run that a push to `main` starts is on a commit of `main`. It passes also when `main` gets newer commits while the run waits.
 - To publish a version commit again after `main` has newer commits, re-run the failed jobs of its run. When no changeset waits at that commit, you can also push the branch `release/<version>` at that commit. Then start `gh workflow run release.yml --repo mark1russell7/client --ref release/<version>`.
-- GitHub refuses a tag from the workflow (HTTP 403) when the workflow files of the commit match no branch. Then the summary of the run shows a `gh release create` command. Start it with your own token, or start `scripts/release-tags.mjs`.
+- GitHub refuses a tag from the workflow (HTTP 403) when the workflow files of the commit match no branch. Then the summary of the run shows a `gh release create` command. Start it with your own token, or start `scripts/release-tags.ts`.
 
 ### The OIDC exchange of npm
 
@@ -184,7 +184,7 @@ If the exchange fails again, publish the release from the computer of the owner:
 
 1. Merge the version pull request, or start `pnpm changeset version` and commit the result.
 2. Start `git pull`, `pnpm install` and `pnpm build`.
-3. In a terminal, start `node scripts/npm-bootstrap.mjs --publish`. npm opens the browser for the 2FA.
+3. In a terminal, start `node scripts/npm-bootstrap.ts --publish`. npm opens the browser for the 2FA.
 
 A version from the computer has no provenance statement.
 
@@ -194,5 +194,5 @@ A version from the computer has no provenance statement.
 2. Give it the metadata of the other packages: `description`, `keywords`, `homepage`, `bugs`, `repository` with `directory`, `license`, `author`, `files` and `publishConfig`.
 3. Copy `LICENSE` into its folder, and add `CHANGELOG.md`.
 4. Add its name to the `fixed` group of `.changeset/config.json`. The package check fails without it.
-5. Before its first release, publish it from a terminal with `node scripts/npm-bootstrap.mjs --publish --only <name>`. npm shows the new package some minutes later. Then connect it with `--trust --only <name>`.
+5. Before its first release, publish it from a terminal with `node scripts/npm-bootstrap.ts --publish --only <name>`. npm shows the new package some minutes later. Then connect it with `--trust --only <name>`.
 6. Start the next release soon. Since 2026-10-02, npm deletes a new trusted publisher that has no successful publish in 48 hours.

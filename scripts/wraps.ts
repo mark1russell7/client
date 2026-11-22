@@ -31,7 +31,7 @@ import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
-import { root, workspacePackages } from "./lib/workspace.mjs";
+import { root, workspacePackages } from "./lib/workspace.ts";
 
 /** The file `wrap.json` of a wrap package. */
 export interface Wrap {

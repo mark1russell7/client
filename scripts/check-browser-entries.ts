@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, type Metafile, type Plugin } from "esbuild";
-import { root, workspacePackages, type Manifest } from "./lib/workspace.mjs";
+import { root, workspacePackages, type Manifest } from "./lib/workspace.ts";
 
 /** One package for the check: its npm name, its folder and its manifest. */
 export interface CheckedPackage {

@@ -13,7 +13,7 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { GENERAL_PACKAGES, root, run, workspacePackages } from "./lib/workspace.mjs";
+import { GENERAL_PACKAGES, root, run, workspacePackages } from "./lib/workspace.ts";
 
 /** The fields of a `package.json` that the script changes. */
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;

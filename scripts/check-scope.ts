@@ -11,8 +11,8 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { OLD_SCOPE, OLD_TO_NEW, NEW_SCOPE } from "./lib/old-names.mjs";
-import { root } from "./lib/workspace.mjs";
+import { OLD_SCOPE, OLD_TO_NEW, NEW_SCOPE } from "./lib/old-names.ts";
+import { root } from "./lib/workspace.ts";
 
 /** The documents of history, the lockfile and the map itself */
 const SKIP_PREFIXES = [
@@ -27,8 +27,7 @@ const SKIP_FILES = new Set([
   "packages/documentation/ARCHITECTURE-PROPOSALS-2026-10.md",
   "packages/documentation/DOCUMENTATION_AUDIT.md",
   "pnpm-lock.yaml",
-  "scripts/lib/old-names.mjs",
-  "scripts/lib/old-names.d.mts",
+  "scripts/lib/old-names.ts",
 ]);
 const BINARY = /\.(png|gif|jpe?g|ico|woff2?|ttf|tgz|zip|pdf)$/i;
 
