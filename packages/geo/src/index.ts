@@ -3,6 +3,7 @@ export * from "./module.js";
 export * from "./procedures.js";
 export * from "./geo.js";
 export * from "./features.js";
+export * from "./soil.js";
 export * from "./polite.js";
 export * from "./distance.js";
 export * from "./geohash.js";
