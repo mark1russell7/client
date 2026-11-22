@@ -14,6 +14,7 @@ import {
   explainInvocation,
   ladder,
   narrowCapability,
+  permitsEffects,
   toolHints,
 } from "./capability.js";
 import { InvocationError, invokePath, outputItems, outputValue, type Interceptor, type InvokeOptions } from "./invoke.js";
@@ -581,5 +582,36 @@ describe("the lookup and the admission", () => {
     }
     expect(answers[0]).toBe(answers[1]);
     expect(log).toEqual([]);
+  });
+});
+
+describe("permitsEffects", () => {
+  it("permits everything with no capability, or with a capability that has no effects", () => {
+    expect(permitsEffects(undefined, { reads: ["disk"], writes: ["process"] })).toBe(true);
+    expect(permitsEffects({}, { reads: ["disk"], writes: ["process"] })).toBe(true);
+  });
+
+  it("permits everything of a kind when its field is absent or any", () => {
+    expect(permitsEffects({ effects: { writes: [] } }, { reads: ["disk", "net"] })).toBe(true);
+    expect(permitsEffects({ effects: { reads: [] } }, { writes: ["process"] })).toBe(true);
+    expect(permitsEffects({ effects: { reads: "any", writes: "any" } }, { reads: ["disk"], writes: ["process"] })).toBe(true);
+  });
+
+  it("permits a list only when the list has each name", () => {
+    const capability: Capability<unknown> = { effects: { reads: ["disk"], writes: ["process"] } };
+    expect(permitsEffects(capability, { reads: ["disk"], writes: ["process"] })).toBe(true);
+    expect(permitsEffects(capability, { reads: ["disk", "net"] })).toBe(false);
+    expect(permitsEffects(capability, { writes: ["process", "disk"] })).toBe(false);
+    expect(permitsEffects(capability, {})).toBe(true);
+  });
+
+  it("refuses when one kind refuses, and does not mix the reads with the writes", () => {
+    const readsOnly: Capability<unknown> = { effects: { reads: ["disk"], writes: [] } };
+    expect(permitsEffects(readsOnly, { reads: ["disk"], writes: ["disk"] })).toBe(false);
+    expect(permitsEffects(readsOnly, { reads: ["net"], writes: [] })).toBe(false);
+    expect(permitsEffects(readsOnly, { reads: ["disk"], writes: [] })).toBe(true);
+    const writesOnly: Capability<unknown> = { effects: { reads: [], writes: ["process"] } };
+    expect(permitsEffects(writesOnly, { reads: ["process"] })).toBe(false);
+    expect(permitsEffects(writesOnly, { writes: ["process"] })).toBe(true);
   });
 });
