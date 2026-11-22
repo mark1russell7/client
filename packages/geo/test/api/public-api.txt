@@ -57,7 +57,12 @@ OsmSelector: dist/features.d.ts#OsmSelector
 Pixel: dist/mercator.d.ts#Pixel
 Point: dist/geo.d.ts#Point
 RouteResult: dist/geo.d.ts#RouteResult
+SEPTIC_RULE: dist/soil.d.ts#SEPTIC_RULE
+SOIL_DATA_ACCESS_URL: dist/soil.d.ts#SOIL_DATA_ACCESS_URL
+SSURGO_ATTRIBUTION: dist/soil.d.ts#SSURGO_ATTRIBUTION
 SkippedElement: dist/features.d.ts#SkippedElement
+SoilComponent: dist/soil.d.ts#SoilComponent
+SoilRatingClass: dist/soil.d.ts#SoilRatingClass
 TILE_SIZE: dist/mercator.d.ts#TILE_SIZE
 TRANSIENT_STATUSES: dist/polite.d.ts#TRANSIENT_STATUSES
 ViewTile: dist/mercator.d.ts#ViewTile
@@ -96,6 +101,9 @@ overpassExchange: dist/features.d.ts#overpassExchange
 overpassQuery: dist/features.d.ts#overpassQuery
 project: dist/mercator.d.ts#project
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
+soilComponents: dist/soil.d.ts#soilComponents
+soilExchange: dist/soil.d.ts#soilExchange
+soilQuery: dist/soil.d.ts#soilQuery
 tilesFor: dist/mercator.d.ts#tilesFor
 
 ## ./module (dist/module.d.ts): names
@@ -460,6 +468,44 @@ export declare const geoProcedures: AnyProcedure[];
 
 ### dist/procedures.d.ts#geoRouteProcedure
 export declare const geoRouteProcedure: AnyProcedure;
+
+### dist/soil.d.ts#SEPTIC_RULE
+export declare const SEPTIC_RULE = "ENG - Septic Tank Absorption Fields";
+
+### dist/soil.d.ts#SOIL_DATA_ACCESS_URL
+export declare const SOIL_DATA_ACCESS_URL = "https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest";
+
+### dist/soil.d.ts#SSURGO_ATTRIBUTION
+export declare const SSURGO_ATTRIBUTION = "Soil Survey Staff, Natural Resources Conservation Service, USDA. Soil Survey Geographic (SSURGO) Database.";
+
+### dist/soil.d.ts#SoilComponent
+export interface SoilComponent {
+    readonly mukey: string;
+    readonly mapUnit: string;
+    readonly component: string;
+    readonly percent: number | null;
+    readonly septic: SoilRatingClass | null;
+    readonly septicValue: number | null;
+    readonly slope: {
+        readonly low: number | null;
+        readonly representative: number | null;
+        readonly high: number | null;
+    };
+    readonly drainage: string | null;
+    readonly hydric: string | null;
+}
+
+### dist/soil.d.ts#SoilRatingClass
+export type SoilRatingClass = "Not limited" | "Somewhat limited" | "Very limited";
+
+### dist/soil.d.ts#soilComponents
+export declare function soilComponents(answer: unknown): SoilComponent[];
+
+### dist/soil.d.ts#soilExchange
+export declare function soilExchange(lon: number, lat: number, userAgent: string, baseUrl?: string): Exchange;
+
+### dist/soil.d.ts#soilQuery
+export declare function soilQuery(lon: number, lat: number): string;
 
 ### dist/tiles.d.ts#CachedTileOptions
 export interface CachedTileOptions {
