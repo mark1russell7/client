@@ -1,10 +1,10 @@
-// The manifest of @mark1russell7/geo 0.5.3, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
+// The manifest of @mark1russell7/geo 0.5.4, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
 import type { ExportsManifest } from "@procedures/compiler";
 
 export const manifest: ExportsManifest = {
   "format": "procedures-exports/1",
   "package": "@mark1russell7/geo",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "entry": ".",
   "namespace": [
     "geo"
