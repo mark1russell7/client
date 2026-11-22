@@ -6,10 +6,10 @@
 //
 // Steps (packages/documentation/RELEASE.md tells the whole procedure):
 //   1. npm login
-//   2. node scripts/npm-bootstrap.mjs --dry-run     the tarballs, and what npm would stage
-//   3. node scripts/npm-bootstrap.mjs               stages each version that is not on npm
-//   4. node scripts/npm-bootstrap.mjs --approve       approves each staged version (or on npmjs.com)
-//   5. node scripts/npm-bootstrap.mjs --trust
+//   2. node scripts/npm-bootstrap.ts --dry-run     the tarballs, and what npm would stage
+//   3. node scripts/npm-bootstrap.ts               stages each version that is not on npm
+//   4. node scripts/npm-bootstrap.ts --approve       approves each staged version (or on npmjs.com)
+//   5. node scripts/npm-bootstrap.ts --trust
 //      connects each package to .github/workflows/release.yml (one command for each package)
 //
 // Steps 4 and 5 need the 2FA of the owner. Start them in a terminal: npm opens the browser to
@@ -38,12 +38,20 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gitDependencies, publicPackages, root, run } from "./lib/workspace.mjs";
-import { NEW_SCOPE, OLD_SCOPE, OLD_TO_NEW } from "./lib/old-names.mjs";
+import { gitDependencies, publicPackages, root, run } from "./lib/workspace.ts";
+import { NEW_SCOPE, OLD_SCOPE, OLD_TO_NEW } from "./lib/old-names.ts";
+
+/** One staged version of `npm stage list --json`: the fields that the script reads. */
+interface StagedVersion {
+  readonly id: string;
+  readonly packageName: string;
+  readonly version: string;
+  readonly status: string;
+}
 
 const argv = process.argv.slice(2);
-const flag = (name) => argv.includes(name);
-const value = (name) => {
+const flag = (name: string): boolean => argv.includes(name);
+const value = (name: string): string | undefined => {
   const index = argv.indexOf(name);
   return index === -1 ? undefined : argv[index + 1];
 };
@@ -70,13 +78,13 @@ if (packages.length === 0) {
  * browser for the 2FA and wait. It gives the exit code. With `logsDir`, npm writes its log there.
  * The folder goes in `npm_config_logs_dir`, because `npm trust` refuses the flag `--logs-dir`.
  */
-function interactive(args, logsDir) {
+function interactive(args: readonly string[], logsDir?: string): number {
   const env = logsDir ? { ...process.env, npm_config_logs_dir: logsDir } : process.env;
   return spawnSync("npm", args, { cwd: root, env, stdio: "inherit", shell: process.platform === "win32" }).status ?? 1;
 }
 
 /** This function tells if an npm log in a folder has a line that matches the pattern. */
-function npmLogs(logsDir, pattern) {
+function npmLogs(logsDir: string, pattern: RegExp): boolean {
   try {
     return readdirSync(logsDir).some((f) => pattern.test(readFileSync(join(logsDir, f), "utf8")));
   } catch {
@@ -85,7 +93,7 @@ function npmLogs(logsDir, pattern) {
 }
 
 /** This function tells if the npm logs in a folder show HTTP 429, the limit of new packages. */
-function rateLimited(logsDir) {
+function rateLimited(logsDir: string): boolean {
   return npmLogs(logsDir, /failed with 429|code E429/);
 }
 
@@ -93,12 +101,12 @@ function rateLimited(logsDir) {
  * This function gives the staged versions ("name@version") of the account, which wait for an
  * approval. npm refuses to stage such a version again (HTTP 409).
  */
-function stagedVersions() {
+function stagedVersions(): Set<string> {
   try {
-    const list = JSON.parse(run("npm", ["stage", "list", "--json"], root, true));
+    const list = JSON.parse(run("npm", ["stage", "list", "--json"], root, true)) as StagedVersion[];
     return new Set(list.filter((s) => s.status === "staged").map((s) => `${s.packageName}@${s.version}`));
   } catch {
-    return new Set();
+    return new Set<string>();
   }
 }
 
@@ -106,7 +114,7 @@ function stagedVersions() {
  * This function tells if a package has a real version on npm. A staged publish of a new package
  * makes the package with the placeholder version `0.0.0-stage` until the approval.
  */
-function onNpm(name) {
+function onNpm(name: string): boolean {
   try {
     const latest = run("npm", ["view", name, "dist-tags.latest"], root, true).trim();
     return latest !== "" && latest !== "0.0.0-stage";
@@ -119,7 +127,7 @@ function onNpm(name) {
  * This function tells if a package trusts the release workflow already. npm refuses a second
  * trust that the same workflow can match (HTTP 409). `npm trust list` needs no 2FA.
  */
-function trustsWorkflow(name) {
+function trustsWorkflow(name: string): boolean {
   // Two tries: on 2026-10-13 one request failed once, and the script asked for a trust that existed
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -133,7 +141,7 @@ function trustsWorkflow(name) {
 }
 
 /** The version of a package on npm, or undefined when npm does not have it. */
-function publishedVersion(name, version) {
+function publishedVersion(name: string, version: string): string | undefined {
   try {
     return run("npm", ["view", `${name}@${version}`, "version"], root, true).trim() || undefined;
   } catch {
@@ -153,12 +161,12 @@ if (!dryRun) {
 // --deprecate-old: point each old @mark1russell7 package on npm to its @procedures package
 if (deprecateOld) {
   const pairs = Object.entries(OLD_TO_NEW).filter(([, to]) => !only || only.includes(`${NEW_SCOPE}${to}`));
-  const failures = [];
-  const waiting = [];
+  const failures: string[] = [];
+  const waiting: string[] = [];
   let count = 0;
   for (const [from, to] of pairs) {
     const oldName = `${OLD_SCOPE}${from}`;
-    let versions;
+    let versions: string;
     try {
       versions = run("npm", ["view", oldName, "versions", "--json"], root, true).trim();
     } catch {
@@ -190,7 +198,7 @@ if (deprecateOld) {
 
 // --lock: require the 2FA for each publish and refuse tokens
 if (lock) {
-  const failures = [];
+  const failures: string[] = [];
   for (const pkg of packages) {
     const args = ["access", "set", "mfa=publish", pkg.name, ...(otp ? ["--otp", otp] : [])];
     console.log(`npm ${args.join(" ")}`);
@@ -209,13 +217,13 @@ if (lock) {
 // --approve: approve each staged version of these packages
 if (approve) {
   const names = new Set(packages.map((p) => p.name));
-  const list = JSON.parse(run("npm", ["stage", "list", "--json"], root, true));
+  const list = JSON.parse(run("npm", ["stage", "list", "--json"], root, true)) as StagedVersion[];
   const todo = list.filter((s) => s.status === "staged" && names.has(s.packageName));
   if (todo.length === 0) {
     console.log("No staged version of these packages waits for an approval.");
     process.exit(0);
   }
-  const failures = [];
+  const failures: string[] = [];
   for (const s of todo) {
     console.log(`npm stage approve ${s.id}   (${s.packageName}@${s.version})`);
     if (dryRun) continue;
@@ -228,15 +236,15 @@ if (approve) {
   console.log(
     dryRun
       ? `\nThe dry run printed ${todo.length} approvals.`
-      : `\n${todo.length} versions approved. Next: node scripts/npm-bootstrap.mjs --trust`,
+      : `\n${todo.length} versions approved. Next: node scripts/npm-bootstrap.ts --trust`,
   );
   process.exit(0);
 }
 
 // --trust: connect each package to the release workflow
 if (trust) {
-  const failures = [];
-  const absent = [];
+  const failures: string[] = [];
+  const absent: string[] = [];
   for (const pkg of packages) {
     // npm can trust only a package that it has (HTTP 404 for the others)
     if (!dryRun && !onNpm(pkg.name)) {
@@ -276,7 +284,7 @@ if (trust) {
   if (dryRun) {
     console.log(`\nThe dry run printed the ${packages.length} commands, and started none.`);
   } else if (absent.length > 0) {
-    console.log(`\n${absent.length} packages are not on npm yet. After their publish, start: node scripts/npm-bootstrap.mjs --trust --only ${absent.join(",")}`);
+    console.log(`\n${absent.length} packages are not on npm yet. After their publish, start: node scripts/npm-bootstrap.ts --trust --only ${absent.join(",")}`);
   } else {
     console.log("\nEach package trusts the release workflow. Set 'Require two-factor authentication and disallow tokens' on npmjs.com after the first release from the workflow.");
   }
@@ -293,12 +301,12 @@ if (blocked.length > 0) {
 }
 
 const work = mkdtempSync(join(tmpdir(), "client-bootstrap-"));
-const staged = [];
-const skipped = [];
-const waiting = [];
-const failed = [];
+const staged: string[] = [];
+const skipped: string[] = [];
+const waiting: string[] = [];
+const failed: string[] = [];
 let limited = 0;
-const alreadyStaged = dryRun ? new Set() : stagedVersions();
+const alreadyStaged = dryRun ? new Set<string>() : stagedVersions();
 try {
   for (const pkg of packages) {
     const existing = publishedVersion(pkg.name, pkg.version);
@@ -316,7 +324,7 @@ try {
     const out = join(work, pkg.dir);
     mkdirSync(out);
     run("pnpm", ["pack", "--pack-destination", out], pkg.path, true);
-    const tgz = join(out, readdirSync(out).find((f) => f.endsWith(".tgz")));
+    const tgz = join(out, readdirSync(out).find((f) => f.endsWith(".tgz"))!);
     if (publishDirect) {
       // In the terminal, so that npm can open the browser for the 2FA
       const logs = join(out, "logs");
@@ -351,7 +359,8 @@ try {
       console.log(`${dryRun ? "would stage" : "staged"} ${pkg.name}@${pkg.version}`);
     } catch (error) {
       failed.push(pkg.name);
-      const text = String(error.stderr ?? error.message);
+      const failure = error as { stderr?: unknown; message?: unknown };
+      const text = String(failure.stderr ?? failure.message);
       if (/E429/.test(text)) limited++;
       console.error(`FAIL  ${pkg.name}: ${text.trim().split("\n").slice(-3).join(" ")}`);
     }
@@ -369,7 +378,7 @@ if (limited > 0) {
     publicPackages().map(async (pkg) => {
       try {
         const response = await fetch(`https://registry.npmjs.org/${pkg.name.replaceAll("/", "%2f")}`);
-        return response.ok ? Date.parse((await response.json()).time?.created) : NaN;
+        return response.ok ? Date.parse(((await response.json()) as { time?: { created?: string } }).time?.created as string) : NaN;
       } catch {
         return NaN;
       }
@@ -385,10 +394,10 @@ if (limited > 0) {
   }
 }
 if (!dryRun && staged.length > 0 && publishDirect) {
-  console.log("\nNext: node scripts/npm-bootstrap.mjs --trust");
+  console.log("\nNext: node scripts/npm-bootstrap.ts --trust");
 } else if (!dryRun && staged.length + waiting.length > 0) {
   console.log("\nNext:");
-  console.log("  1. node scripts/npm-bootstrap.mjs --approve   (in a terminal: npm opens the browser for the 2FA)");
-  console.log("  2. node scripts/npm-bootstrap.mjs --trust");
+  console.log("  1. node scripts/npm-bootstrap.ts --approve   (in a terminal: npm opens the browser for the 2FA)");
+  console.log("  2. node scripts/npm-bootstrap.ts --trust");
 }
 if (failed.length > 0) process.exit(1);

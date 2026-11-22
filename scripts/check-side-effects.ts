@@ -10,7 +10,7 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { publicPackages, type PublicPackage } from "./lib/workspace.mjs";
+import { publicPackages, type PublicPackage } from "./lib/workspace.ts";
 
 const REGISTER = new Set(["./register", "./register.js"]);
 

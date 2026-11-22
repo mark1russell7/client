@@ -25,7 +25,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IDENTITY_TYPES } from "@mark1russell7/service";
-import { publicPackages, type Manifest } from "./lib/workspace.mjs";
+import { publicPackages, type Manifest } from "./lib/workspace.ts";
 
 /** The name of the service package. */
 export const SERVICE = "@mark1russell7/service";

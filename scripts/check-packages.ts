@@ -18,7 +18,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gitDependencies, publicPackages, readFromTarball, root, run, type Manifest } from "./lib/workspace.mjs";
+import { gitDependencies, publicPackages, readFromTarball, root, run, type Manifest } from "./lib/workspace.ts";
 
 const args = new Set(process.argv.slice(2));
 const allowGitDeps = args.has("--allow-git-deps");

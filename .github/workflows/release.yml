@@ -37,7 +37,7 @@ name: Release
 #                   only "actions: read" and runs no code of this repository.
 #   build           Stops when the commit is not on main. Installs, builds and does the checks. In
 #                   a dispatch run with changesets, it opens or updates the version pull request,
-#                   and the run stops there. Else scripts/publish-ci.mjs packs each version that is
+#                   and the run stops there. Else scripts/publish-ci.ts packs each version that is
 #                   not on npm (the artifact "release") and writes the plan of the GitHub releases
 #                   (the artifact "tags"). A version-commit run does not start the Changesets
 #                   action, so it packs the versions of its commit. This job runs the code of this
@@ -57,7 +57,7 @@ name: Release
 # its checks are green, and the merge publishes. The owner keeps a new package (its bootstrap and
 # first publish), the trust changes on npm and the repair of a failed release. npm trusts this
 # workflow for each package (trusted publishing with OIDC, no token):
-# node scripts/npm-bootstrap.mjs --trust
+# node scripts/npm-bootstrap.ts --trust
 # packages/documentation/RELEASE.md tells the one-time bootstrap and the release steps.
 #
 # The publish job stays in this file, and only its steps are shared (a composite action). The
@@ -69,7 +69,7 @@ name: Release
 # the immutable OIDC subject of GitHub, and on 2026-10-16 npm refused the exchange of a trusted
 # publisher with the environment "npm" ("package not found", npm/cli#9969). The systems repository
 # has the same subject and publishes without an environment. If the exchange fails again, the owner
-# publishes from a computer: node scripts/npm-bootstrap.mjs --publish
+# publishes from a computer: node scripts/npm-bootstrap.ts --publish
 #
 # The release session moves the pins of the template (mark1russell7/template/...@<commit> # main).
 # Renovate does not change this file (renovate/base.json of the template).
@@ -320,12 +320,12 @@ jobs:
           commit-message: Version the packages
       # pnpm packs each version that is not on npm, and the script writes the plan of the GitHub
       # releases. The npm CLI of the publish job publishes the tarballs: the publish of pnpm 12 got
-      # HTTP 404 on 2026-10-16 (scripts/publish-ci.mjs tells more).
+      # HTTP 404 on 2026-10-16 (scripts/publish-ci.ts tells more).
       - name: Pack the versions that are not on npm
         id: pack
         if: needs.gate.outputs.kind == 'version-commit' || steps.changesets.outputs.has-changesets == 'false'
         run: |
-          node scripts/publish-ci.mjs "$RUNNER_TEMP/release" "$RUNNER_TEMP/tags.json"
+          node scripts/publish-ci.ts "$RUNNER_TEMP/release" "$RUNNER_TEMP/tags.json"
           packages=$(awk 'NF { printf "%s%s@%s", (n++ ? " " : ""), $1, $2 }' "$RUNNER_TEMP/release/packages.txt")
           if [ -n "$packages" ]; then mode=publish; else mode=none; fi
           {
@@ -383,7 +383,7 @@ jobs:
     # the run. A version of an earlier run gets its tag only from the npm provenance statement of
     # this repository. It skips each tag that exists. GitHub refuses (HTTP 403) a tag from the
     # workflow token on a commit whose workflow files match no branch. Then the summary of the run
-    # has the command for the owner, or start scripts/release-tags.mjs.
+    # has the command for the owner, or start scripts/release-tags.ts.
     uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@072c68a9d4b3fbaea886ad60ae54b6ebbef42bde # main
     permissions:
       contents: write

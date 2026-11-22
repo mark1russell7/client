@@ -23,7 +23,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { root } from "./lib/workspace.mjs";
+import { root } from "./lib/workspace.ts";
 
 /** One command of the script. */
 export interface Step {

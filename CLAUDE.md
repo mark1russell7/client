@@ -32,7 +32,7 @@ Decision D13 sets these rules. The section "Releases of the server stack" of the
 - Release the group after each break. The next break waits for that release.
 - One release before a break, mark each export or behavior that it moves or removes as `@deprecated`.
 - Give the break a `minor` changeset. In its text, write the migration steps for the site and each app.
-- Do not change `RELEASE.md`, `scripts/publish-ci.mjs` or `.github/workflows/release.yml` for these rules.
+- Do not change `RELEASE.md`, `scripts/publish-ci.ts` or `.github/workflows/release.yml` for these rules.
 
 ## Repository structure
 

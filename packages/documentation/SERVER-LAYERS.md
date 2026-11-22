@@ -362,4 +362,4 @@ The public packages of the client group have one version together. Decision D13 
 - The changeset of a break has the type `minor`. Its text gives the migration steps for each known consumer: the site and each app.
 - Thus the CHANGELOG entry of each MINOR carries its migration steps.
 - A release candidate goes under the dist-tag `next`, not under `latest`.
-- `RELEASE.md`, `scripts/publish-ci.mjs` and `.github/workflows/release.yml` stay as they are. Only Mark and the npm owner session publish.
+- `RELEASE.md`, `scripts/publish-ci.ts` and `.github/workflows/release.yml` stay as they are. Only Mark and the npm owner session publish.

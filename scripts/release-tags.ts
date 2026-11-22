@@ -1,7 +1,7 @@
 // The git tags and the GitHub Releases of the current versions of the public packages.
 //
 // The release workflow makes them in its job "github-release", from the plan that
-// scripts/publish-ci.mjs writes. When a release made none, for example 0.3.0 on 2026-10-16, or
+// scripts/publish-ci.ts writes. When a release made none, for example 0.3.0 on 2026-10-16, or
 // when GitHub refused a tag to the workflow token (HTTP 403), this script makes the missing ones.
 // Each tag is <name>@<version> at the commit of the versions, as the workflow makes it. Each
 // Release has the tag as its title and the section of the version in CHANGELOG.md as its text.
@@ -16,10 +16,10 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { changelogSection, publicPackages, root } from "./lib/workspace.mjs";
+import { changelogSection, publicPackages, root } from "./lib/workspace.ts";
 
 const args = process.argv.slice(2);
-const option = (name) => {
+const option = (name: string): string | undefined => {
   const at = args.indexOf(name);
   return at === -1 ? undefined : args[at + 1];
 };
@@ -32,7 +32,7 @@ if (!commit) {
 }
 
 /** This function starts gh, and gives its status and its output. */
-function gh(ghArgs) {
+function gh(ghArgs: readonly string[]): { ok: boolean; out: string } {
   const result = spawnSync("gh", ghArgs, { cwd: root, encoding: "utf8" });
   return { ok: result.status === 0, out: `${result.stdout ?? ""}${result.stderr ?? ""}`.trim() };
 }
@@ -49,7 +49,7 @@ if (!sha.ok) {
 }
 
 const work = mkdtempSync(join(tmpdir(), "release-tags-"));
-const made = [];
+const made: string[] = [];
 let failed = 0;
 try {
   // The latest Release comes last, so GitHub shows it as the latest one

@@ -6,34 +6,67 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 
+/** The manifest of a package: the fields of `package.json` that the scripts read. */
+export interface Manifest {
+  readonly name?: string;
+  readonly version?: string;
+  readonly private?: boolean;
+  readonly exports?: string | Readonly<Record<string, unknown>>;
+  readonly sideEffects?: boolean | readonly string[];
+  readonly bin?: string | Readonly<Record<string, string>>;
+  readonly dependencies?: Readonly<Record<string, string>>;
+  readonly peerDependencies?: Readonly<Record<string, string>>;
+  readonly optionalDependencies?: Readonly<Record<string, string>>;
+  readonly [field: string]: unknown;
+}
+
+/** One folder of `packages/` with a `package.json`. */
+export interface WorkspacePackage {
+  readonly dir: string;
+  readonly path: string;
+  readonly manifest: Manifest;
+}
+
+/** One public package of `packages/`. */
+export interface PublicPackage {
+  /** The folder name in `packages/`. */
+  readonly dir: string;
+  /** The absolute path of the folder. */
+  readonly path: string;
+  readonly name: string;
+  readonly version: string;
+  readonly bin: string | Readonly<Record<string, string>>;
+  readonly manifest: Manifest;
+}
+
 /** The root folder of the repository. */
-export const root = resolve(import.meta.dirname, "..", "..");
+export const root: string = resolve(import.meta.dirname, "..", "..");
 
 /**
  * The general packages: separate repositories that the monorepo uses with github: specifiers
  * until they are on npm, and the npm range that replaces each specifier.
  */
-export const GENERAL_PACKAGES = {
+export const GENERAL_PACKAGES: Readonly<Record<string, string>> = {
   "@mark1russell7/cue": "^1.0.0",
   "@mark1russell7/splay": "^0.1.0",
 };
 
 /** Each folder of packages/ with a package.json, and its manifest. */
-export function workspacePackages() {
+export function workspacePackages(): WorkspacePackage[] {
   return readdirSync(join(root, "packages"))
     .filter((dir) => existsSync(join(root, "packages", dir, "package.json")))
-    .map((dir) => ({ dir, path: join(root, "packages", dir), manifest: JSON.parse(readFileSync(join(root, "packages", dir, "package.json"), "utf8")) }));
+    .map((dir) => ({ dir, path: join(root, "packages", dir), manifest: JSON.parse(readFileSync(join(root, "packages", dir, "package.json"), "utf8")) as Manifest }));
 }
 
 /** The public packages (not `private`), with the dependencies first: a package comes after the packages it uses. */
-export function publicPackages() {
-  const packages = workspacePackages()
+export function publicPackages(): PublicPackage[] {
+  const packages: PublicPackage[] = workspacePackages()
     .filter(({ manifest }) => manifest.private !== true)
-    .map(({ dir, path, manifest }) => ({ dir, path, name: manifest.name, version: manifest.version, bin: manifest.bin ?? {}, manifest }));
+    .map(({ dir, path, manifest }) => ({ dir, path, name: manifest.name as string, version: manifest.version as string, bin: manifest.bin ?? {}, manifest }));
   const byName = new Map(packages.map((p) => [p.name, p]));
-  const ordered = [];
-  const state = new Map();
-  const visit = (pkg) => {
+  const ordered: PublicPackage[] = [];
+  const state = new Map<string, "visiting" | "done">();
+  const visit = (pkg: PublicPackage): void => {
     if (state.get(pkg.name) === "done") return;
     if (state.get(pkg.name) === "visiting") throw new Error(`a dependency cycle through ${pkg.name}`);
     state.set(pkg.name, "visiting");
@@ -52,8 +85,9 @@ export function publicPackages() {
 /**
  * Start a command and give its standard output. One command line with quoted arguments: pnpm
  * and npm are scripts on Windows, so they need a shell. `quiet` hides the standard error.
+ * The function throws the error of `execSync` when the command fails.
  */
-export function run(cmd, args, cwd, quiet = false) {
+export function run(cmd: string, args: readonly string[], cwd: string, quiet = false): string {
   return execSync([cmd, ...args.map((a) => JSON.stringify(a))].join(" "), {
     cwd,
     encoding: "utf8",
@@ -64,13 +98,14 @@ export function run(cmd, args, cwd, quiet = false) {
 /**
  * The text of one file of a .tgz. The tar of Git for Windows reads "C:" in a path as a host
  * name, so the scripts read the archive themselves: gzip, then 512-byte ustar headers.
+ * The function throws when the archive does not have the file.
  */
-export function readFromTarball(tgz, wanted) {
+export function readFromTarball(tgz: string, wanted: string): string {
   const data = gunzipSync(readFileSync(tgz));
   for (let at = 0; at + 512 <= data.length; ) {
     const header = data.subarray(at, at + 512);
     if (header.every((byte) => byte === 0)) break;
-    const field = (start, length) => header.subarray(start, start + length).toString("utf8").replace(/\0.*$/s, "");
+    const field = (start: number, length: number): string => header.subarray(start, start + length).toString("utf8").replace(/\0.*$/s, "");
     const prefix = field(345, 155);
     const name = prefix ? `${prefix}/${field(0, 100)}` : field(0, 100);
     const size = parseInt(field(124, 12).trim() || "0", 8);
@@ -81,9 +116,9 @@ export function readFromTarball(tgz, wanted) {
 }
 
 /** The git specifiers (github:, git+, git:) in the dependencies of a manifest. */
-export function gitDependencies(manifest) {
-  const found = [];
-  for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+export function gitDependencies(manifest: Manifest): string[] {
+  const found: string[] = [];
+  for (const field of ["dependencies", "peerDependencies", "optionalDependencies"] as const) {
     for (const [dep, spec] of Object.entries(manifest[field] ?? {})) {
       if (/^(github:|git\+|git:)/.test(String(spec))) found.push(`${field}.${dep} = ${spec}`);
     }
@@ -95,7 +130,7 @@ export function gitDependencies(manifest) {
  * The section of a version in the CHANGELOG.md of a package folder, without its heading, or "".
  * The section starts at the heading "## <version>" and stops at the next "## " heading.
  */
-export function changelogSection(dir, version) {
+export function changelogSection(dir: string, version: string): string {
   const file = join(root, "packages", dir, "CHANGELOG.md");
   if (!existsSync(file)) return "";
   const lines = readFileSync(file, "utf8").split(/\r?\n/);
