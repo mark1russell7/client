@@ -1,5 +1,18 @@
 # @procedures/bundle-assistant
 
+## 0.68.2
+
+### Patch Changes
+
+- Updated dependencies [ecdebdf]
+  - @procedures/geo@0.68.2
+  - @procedures/client@0.68.2
+  - @procedures/exif@0.68.2
+  - @procedures/http@0.68.2
+  - @procedures/ics@0.68.2
+  - @procedures/mail@0.68.2
+  - @procedures/weather@0.68.2
+
 ## 0.68.1
 
 ### Patch Changes

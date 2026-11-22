@@ -1,5 +1,27 @@
 # @procedures/mark
 
+## 0.68.2
+
+### Patch Changes
+
+- @procedures/algebra@0.68.2
+  - @procedures/cli-kit@0.68.2
+  - @procedures/client@0.68.2
+  - @procedures/cli-run@0.68.2
+  - @procedures/fs@0.68.2
+  - @procedures/lib@0.68.2
+  - @procedures/pnpm@0.68.2
+  - @procedures/procedure@0.68.2
+  - @procedures/peer@0.68.2
+  - @procedures/shell@0.68.2
+  - @procedures/vitest@0.68.2
+  - @procedures/mcp-dev-tools@0.68.2
+  - @procedures/optional@0.68.2
+  - @procedures/predicates@0.68.2
+  - @procedures/quantity@0.68.2
+  - @procedures/rational@0.68.2
+  - @procedures/server@0.68.2
+
 ## 0.68.1
 
 ### Patch Changes

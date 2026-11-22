@@ -1,5 +1,13 @@
 # @procedures/git
 
+## 0.68.2
+
+### Patch Changes
+
+- @procedures/client@0.68.2
+  - @procedures/fs@0.68.2
+  - @procedures/shell@0.68.2
+
 ## 0.68.1
 
 ### Patch Changes
