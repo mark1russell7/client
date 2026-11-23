@@ -57,6 +57,19 @@ describe("parseStreetAddress", () => {
     expect(parseStreetAddress("12")).toBeUndefined();
     expect(parseStreetAddress("12 Elm Street", { order: "number-last" })).toBeUndefined();
   });
+
+  it("keeps the street name as it is, with no separators at its ends", () => {
+    expect(parseStreetAddress("12\tElm  Street,")).toEqual({ number: "12", street: "Elm  Street" });
+    expect(parseStreetAddress("Elm Street, 12B ,", { order: "number-last" })).toEqual({ number: "12B", street: "Elm Street" });
+    expect(parseStreetAddress("12 ,")).toBeUndefined();
+  });
+
+  it("reads a long text of separators (a quadratic parse goes past the time limit of the test)", () => {
+    const tabs = "\t".repeat(200_000);
+    expect(parseStreetAddress(`0${tabs}a`)).toEqual({ number: "0", street: "a" });
+    expect(parseStreetAddress(`a${tabs}`, { order: "number-last" })).toBeUndefined();
+    expect(parseStreetAddress(`0${tabs}\t`)).toBeUndefined();
+  });
 });
 
 describe("houseNumbers", () => {

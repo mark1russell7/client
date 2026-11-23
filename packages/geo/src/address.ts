@@ -105,12 +105,40 @@ export interface ParseStreetAddressOptions {
  * A number is digits with one letter or no letter, for example `12` or `12B`. A text with no number gives `undefined`.
  */
 export function parseStreetAddress(text: string, options: ParseStreetAddressOptions = {}): StreetAddress | undefined {
+  // The function cuts the text with index loops, not with a regular expression: the time is linear in each text.
+  const line = trimSeparators(text);
+  let cut: number;
+  let number: string;
+  let street: string;
   if (options.order === "number-last") {
-    const found = /^\s*(.+?)[\s,]+(\d+[a-z]?)\s*$/i.exec(text);
-    return found === null ? undefined : { number: found[2] as string, street: found[1] as string };
+    cut = line.length;
+    while (cut > 0 && !isSeparator(line[cut - 1])) cut -= 1;
+    number = line.slice(cut);
+    street = trimSeparators(line.slice(0, cut));
+  } else {
+    cut = 0;
+    while (cut < line.length && !isSeparator(line[cut])) cut += 1;
+    number = line.slice(0, cut);
+    street = trimSeparators(line.slice(cut));
   }
-  const found = /^\s*(\d+[a-z]?)[\s,]+(.+?)\s*$/i.exec(text);
-  return found === null ? undefined : { number: found[1] as string, street: found[2] as string };
+  return HOUSE_NUMBER.test(number) && street !== "" ? { number, street } : undefined;
+}
+
+/** A house number of a street line: digits with one letter or no letter. */
+const HOUSE_NUMBER = /^\d+[a-z]?$/i;
+
+/** This function gives `true` for a character that divides the parts of a street line: a space or a comma. */
+function isSeparator(char: string | undefined): boolean {
+  return char !== undefined && (char === "," || char.trim() === "");
+}
+
+/** This function gives the text with no spaces and no commas at its start and at its end. */
+function trimSeparators(text: string): string {
+  let start = 0;
+  let end = text.length;
+  while (start < end && isSeparator(text[start])) start += 1;
+  while (end > start && isSeparator(text[end - 1])) end -= 1;
+  return text.slice(start, end);
 }
 
 /**
