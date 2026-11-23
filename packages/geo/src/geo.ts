@@ -18,7 +18,12 @@ export interface GeocodeResult extends Point {
 export interface RouteResult {
   readonly km: number;
   readonly minutes: number;
+  /** The points of the route, from the start to the destination. Only when the call asks for the line. */
+  readonly line?: readonly Point[];
 }
+
+/** The detail of the line of a route: `full` gives each point of the road, `simplified` gives fewer points for a map at the zoom of the route. */
+export type RouteLine = "full" | "simplified";
 
 /** The public Nominatim server. Its policy: at most one request each second, and a User-Agent that names the application. */
 export const NOMINATIM_URL = "https://nominatim.openstreetmap.org";
@@ -90,23 +95,50 @@ export async function geocode(
   return { lat, lon, displayName: first.display_name ?? query };
 }
 
-/** This function gives the time and the distance of a drive from one point to another. */
+/**
+ * This function gives the time and the distance of a drive from one point to another.
+ * With the option `line`, it also gives the points of the route, for example to find the bridges on it.
+ */
 export async function drivingRoute(
   from: Point,
   to: Point,
-  options: { baseUrl?: string | undefined; timeoutMs: number; signal?: AbortSignal | undefined; fetch?: FetchJson | undefined }
+  options: {
+    baseUrl?: string | undefined;
+    timeoutMs: number;
+    signal?: AbortSignal | undefined;
+    fetch?: FetchJson | undefined;
+    line?: RouteLine | undefined;
+  }
 ): Promise<RouteResult> {
+  const overview = options.line === undefined ? "overview=false" : `overview=${options.line}&geometries=geojson`;
   const body = (await getJson(
-    `${options.baseUrl ?? OSRM_URL}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`,
+    `${options.baseUrl ?? OSRM_URL}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?${overview}`,
     { timeoutMs: options.timeoutMs, signal: options.signal, fetch: options.fetch },
     "OSRM"
-  )) as { code?: string; routes?: Array<{ duration?: number; distance?: number }> };
+  )) as { code?: string; routes?: Array<{ duration?: number; distance?: number; geometry?: { coordinates?: unknown } }> };
   const route = body.routes?.[0];
   if (body.code !== "Ok" || route?.duration === undefined || route.distance === undefined) {
     throw new Error(`OSRM found no route (${body.code ?? "no code"})`);
   }
-  return {
+  const result = {
     km: Math.round((route.distance / 1000) * 10) / 10,
     minutes: Math.max(1, Math.round(route.duration / 60)),
   };
+  if (options.line === undefined) return result;
+  const line = routeLine(route.geometry?.coordinates);
+  if (line === undefined) throw new Error("OSRM gave no line for the route");
+  return { ...result, line };
+}
+
+/** This function reads the GeoJSON positions of a route line, or gives `undefined` when a position is not two finite numbers. */
+function routeLine(coordinates: unknown): Point[] | undefined {
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return undefined;
+  const line: Point[] = [];
+  for (const position of coordinates) {
+    if (!Array.isArray(position)) return undefined;
+    const [lon, lat] = position as unknown[];
+    if (typeof lon !== "number" || typeof lat !== "number" || !Number.isFinite(lon) || !Number.isFinite(lat)) return undefined;
+    line.push({ lat, lon });
+  }
+  return line;
 }

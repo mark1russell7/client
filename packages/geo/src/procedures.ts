@@ -11,7 +11,7 @@
 import { createProcedure, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
 import * as z from "zod";
 import type { Pace } from "polite-crawler/api";
-import { drivingRoute, geocode, type GeocodeResult, type RouteResult } from "./geo.js";
+import { drivingRoute, geocode, type GeocodeResult } from "./geo.js";
 import { geoPace, type GeoFetch } from "./polite.js";
 import { geoArcgisFeatures } from "./procedures/geo/arcgisFeatures.js";
 import { geoDistance } from "./procedures/geo/distance.js";
@@ -112,10 +112,16 @@ const RouteInputSchema = z.object({
   from: point.describe("The start"),
   to: point.describe("The destination"),
   baseUrl: z.url().optional().describe("Another OSRM server (default: the public demonstration server)"),
+  line: z.enum(["full", "simplified"]).optional().describe("Also give the points of the route: each point of the road (full) or fewer points (simplified)"),
   timeoutMs,
 });
 type RouteInput = z.infer<typeof RouteInputSchema>;
-const RouteOutputSchema = z.object({ km: z.number(), minutes: z.number() });
+const RouteOutputSchema = z.object({
+  km: z.number(),
+  minutes: z.number(),
+  line: z.array(z.object({ lat: z.number(), lon: z.number() })).optional(),
+});
+type RouteOutput = z.infer<typeof RouteOutputSchema>;
 
 function routeProcedure(fetch: GeoFetch | undefined): AnyProcedure {
   return createProcedure()
@@ -128,8 +134,11 @@ function routeProcedure(fetch: GeoFetch | undefined): AnyProcedure {
       effects: NETWORK_READ,
     })
     .handler(
-      async (input: RouteInput, ctx?: ProcedureContext): Promise<RouteResult> =>
-        drivingRoute(input.from, input.to, { baseUrl: input.baseUrl, timeoutMs: input.timeoutMs, signal: ctx?.signal, fetch })
+      async (input: RouteInput, ctx?: ProcedureContext): Promise<RouteOutput> => {
+        const route = await drivingRoute(input.from, input.to, { baseUrl: input.baseUrl, timeoutMs: input.timeoutMs, signal: ctx?.signal, fetch, line: input.line });
+        // The output schema has a mutable array, so the line is a copy of the readonly line of the result.
+        return route.line ? { km: route.km, minutes: route.minutes, line: [...route.line] } : { km: route.km, minutes: route.minutes };
+      }
     )
     .build();
 }

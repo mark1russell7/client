@@ -17,7 +17,7 @@ A host registers the procedures with `createRegistry(geoModule)`, or with `impor
 | Procedure | Effects | What it does |
 | --- | --- | --- |
 | `geo.geocode` | reads `network` | Finds the coordinates of an address or a place name. |
-| `geo.route` | reads `network` | Gives the kilometres and the minutes of a drive between two points. |
+| `geo.route` | reads `network` | Gives the kilometres and the minutes of a drive between two points. With `line`, it also gives the points of the route. |
 | `geo.osmFeatures` | reads `network` | Gives the features of OpenStreetMap in a box, as GeoJSON. |
 | `geo.arcgisFeatures` | reads `network` | Gives the features of an ArcGIS layer in a box, as GeoJSON. |
 | `geo.distance` | none | Gives the great-circle distance between two points, in kilometres. It is deprecated: use `geo.distanceKm`. |
