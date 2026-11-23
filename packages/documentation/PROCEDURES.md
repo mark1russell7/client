@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 606 across 58 namespaces. Loaded 54 package register(s).
+**Total procedures:** 609 across 58 namespaces. Loaded 54 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 48 procedure(s)
+- [`geo.*`](#geo) — 51 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`handle.*`](#handle) — 2 procedure(s)
@@ -336,10 +336,13 @@
 | `geo.geohashNeighbors` | This function gives the eight neighbors of a cell. A neighbor past a pole is `undefined`. |
 | `geo.initialBearing` | This function gives the initial bearing of the great circle from `from` to `to`, in degrees clockwise from north. The result is from 0 to less than 360. |
 | `geo.intermediatePoint` | This function gives the point at a part of the way along the great circle from `from` to `to`. A part of 0 gives the start, 0.5 gives the middle, and 1 gives the end. The longitude of the result is normalized. |
+| `geo.joinLines` | This function joins lines with a common end into longer lines, for example the ways of one street. Each input line goes into one result line, forward or reversed. |
 | `geo.latLon` | This function gives a point with a normalized longitude. |
 | `geo.locatePoint` | This function gives the location of a point against a Polygon or a MultiPolygon: `inside`, `boundary` or `outside`. The rules are in the description of this module. A point on the boundary of one part and inside another part is `inside`. A closed polygon contains the point when the result is not `outside`. |
+| `geo.nearestOnLine` | This function gives the nearest point of a line to a point: the distance, the distance along the line, and the side. For many points on one line, use `lineReference`. Its rules apply. |
 | `geo.normalizeLon` | This function gives the longitude in the range from -180 to less than 180. A longitude of 180 becomes -180, and -0 becomes 0. The result has no rounding: it is the longitude plus a multiple of 360. So the function does not change a longitude that is already in the range, other than -0. |
 | `geo.osmFeatures` | Give the features of OpenStreetMap in a box as GeoJSON (the Overpass API), for example the shelters or the roads of a town |
+| `geo.pointAlongLine` | This function gives the point at a distance along a line, moved by an offset to the left or to the right. For many points on one line, use `lineReference`. Its rules apply. |
 | `geo.polygonIntersectsBBox` | This function gives `true` when a closed polygon and a closed box have a common point. A box that crosses the antimeridian is two rectangles, one on each side. |
 | `geo.polygonsIntersect` | This function gives `true` when two closed polygons have a common point. Polygons that touch at one point intersect. A polygon in a hole of the other polygon does not intersect it, unless they touch. The rules are in the description of this module. The result is the same when `a` and `b` change places. |
 | `geo.rewind` | This function gives a copy of the polygon that follows the right-hand rule of RFC 7946. It reverses each clockwise exterior ring and each counterclockwise hole. It does not change a degenerate ring. The copy keeps the other members of the object. |
