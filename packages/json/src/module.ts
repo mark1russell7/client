@@ -123,6 +123,7 @@ const CsvParseInputSchema = z.object({
   delimiter,
   trim: z.boolean().optional().describe("True: remove the white space at the start and at the end of each field"),
   skipEmptyLines: z.boolean().optional().describe("False: an empty line gives a row with one empty field (default: true, skip each empty line)"),
+  quote: z.string().length(1).optional().describe("The character around a field that has the delimiter, a line break or a quote (default: a double quote)"),
 });
 
 // The schema does not copy the rows, so a column `__proto__` stays data. The handler gives the type of the rows

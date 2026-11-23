@@ -130,6 +130,7 @@ The parse:
 - A quote in a field without quotes is a normal character.
 - The parse skips each empty line. With `skipEmptyLines: false`, an empty line gives a row with one empty field.
 - `delimiter` sets the character between two fields, for example `;` or a tab. The default is a comma.
+- `quote` sets the quote character, for example `'` for files that put each field in single quotes. The default is a double quote. With another quote, a double quote is a normal character.
 - With `trim: true`, the parse removes the white space at the start and at the end of each field, also in quotes.
 - With `header: true`, the first row gives the names of the columns, and each other row is an object.
 - A row with fewer fields than the header gets empty text for the missing columns. A row with more fields is an error.

@@ -140,6 +140,8 @@ export interface CsvParseInput {
   trim?: boolean | undefined;
   /** False: an empty line gives a row with one empty field. The default skips each empty line. */
   skipEmptyLines?: boolean | undefined;
+  /** The character around a field that has the delimiter, a line break or a quote. The default is a double quote. */
+  quote?: string | undefined;
 }
 
 export interface CsvParseOutput {
