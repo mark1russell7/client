@@ -33,12 +33,12 @@ describe("the generated procedures of @procedures/geo", () => {
   });
 
   it("names the functions with an output that is not JSON as exemptions", () => {
-    expect(geoManifest.exempt.map((exemption) => exemption.name)).toEqual(["geohash", "parseGeoJson", "parseGeometry", "parseLatLon", "pointLocator", "regionSimplifier"]);
+    expect(geoManifest.exempt.map((exemption) => exemption.name)).toEqual(["geohash", "lineReference", "parseGeoJson", "parseGeometry", "parseLatLon", "pointLocator", "regionSimplifier"]);
   });
 
   it("has a procedure with no effect for each other function of the home", () => {
-    expect(geoManifest.procedures).toHaveLength(42);
-    expect(geoHomeProcedures).toHaveLength(42);
+    expect(geoManifest.procedures).toHaveLength(45);
+    expect(geoHomeProcedures).toHaveLength(45);
     for (const procedure of geoManifest.procedures) expect(procedure.effects).toEqual({ reads: [], writes: [] });
   });
 
