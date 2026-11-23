@@ -63,6 +63,7 @@ OsmSelector: dist/features.d.ts#OsmSelector
 ParseStreetAddressOptions: dist/address.d.ts#ParseStreetAddressOptions
 Pixel: dist/mercator.d.ts#Pixel
 Point: dist/geo.d.ts#Point
+RouteLine: dist/geo.d.ts#RouteLine
 RouteResult: dist/geo.d.ts#RouteResult
 SEPTIC_RULE: dist/soil.d.ts#SEPTIC_RULE
 SOIL_DATA_ACCESS_URL: dist/soil.d.ts#SOIL_DATA_ACCESS_URL
@@ -381,10 +382,14 @@ export interface Point {
     readonly lon: number;
 }
 
+### dist/geo.d.ts#RouteLine
+export type RouteLine = "full" | "simplified";
+
 ### dist/geo.d.ts#RouteResult
 export interface RouteResult {
     readonly km: number;
     readonly minutes: number;
+    readonly line?: readonly Point[];
 }
 
 ### dist/geo.d.ts#drivingRoute
@@ -393,6 +398,7 @@ export declare function drivingRoute(from: Point, to: Point, options: {
     timeoutMs: number;
     signal?: AbortSignal | undefined;
     fetch?: FetchJson | undefined;
+    line?: RouteLine | undefined;
 }): Promise<RouteResult>;
 
 ### dist/geo.d.ts#geocode
