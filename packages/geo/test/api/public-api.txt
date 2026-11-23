@@ -16,6 +16,8 @@ ArcgisQuery: dist/features.d.ts#ArcgisQuery
 DEFAULT_ATTEMPTS: dist/polite.d.ts#DEFAULT_ATTEMPTS
 DEFAULT_GEOHASH_PRECISION: dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
 EARTH_RADIUS_KM: dist/distance.d.ts#EARTH_RADIUS_KM
+ELEVATION_ATTRIBUTION: dist/image.d.ts#ELEVATION_ATTRIBUTION
+ELEVATION_URL: dist/image.d.ts#ELEVATION_URL
 FetchJson: dist/geo.d.ts#FetchJson
 FitZoomOptions: dist/mercator.d.ts#FitZoomOptions
 GEOHASH_ALPHABET: dist/geohash.d.ts#GEOHASH_ALPHABET
@@ -45,6 +47,10 @@ GeoProceduresOptions: dist/procedures.d.ts#GeoProceduresOptions
 GeoRequest: dist/polite.d.ts#GeoRequest
 GeocodeResult: dist/geo.d.ts#GeocodeResult
 GeohashCell: dist/geohash.d.ts#GeohashCell
+ImageInterpolation: dist/image.d.ts#ImageInterpolation
+ImagePoint: dist/image.d.ts#ImagePoint
+ImageSample: dist/image.d.ts#ImageSample
+ImageSamplesOptions: dist/image.d.ts#ImageSamplesOptions
 LocateAddressInput: dist/address.d.ts#LocateAddressInput
 MAX_GEOHASH_PRECISION: dist/geohash.d.ts#MAX_GEOHASH_PRECISION
 MAX_URL_LENGTH: dist/features.d.ts#MAX_URL_LENGTH
@@ -106,6 +112,9 @@ geohash: dist/geohash.d.ts#geohash
 getJson: dist/geo.d.ts#getJson
 greatCircleKm: dist/distance.d.ts#greatCircleKm
 houseNumbers: dist/address.d.ts#houseNumbers
+imageSamples: dist/image.d.ts#imageSamples
+imageSamplesExchange: dist/image.d.ts#imageSamplesExchange
+isArcgisImageUrl: dist/image.d.ts#isArcgisImageUrl
 isArcgisLayerUrl: dist/features.d.ts#isArcgisLayerUrl
 isOsmArea: dist/features.d.ts#isOsmArea
 joinRings: dist/features.d.ts#joinRings
@@ -436,6 +445,44 @@ export declare const decodeGeohash: (hash: string) => GeohashCell;
 
 ### dist/geohash.d.ts#geohash
 export declare const geohash: (point: Point, precision?: number) => string;
+
+### dist/image.d.ts#ELEVATION_ATTRIBUTION
+export declare const ELEVATION_ATTRIBUTION = "U.S. Geological Survey, 3D Elevation Program (3DEP).";
+
+### dist/image.d.ts#ELEVATION_URL
+export declare const ELEVATION_URL = "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer";
+
+### dist/image.d.ts#ImageInterpolation
+export type ImageInterpolation = "nearest" | "bilinear";
+
+### dist/image.d.ts#ImagePoint
+export interface ImagePoint {
+    readonly lon: number;
+    readonly lat: number;
+}
+
+### dist/image.d.ts#ImageSample
+export interface ImageSample {
+    readonly lon: number;
+    readonly lat: number;
+    readonly value: number | null;
+    readonly resolution: number | null;
+}
+
+### dist/image.d.ts#ImageSamplesOptions
+export interface ImageSamplesOptions {
+    readonly serviceUrl?: string;
+    readonly interpolation?: ImageInterpolation;
+}
+
+### dist/image.d.ts#imageSamples
+export declare function imageSamples(answer: unknown, points: readonly ImagePoint[]): ImageSample[];
+
+### dist/image.d.ts#imageSamplesExchange
+export declare function imageSamplesExchange(points: readonly ImagePoint[], userAgent: string, options?: ImageSamplesOptions): Exchange;
+
+### dist/image.d.ts#isArcgisImageUrl
+export declare function isArcgisImageUrl(url: string): boolean;
 
 ### dist/manifest.d.ts#manifest
 export declare const manifest: ExportsManifest;
