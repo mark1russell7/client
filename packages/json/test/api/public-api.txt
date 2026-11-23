@@ -115,6 +115,7 @@ export interface CsvParseOptions {
     readonly header?: boolean | undefined;
     readonly trim?: boolean | undefined;
     readonly skipEmptyLines?: boolean | undefined;
+    readonly quote?: string | undefined;
 }
 
 ### dist/csv.d.ts#CsvRecord
@@ -276,6 +277,7 @@ export interface CsvParseInput {
     delimiter?: string | undefined;
     trim?: boolean | undefined;
     skipEmptyLines?: boolean | undefined;
+    quote?: string | undefined;
 }
 
 ### dist/types.d.ts#CsvParseOutput
