@@ -104,6 +104,30 @@ describe("the answers of the services", () => {
     await expect(request).rejects.toThrow("OSRM found no route (no code)");
   });
 
+  it("gives the line of the route only when the call asks for it", async () => {
+    const urls: string[] = [];
+    const geometry = { type: "LineString", coordinates: [[0, 0], [0.5, 0.4], [1, 1]] };
+    const fetchJson = async (url: string) => {
+      urls.push(url);
+      return { ok: true, status: 200, json: async () => ({ code: "Ok", routes: [{ distance: 2_000, duration: 120, geometry }] }) };
+    };
+    expect(await drivingRoute({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, { timeoutMs: 1_000, fetch: fetchJson })).toEqual({ km: 2, minutes: 2 });
+    const full = await drivingRoute({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, { timeoutMs: 1_000, fetch: fetchJson, line: "full" });
+    expect(full.line).toEqual([{ lat: 0, lon: 0 }, { lat: 0.4, lon: 0.5 }, { lat: 1, lon: 1 }]);
+    await drivingRoute({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, { timeoutMs: 1_000, fetch: fetchJson, line: "simplified" });
+    expect(urls[0]).toContain("?overview=false");
+    expect(urls[1]).toContain("?overview=full&geometries=geojson");
+    expect(urls[2]).toContain("?overview=simplified&geometries=geojson");
+  });
+
+  it("reports a route with no line, or a line with a bad position, when the call asks for the line", async () => {
+    const route = (coordinates: unknown) => answer(200, { code: "Ok", routes: [{ distance: 2_000, duration: 120, geometry: { coordinates } }] });
+    for (const coordinates of [undefined, [[0, 0]], [[0, 0], "no"], [[0, 0], [1, Number.NaN]], [[0, 0], ["1", 1]]]) {
+      const request = drivingRoute({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, { timeoutMs: 1_000, fetch: route(coordinates), line: "full" });
+      await expect(request).rejects.toThrow("OSRM gave no line for the route");
+    }
+  });
+
   it("stops when the signal of the caller aborts", async () => {
     const controller = new AbortController();
     const fetchJson: FetchJson = (_url, init) =>

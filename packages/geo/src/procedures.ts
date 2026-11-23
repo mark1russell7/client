@@ -112,10 +112,15 @@ const RouteInputSchema = z.object({
   from: point.describe("The start"),
   to: point.describe("The destination"),
   baseUrl: z.url().optional().describe("Another OSRM server (default: the public demonstration server)"),
+  line: z.enum(["full", "simplified"]).optional().describe("Also give the points of the route: each point of the road (full) or fewer points (simplified)"),
   timeoutMs,
 });
 type RouteInput = z.infer<typeof RouteInputSchema>;
-const RouteOutputSchema = z.object({ km: z.number(), minutes: z.number() });
+const RouteOutputSchema = z.object({
+  km: z.number(),
+  minutes: z.number(),
+  line: z.array(z.object({ lat: z.number(), lon: z.number() })).optional(),
+});
 
 function routeProcedure(fetch: GeoFetch | undefined): AnyProcedure {
   return createProcedure()
@@ -129,7 +134,7 @@ function routeProcedure(fetch: GeoFetch | undefined): AnyProcedure {
     })
     .handler(
       async (input: RouteInput, ctx?: ProcedureContext): Promise<RouteResult> =>
-        drivingRoute(input.from, input.to, { baseUrl: input.baseUrl, timeoutMs: input.timeoutMs, signal: ctx?.signal, fetch })
+        drivingRoute(input.from, input.to, { baseUrl: input.baseUrl, timeoutMs: input.timeoutMs, signal: ctx?.signal, fetch, line: input.line })
     )
     .build();
 }
