@@ -22,7 +22,7 @@ A host registers the procedures with `createRegistry(geoModule)`, or with `impor
 | `geo.arcgisFeatures` | reads `network` | Gives the features of an ArcGIS layer in a box, as GeoJSON. |
 | `geo.distance` | none | Gives the great-circle distance between two points, in kilometres. It is deprecated: use `geo.distanceKm`. |
 | `geo.geohash` | none | Gives the geohash of a point and the cell of that geohash. |
-| 42 generated procedures | none | Each one calls one function of `@mark1russell7/geo`, for example `geo.distanceKm`, `geo.destinationKm` and `geo.bboxOfPoints`. |
+| 45 generated procedures | none | Each one calls one function of `@mark1russell7/geo`, for example `geo.distanceKm`, `geo.destinationKm` and `geo.bboxOfPoints`. |
 
 ## Example
 
@@ -35,7 +35,7 @@ const { found, result } = await client.exec(["geo", "geocode"], {
 
 ## The generated procedures
 
-The package has 42 procedures in the namespace `geo` that come from the types of `@mark1russell7/geo`. Each one calls one function of the library with JSON inputs and a JSON output. Each one has no effects: it reads nothing and writes nothing.
+The package has 45 procedures in the namespace `geo` that come from the types of `@mark1russell7/geo`. Each one calls one function of the library with JSON inputs and a JSON output. Each one has no effects: it reads nothing and writes nothing.
 
 - The input is an object with one property for each parameter of the function, by its name.
 - The JSON Schemas of the input and the output come from the types. A named type has one definition in `$defs`.
@@ -54,13 +54,14 @@ const point = await outputValue(output);
 
 ## The functions with no procedure
 
-6 functions of the library have no procedure. The manifest gives each with its reason:
+7 functions of the library have no procedure. The manifest gives each with its reason:
 
 | Functions | Reason | The cause |
 | --- | --- | --- |
 | `geohash` | `overlay` | The hand-written procedure `geo.geohash` has this name. It also gives the cell of the hash. |
 | `parseGeoJson`, `parseGeometry`, `parseLatLon` | `output-not-json` | The result can hold an instance of the class `GeoError`. |
 | `pointLocator`, `regionSimplifier` | `output-not-json` | The result is a function. |
+| `lineReference` | `output-not-json` | The result is an object with functions. |
 
 ## Update the manifest
 
@@ -128,6 +129,28 @@ const zones = await client.exec(["geo", "arcgisFeatures"], {
 - An error of the layer, for example a bad condition or a token that it needs, is an error.
 
 A box that crosses the antimeridian has its `west` more than its `east`. It gives two queries.
+
+## The point of an address, with no geocoder
+
+`locateAddress` finds the point of a street address in the features of `geo.osmFeatures`. It is a pure function. The address does not go to a server, because the request asks only for the data of a box.
+
+```ts
+import { locateAddress, parseStreetAddress, townBox } from "@procedures/geo";
+
+const box = townBox(boundaries.collection.features, { name: "Exampleton", postcode: "00001" });
+// Then fetch the elements with the tag addr:housenumber and the ways with the tag highway in the box.
+const address = parseStreetAddress("24 Elm Street");
+const found = address && locateAddress({ address, addresses: numbers.collection.features, streets: roads.collection.features });
+```
+
+- `normalizeStreet` writes each street name in one form, so "St. Mark's Avenue" and "Saint Marks Ave" are equal. `STREET_WORDS` is the table of the street words of the United States. A caller gives a different table for a different country.
+- `townBox` gives the box of the administrative boundaries with the name of a town, and the areas with its postal code.
+- An element with the street and the number gives the point. The result has the kind `match`, the ids of the elements, and their spread in metres.
+- Else the result has the kind `interpolation`. The function joins the ways of the street with `joinLines` of `@mark1russell7/geo`, and uses the line with the most known numbers.
+- A lower and a higher number of the same parity give the distance along the line. Else a straight-line fit of the known numbers gives it, with `leastSquares` of `@mark1russell7/rigor-statistics`.
+- The known numbers of the same parity give the side of the street and the distance from the line.
+- `errorMeters` is the error of the method on the data. The function removes each known element in turn and finds its point from the other elements. The value has the median and the largest error.
+- With no number, no street line or fewer than 2 known numbers, the result has the kind `none` and its reason.
 
 ### The pace of the requests
 

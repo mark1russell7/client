@@ -6,6 +6,10 @@
 
 ## . (dist/index.d.ts): names
 
+AddressInterpolation: dist/address.d.ts#AddressInterpolation
+AddressMatch: dist/address.d.ts#AddressMatch
+AddressMiss: dist/address.d.ts#AddressMiss
+AddressPoint: dist/address.d.ts#AddressPoint
 ArcgisFeature: dist/features.d.ts#ArcgisFeature
 ArcgisPage: dist/features.d.ts#ArcgisPage
 ArcgisQuery: dist/features.d.ts#ArcgisQuery
@@ -41,9 +45,11 @@ GeoProceduresOptions: dist/procedures.d.ts#GeoProceduresOptions
 GeoRequest: dist/polite.d.ts#GeoRequest
 GeocodeResult: dist/geo.d.ts#GeocodeResult
 GeohashCell: dist/geohash.d.ts#GeohashCell
+LocateAddressInput: dist/address.d.ts#LocateAddressInput
 MAX_GEOHASH_PRECISION: dist/geohash.d.ts#MAX_GEOHASH_PRECISION
 MAX_URL_LENGTH: dist/features.d.ts#MAX_URL_LENGTH
 MapDataContext: dist/polite.d.ts#MapDataContext
+MapFeature: dist/address.d.ts#MapFeature
 NOMINATIM_URL: dist/geo.d.ts#NOMINATIM_URL
 OSM_AREA_RULES: dist/features.d.ts#OSM_AREA_RULES
 OSM_ATTRIBUTION: dist/features.d.ts#OSM_ATTRIBUTION
@@ -54,17 +60,22 @@ OsmFeatures: dist/features.d.ts#OsmFeatures
 OsmFeaturesOptions: dist/features.d.ts#OsmFeaturesOptions
 OsmKind: dist/features.d.ts#OsmKind
 OsmSelector: dist/features.d.ts#OsmSelector
+ParseStreetAddressOptions: dist/address.d.ts#ParseStreetAddressOptions
 Pixel: dist/mercator.d.ts#Pixel
 Point: dist/geo.d.ts#Point
 RouteResult: dist/geo.d.ts#RouteResult
 SEPTIC_RULE: dist/soil.d.ts#SEPTIC_RULE
 SOIL_DATA_ACCESS_URL: dist/soil.d.ts#SOIL_DATA_ACCESS_URL
 SSURGO_ATTRIBUTION: dist/soil.d.ts#SSURGO_ATTRIBUTION
+STREET_WORDS: dist/address.d.ts#STREET_WORDS
 SkippedElement: dist/features.d.ts#SkippedElement
 SoilComponent: dist/soil.d.ts#SoilComponent
 SoilRatingClass: dist/soil.d.ts#SoilRatingClass
+StreetAddress: dist/address.d.ts#StreetAddress
+StreetWords: dist/address.d.ts#StreetWords
 TILE_SIZE: dist/mercator.d.ts#TILE_SIZE
 TRANSIENT_STATUSES: dist/polite.d.ts#TRANSIENT_STATUSES
+TownQuery: dist/address.d.ts#TownQuery
 ViewTile: dist/mercator.d.ts#ViewTile
 answerJson: dist/polite.d.ts#answerJson
 arcgisExchange: dist/features.d.ts#arcgisExchange
@@ -93,18 +104,23 @@ geocode: dist/geo.d.ts#geocode
 geohash: dist/geohash.d.ts#geohash
 getJson: dist/geo.d.ts#getJson
 greatCircleKm: dist/distance.d.ts#greatCircleKm
+houseNumbers: dist/address.d.ts#houseNumbers
 isArcgisLayerUrl: dist/features.d.ts#isArcgisLayerUrl
 isOsmArea: dist/features.d.ts#isOsmArea
 joinRings: dist/features.d.ts#joinRings
+locateAddress: dist/address.d.ts#locateAddress
+normalizeStreet: dist/address.d.ts#normalizeStreet
 osmFeatures: dist/features.d.ts#osmFeatures
 overpassExchange: dist/features.d.ts#overpassExchange
 overpassQuery: dist/features.d.ts#overpassQuery
+parseStreetAddress: dist/address.d.ts#parseStreetAddress
 project: dist/mercator.d.ts#project
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 soilComponents: dist/soil.d.ts#soilComponents
 soilExchange: dist/soil.d.ts#soilExchange
 soilQuery: dist/soil.d.ts#soilQuery
 tilesFor: dist/mercator.d.ts#tilesFor
+townBox: dist/address.d.ts#townBox
 
 ## ./module (dist/module.d.ts): names
 
@@ -134,6 +150,92 @@ isTile: dist/tiles.d.ts#isTile
 tileUrl: dist/tiles.d.ts#tileUrl
 
 ## Declarations
+
+### dist/address.d.ts#AddressInterpolation
+export interface AddressInterpolation {
+    readonly kind: "interpolation";
+    readonly point: LatLon;
+    readonly ways: number;
+    readonly chains: number;
+    readonly lineMeters: number;
+    readonly numbers: number;
+    readonly sameSide: number;
+    readonly bracketed: boolean;
+    readonly errorMeters?: {
+        readonly median: number;
+        readonly max: number;
+    } | undefined;
+}
+
+### dist/address.d.ts#AddressMatch
+export interface AddressMatch {
+    readonly kind: "match";
+    readonly point: LatLon;
+    readonly ids: readonly string[];
+    readonly spreadMeters: number;
+}
+
+### dist/address.d.ts#AddressMiss
+export interface AddressMiss {
+    readonly kind: "none";
+    readonly reason: "no-number" | "no-street-line" | "too-few-numbers";
+}
+
+### dist/address.d.ts#AddressPoint
+export type AddressPoint = AddressMatch | AddressInterpolation | AddressMiss;
+
+### dist/address.d.ts#LocateAddressInput
+export interface LocateAddressInput {
+    readonly address: StreetAddress;
+    readonly addresses: readonly MapFeature[];
+    readonly streets?: readonly MapFeature[] | undefined;
+    readonly words?: StreetWords | undefined;
+}
+
+### dist/address.d.ts#MapFeature
+export interface MapFeature {
+    readonly id?: string | number | undefined;
+    readonly geometry?: unknown;
+    readonly properties: Readonly<Record<string, unknown>> | null;
+}
+
+### dist/address.d.ts#ParseStreetAddressOptions
+export interface ParseStreetAddressOptions {
+    readonly order?: "number-first" | "number-last" | undefined;
+}
+
+### dist/address.d.ts#STREET_WORDS
+export declare const STREET_WORDS: StreetWords;
+
+### dist/address.d.ts#StreetAddress
+export interface StreetAddress {
+    readonly number: string;
+    readonly street: string;
+}
+
+### dist/address.d.ts#StreetWords
+export type StreetWords = Readonly<Record<string, readonly string[]>>;
+
+### dist/address.d.ts#TownQuery
+export interface TownQuery {
+    readonly name?: string | undefined;
+    readonly postcode?: string | undefined;
+}
+
+### dist/address.d.ts#houseNumbers
+export declare function houseNumbers(value: string): string[];
+
+### dist/address.d.ts#locateAddress
+export declare function locateAddress(input: LocateAddressInput): AddressPoint;
+
+### dist/address.d.ts#normalizeStreet
+export declare function normalizeStreet(name: string, words?: StreetWords): string;
+
+### dist/address.d.ts#parseStreetAddress
+export declare function parseStreetAddress(text: string, options?: ParseStreetAddressOptions): StreetAddress | undefined;
+
+### dist/address.d.ts#townBox
+export declare function townBox(boundaries: readonly MapFeature[], town: TownQuery): BBox | undefined;
 
 ### dist/distance.d.ts#EARTH_RADIUS_KM
 export declare const EARTH_RADIUS_KM = 6371;

@@ -1,10 +1,10 @@
-// The manifest of @mark1russell7/geo 0.5.4, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
+// The manifest of @mark1russell7/geo 0.5.5, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
 import type { ExportsManifest } from "@procedures/compiler";
 
 export const manifest: ExportsManifest = {
   "format": "procedures-exports/1",
   "package": "@mark1russell7/geo",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "entry": ".",
   "namespace": [
     "geo"
@@ -652,6 +652,22 @@ export const manifest: ExportsManifest = {
         "lon"
       ]
     },
+    "LineOptions": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "$ref": "#/$defs/Projection",
+          "description": "The plane of the measures. The default is `azimuthalEquidistant` with the center at the first position of the line. Each length is in the metres of this plane."
+        }
+      }
+    },
+    "LineSide": {
+      "enum": [
+        -1,
+        0,
+        1
+      ]
+    },
     "LineString": {
       "type": "object",
       "properties": {
@@ -977,6 +993,50 @@ export const manifest: ExportsManifest = {
         "coordinates"
       ]
     },
+    "NearestOnLine": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "$ref": "#/$defs/LatLon",
+          "description": "The nearest point of the line."
+        },
+        "meters": {
+          "type": "number",
+          "description": "The distance from the point to the line."
+        },
+        "alongMeters": {
+          "type": "number",
+          "description": "The distance along the line from its first position to the nearest point."
+        },
+        "side": {
+          "$ref": "#/$defs/LineSide",
+          "description": "The side of the point against the segment of the nearest point. The sign is exact on the plane, from `orient2dSign` of `@mark1russell7/predicates`."
+        }
+      },
+      "required": [
+        "point",
+        "meters",
+        "alongMeters",
+        "side"
+      ]
+    },
+    "PlanePoint": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": "The distance to the east, in metres."
+        },
+        "y": {
+          "type": "number",
+          "description": "The distance to the north, in metres."
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
     "Point": {
       "type": "object",
       "properties": {
@@ -1140,6 +1200,137 @@ export const manifest: ExportsManifest = {
       "required": [
         "type",
         "coordinates"
+      ]
+    },
+    "Projection": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the projection, for the legend of a map."
+        },
+        "toPlane": {
+          "type": "object",
+          "description": "This function gives the point on the plane for a point on the Earth.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "point"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/LatLon"
+              }
+            ],
+            "output": {
+              "$ref": "#/$defs/PlanePoint"
+            }
+          }
+        },
+        "fromPlane": {
+          "type": "object",
+          "description": "This function gives the point on the Earth for a point on the plane. The longitude of the result is normalized.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "point"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/PlanePoint"
+              }
+            ],
+            "output": {
+              "$ref": "#/$defs/LatLon"
+            }
+          }
+        },
+        "scale": {
+          "type": "object",
+          "description": "This function gives the scale factors of the projection at a point on the Earth.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "point"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/LatLon"
+              }
+            ],
+            "output": {
+              "$ref": "#/$defs/ProjectionScale"
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "toPlane",
+        "fromPlane",
+        "scale"
+      ]
+    },
+    "ProjectionScale": {
+      "type": "object",
+      "properties": {
+        "max": {
+          "type": "number",
+          "description": "The largest scale factor at the point, for all the directions of a line."
+        },
+        "min": {
+          "type": "number",
+          "description": "The smallest scale factor at the point. For a conformal projection, `min` is equal to `max`."
+        }
+      },
+      "required": [
+        "max",
+        "min"
       ]
     },
     "Region": {
@@ -2421,6 +2612,73 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "joinLines",
+      "path": [
+        "geo",
+        "joinLines"
+      ],
+      "description": "This function joins lines with a common end into longer lines, for example the ways of one street. Each input line goes into one result line, forward or reversed.",
+      "params": [
+        "lines"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "minItems": 2
+              }
+            },
+            "description": "The lines. Each line has two or more positions."
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "minItems": 2
+          }
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "latLon",
       "path": [
         "geo",
@@ -2500,6 +2758,63 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "nearestOnLine",
+      "path": [
+        "geo",
+        "nearestOnLine"
+      ],
+      "description": "This function gives the nearest point of a line to a point: the distance, the distance along the line, and the side. For many points on one line, use `lineReference`. Its rules apply.",
+      "params": [
+        "line",
+        "point",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 2
+            },
+            "description": "The positions of the line, two or more."
+          },
+          "point": {
+            "$ref": "#/$defs/LatLon",
+            "description": "The point."
+          },
+          "options": {
+            "$ref": "#/$defs/LineOptions",
+            "description": "The plane of the measures."
+          }
+        },
+        "required": [
+          "line",
+          "point"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/NearestOnLine"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "normalizeLon",
       "path": [
         "geo",
@@ -2523,6 +2838,68 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "pointAlongLine",
+      "path": [
+        "geo",
+        "pointAlongLine"
+      ],
+      "description": "This function gives the point at a distance along a line, moved by an offset to the left or to the right. For many points on one line, use `lineReference`. Its rules apply.",
+      "params": [
+        "line",
+        "alongMeters",
+        "offsetMeters",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 2
+            },
+            "description": "The positions of the line, two or more."
+          },
+          "alongMeters": {
+            "type": "number",
+            "description": "The distance from the first position. A value out of the range from 0 to the length gives an end."
+          },
+          "offsetMeters": {
+            "type": "number",
+            "description": "The offset to the left. A negative value goes to the right. The default is 0."
+          },
+          "options": {
+            "$ref": "#/$defs/LineOptions",
+            "description": "The plane of the measures."
+          }
+        },
+        "required": [
+          "line",
+          "alongMeters"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/LatLon"
       },
       "effects": {
         "reads": [],
@@ -2870,6 +3247,11 @@ export const manifest: ExportsManifest = {
       "detail": "The hand-written procedure geo.geohash of this package has this name. It also gives the cell of the hash and checks the longitude."
     },
     {
+      "name": "lineReference",
+      "reason": "output-not-json",
+      "detail": "projection.toPlane: a function"
+    },
+    {
       "name": "parseGeoJson",
       "reason": "output-not-json",
       "detail": "error: an instance of the class GeoError"
@@ -2900,6 +3282,6 @@ export const manifest: ExportsManifest = {
       "GeoError"
     ],
     "values": 13,
-    "types": 31
+    "types": 35
   }
 };

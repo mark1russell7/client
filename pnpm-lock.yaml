@@ -1495,8 +1495,11 @@ importers:
   packages/geo:
     dependencies:
       '@mark1russell7/geo':
-        specifier: ^0.5.3
-        version: 0.5.4
+        specifier: ^0.5.5
+        version: 0.5.5
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.2.19
+        version: 0.2.19
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3866,8 +3869,8 @@ packages:
     resolution: {integrity: sha512-Pb978ZnvlAxzcdWtRtqTGb7mZFCvlNrdKnpZqhxQ7gafzeNGf1JqYFuB4RWiLbJzRuFUWjEoAVG5f2TndCIlSg==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/geo@0.5.4':
-    resolution: {integrity: sha512-HHlt/0QqP5yOswCNOmPxDnduEN//I6KUJpcC0z3RG/Xi1Q6v/+4d1CkzWUWtV8glKP5R6MvJfGpVfc98m+6XXQ==}
+  '@mark1russell7/geo@0.5.5':
+    resolution: {integrity: sha512-xi68H+YBJRYNx17d6qIrqYtsXXu/TONHKXnvm7lNYUAY4eFFw4goGu1pjh8ctcluaBaAigc7KQ58St5Vxgw5FQ==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/optional@1.5.0':
@@ -3946,12 +3949,12 @@ packages:
     resolution: {integrity: sha512-Wh91NJIwxIRN3+a5V2bqUkMhdPcjHI+gVZBCnohf12ZegdSTNqGlpqS2WXYmrRVjasF9EBgm1lC8GQNYpBSg7Q==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-statistics@0.2.1':
-    resolution: {integrity: sha512-4m8yw4giLH/y1HcsroBQSHAWByC5fK/iJb4dNGCPT6Eelr26bxvBz7kMC7UMFSzGcR+W8GTrAwlAQmmFnQDMuA==}
-    engines: {node: '>=22'}
-
   '@mark1russell7/rigor-statistics@0.2.11':
     resolution: {integrity: sha512-heKnYcMqfQNyPa0F6chPeO0jMGuPpw9ol62Z1tO7kYXDMOcQxdEGunCkWRh2vEDMtNE5MxhSCElKS8YehGINJg==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.2.19':
+    resolution: {integrity: sha512-zMfirguRPEJin3H1q5Rl3kCl6b5M5QSg0ukd/damhZXPwLEUQ/oAYXoRAJA5sSZ7tHW4wZF9DhK8FidiMGsbbg==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-statistics@0.2.8':
@@ -8007,7 +8010,7 @@ snapshots:
     dependencies:
       '@mark1russell7/algebra': 0.8.5(zod@4.6.7)
       '@mark1russell7/optional': 1.5.0
-      '@mark1russell7/rigor-statistics': 0.2.1
+      '@mark1russell7/rigor-statistics': 0.2.19
     transitivePeerDependencies:
       - zod
 
@@ -8030,7 +8033,7 @@ snapshots:
 
   '@mark1russell7/files@0.0.4': {}
 
-  '@mark1russell7/geo@0.5.4':
+  '@mark1russell7/geo@0.5.5':
     dependencies:
       '@mark1russell7/optional': 1.5.0
       '@mark1russell7/predicates': 0.1.5
@@ -8110,11 +8113,11 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.19
 
-  '@mark1russell7/rigor-statistics@0.2.1':
-    dependencies:
-      '@mark1russell7/rigor-generators': 0.1.19
-
   '@mark1russell7/rigor-statistics@0.2.11':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.2.0
+
+  '@mark1russell7/rigor-statistics@0.2.19':
     dependencies:
       '@mark1russell7/rigor-generators': 0.2.0
 
@@ -8186,7 +8189,7 @@ snapshots:
 
   '@mark1russell7/site-pages@0.8.2':
     dependencies:
-      '@mark1russell7/rigor-statistics': 0.2.11
+      '@mark1russell7/rigor-statistics': 0.2.19
 
   '@mark1russell7/splay@0.2.2': {}
 

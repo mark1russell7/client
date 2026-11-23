@@ -8,4 +8,5 @@ export * from "./polite.js";
 export * from "./distance.js";
 export * from "./geohash.js";
 export * from "./mercator.js";
+export * from "./address.js";
 export * from "./types.js";
