@@ -18,6 +18,7 @@ export async function csvParse(input: CsvParseInput): Promise<CsvParseOutput> {
       delimiter: input.delimiter,
       trim: input.trim,
       skipEmptyLines: input.skipEmptyLines,
+      quote: input.quote,
     }),
   };
 }

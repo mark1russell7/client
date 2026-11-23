@@ -2,6 +2,7 @@
  * A CSV reader and writer (RFC 4180), without dependencies.
  *
  * - A field in double quotes can have the delimiter, a line break and a doubled quote (`""`).
+ *   The parse can take another quote character, for example the single quote of some government files.
  * - A line break is CRLF, LF or CR. A line break at the end of the text does not start a row.
  * - The parse removes a byte order mark at the start of the text.
  * - A quote in a field without quotes is a normal character, as in most readers.
@@ -26,6 +27,8 @@ export interface CsvParseOptions {
   readonly trim?: boolean | undefined;
   /** False: an empty line gives a row with one empty field. The default (true) skips each empty line. */
   readonly skipEmptyLines?: boolean | undefined;
+  /** The character around a field that has the delimiter, a line break or a quote. The default is a double quote. */
+  readonly quote?: string | undefined;
 }
 
 /** The options of `stringifyCsv`. */
@@ -55,13 +58,22 @@ interface RawRow {
   readonly empty: boolean;
 }
 
-/** The delimiter of the options. It is one character, and not a quote or a line break. */
-function delimiterOf(delimiter: string | undefined, label: string): string {
+/** The delimiter of the options. It is one character, and not the quote or a line break. */
+function delimiterOf(delimiter: string | undefined, label: string, quote = '"'): string {
   if (delimiter === undefined) return ",";
-  if (delimiter.length !== 1 || delimiter === '"' || delimiter === "\r" || delimiter === "\n") {
+  if (delimiter.length !== 1 || delimiter === quote || delimiter === "\r" || delimiter === "\n") {
     throw new JsonError("INVALID_CSV", `${label}: the delimiter ${JSON.stringify(delimiter)} must be one character, and not a quote or a line break`);
   }
   return delimiter;
+}
+
+/** The quote of the options. It is one character, and not a line break. */
+function quoteOf(quote: string | undefined, label: string): string {
+  if (quote === undefined) return '"';
+  if (quote.length !== 1 || quote === "\r" || quote === "\n") {
+    throw new JsonError("INVALID_CSV", `${label}: the quote ${JSON.stringify(quote)} must be one character, and not a line break`);
+  }
+  return quote;
 }
 
 /** The number of line breaks in a text. CRLF is one line break. */
@@ -71,7 +83,7 @@ const lineBreaks = (text: string): number => text.match(/\r\n|\r|\n/g)?.length ?
 const isBlank = (char: string | undefined, delimiter: string): boolean => (char === " " || char === "\t") && char !== delimiter;
 
 /** This function reads the rows of a CSV text. */
-function readRows(text: string, delimiter: string, trim: boolean): RawRow[] {
+function readRows(text: string, delimiter: string, trim: boolean, quoteChar: string): RawRow[] {
   const rows: RawRow[] = [];
   const end = text.length;
   let at = 0;
@@ -83,17 +95,17 @@ function readRows(text: string, delimiter: string, trim: boolean): RawRow[] {
     for (;;) {
       let next = at;
       if (trim) while (isBlank(text[next], delimiter)) next += 1;
-      if (text[next] === '"') {
+      if (text[next] === quoteChar) {
         // A field in quotes: it ends at a quote that is not doubled
         const open = line;
         let value = "";
         let from = next + 1;
         for (;;) {
-          const quote = text.indexOf('"', from);
+          const quote = text.indexOf(quoteChar, from);
           if (quote === -1) throw new JsonError("INVALID_CSV", `csv.parse: the quote at line ${open} has no closing quote`);
           value += text.slice(from, quote);
-          if (text[quote + 1] === '"') {
-            value += '"';
+          if (text[quote + 1] === quoteChar) {
+            value += quoteChar;
             from = quote + 2;
           } else {
             from = quote + 1;
@@ -157,10 +169,11 @@ export function parseCsv(text: string, options: CsvParseOptions & { readonly hea
 export function parseCsv(text: string, options?: CsvParseOptions & { readonly header?: false | undefined }): string[][];
 export function parseCsv(text: string, options?: CsvParseOptions): string[][] | CsvRecord[];
 export function parseCsv(text: string, options: CsvParseOptions = {}): string[][] | CsvRecord[] {
-  const delimiter = delimiterOf(options.delimiter, "csv.parse");
+  const quote = quoteOf(options.quote, "csv.parse");
+  const delimiter = delimiterOf(options.delimiter, "csv.parse", quote);
   const body = text.startsWith(BOM) ? text.slice(BOM.length) : text;
   const skip = options.skipEmptyLines ?? true;
-  const rows = readRows(body, delimiter, options.trim ?? false).filter((row) => !(skip && row.empty));
+  const rows = readRows(body, delimiter, options.trim ?? false, quote).filter((row) => !(skip && row.empty));
   return options.header ? records(rows) : rows.map((row) => row.fields);
 }
 

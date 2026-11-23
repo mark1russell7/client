@@ -108,6 +108,22 @@ describe("parseCsv", () => {
       expect(() => parseCsv("a", { delimiter })).toThrow(expect.objectContaining({ code: "INVALID_CSV" }));
     }
   });
+
+  it("uses another quote, and then a double quote is a normal character", () => {
+    const text = "STATE,FACILITY,LOCATION\n'50','US 5','0.5 MI N OF \"THE\" JCT, ''OLD'' RD'\n";
+    expect(parseCsv(text, { quote: "'", header: true })).toEqual([{ STATE: "50", FACILITY: "US 5", LOCATION: "0.5 MI N OF \"THE\" JCT, 'OLD' RD" }]);
+    expect(parseCsv("a;'b;c'\n", { quote: "'", delimiter: ";" })).toEqual([["a", "b;c"]]);
+    // With a single quote, a double quote can be the delimiter
+    expect(parseCsv('a"b\n', { quote: "'", delimiter: '"' })).toEqual([["a", "b"]]);
+    expect(() => parseCsv("a,'b", { quote: "'" })).toThrow(/the quote at line 1 has no closing quote/);
+  });
+
+  it("refuses a quote that is not one character or that is a line break, and a delimiter that is the quote", () => {
+    for (const quote of ["", "''", "\n", "\r"]) {
+      expect(() => parseCsv("a", { quote })).toThrow(expect.objectContaining({ code: "INVALID_CSV" }));
+    }
+    expect(() => parseCsv("a", { quote: "'", delimiter: "'" })).toThrow(expect.objectContaining({ code: "INVALID_CSV" }));
+  });
 });
 
 describe("stringifyCsv", () => {
