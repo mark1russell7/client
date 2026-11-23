@@ -61,7 +61,7 @@ interface RawRow {
 /** The delimiter of the options. It is one character, and not the quote or a line break. */
 function delimiterOf(delimiter: string | undefined, label: string, quote = '"'): string {
   if (delimiter === undefined) return ",";
-  if (delimiter.length !== 1 || delimiter === quote ||delimiter === "\r" || delimiter === "\n") {
+  if (delimiter.length !== 1 || delimiter === quote || delimiter === "\r" || delimiter === "\n") {
     throw new JsonError("INVALID_CSV", `${label}: the delimiter ${JSON.stringify(delimiter)} must be one character, and not a quote or a line break`);
   }
   return delimiter;
