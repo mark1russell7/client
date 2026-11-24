@@ -13,7 +13,11 @@ import {
   organizationBudgetsRequest,
   readBillingUsage,
   readOrganizationBudgets,
+  usageAmounts,
+  usageAmountsBy,
+  usageDay,
   type BillingEndpoint,
+  type BillingUsageItem,
 } from "./billing.js";
 import type { RestAnswer, RestClient, RestRequest } from "./rest.js";
 
@@ -100,6 +104,13 @@ describe("extractBillingUsage", () => {
     expect(extractBillingUsage(answer(200, { usageItems: [] }))).toEqual([]);
   });
 
+  it("reads the repository and the organization of an item, and an empty name is absent", () => {
+    const items = extractBillingUsage(answer(200, { usageItems: [item({ repositoryName: "lab/site", organizationName: "lab" }), item({ repositoryName: "", organizationName: null })] }));
+    expect(items?.[0]).toMatchObject({ repository: "lab/site", organization: "lab" });
+    expect(items?.[1]).not.toHaveProperty("repository");
+    expect(items?.[1]).not.toHaveProperty("organization");
+  });
+
   it("gives undefined for an answer that it cannot read", () => {
     const cases: RestAnswer[] = [
       answer(404, { usageItems: [item()] }),
@@ -113,6 +124,8 @@ describe("extractBillingUsage", () => {
       answer(200, { usageItems: [item({ netAmount: Number.NaN })] }),
       answer(200, { usageItems: [item({ netAmount: undefined })] }),
       answer(200, { usageItems: [item({ sku: 5 })] }),
+      answer(200, { usageItems: [item({ repositoryName: 5 })] }),
+      answer(200, { usageItems: [item({ organizationName: ["lab"] })] }),
       answer(200, { usageItems: [item({ quantity: "120" })] }),
       answer(200, { usageItems: [item({ grossAmount: Number.POSITIVE_INFINITY })] }),
     ];
@@ -131,6 +144,70 @@ describe("netAmountByProduct", () => {
       ["actions", 0.75],
       ["packages", 0],
     ]);
+  });
+});
+
+const use = (fields: Partial<BillingUsageItem> = {}): BillingUsageItem => ({
+  product: "Actions",
+  sku: "actions_linux",
+  date: "2026-11-02T00:00:00Z",
+  quantity: 100,
+  grossAmount: 0.75,
+  discountAmount: 0.25,
+  netAmount: 0.5,
+  ...fields,
+});
+
+describe("usageAmounts", () => {
+  it("adds the costs before the discounts, the discounts and the costs after them", () => {
+    expect(usageAmounts([use(), use({ grossAmount: 0.5, discountAmount: 0.5, netAmount: 0 }), use({ grossAmount: 2, discountAmount: 0, netAmount: 2 })])).toEqual({ items: 3, gross: 3.25, discount: 0.75, net: 2.5 });
+    expect(usageAmounts([])).toEqual({ items: 0, gross: 0, discount: 0, net: 0 });
+  });
+
+  it("gives no sum of a part of the items: one item with no such amount makes the sum undefined", () => {
+    expect(usageAmounts([use(), use({ grossAmount: undefined })])).toEqual({ items: 2, gross: undefined, discount: 0.5, net: 1 });
+    expect(usageAmounts([use({ discountAmount: undefined }), use()])).toEqual({ items: 2, gross: 1.5, discount: undefined, net: 1 });
+  });
+});
+
+describe("usageAmountsBy", () => {
+  const items = [
+    use({ repository: "lab/site", date: "2026-11-02T00:00:00Z" }),
+    use({ repository: "lab/tools", date: "2026-11-02T00:00:00Z", grossAmount: 2, discountAmount: 0, netAmount: 2 }),
+    use({ repository: "lab/site", date: "2026-11-03T00:00:00Z", grossAmount: 0.25, discountAmount: 0.25, netAmount: 0 }),
+    use({ product: "Copilot", sku: "copilot_seat", grossAmount: 4, discountAmount: 0, netAmount: 4 }),
+  ];
+
+  it("gives the sums of each repository, in the order of its first item, and leaves out an item with no key", () => {
+    expect([...usageAmountsBy(items, (one) => one.repository)]).toEqual([
+      ["lab/site", { items: 2, gross: 1, discount: 0.5, net: 0.5 }],
+      ["lab/tools", { items: 1, gross: 2, discount: 0, net: 2 }],
+    ]);
+  });
+
+  it("takes each key: the day, the product, or the repository and the day together", () => {
+    expect([...usageAmountsBy(items, usageDay).keys()]).toEqual(["2026-11-02", "2026-11-03"]);
+    expect(usageAmountsBy(items, usageDay).get("2026-11-02")).toEqual({ items: 3, gross: 6.75, discount: 0.25, net: 6.5 });
+    expect([...usageAmountsBy(items, (one) => one.product.toLowerCase()).keys()]).toEqual(["actions", "copilot"]);
+    const each = usageAmountsBy(items, (one) => (one.repository === undefined ? undefined : `${one.repository} ${String(usageDay(one))}`));
+    expect([...each.keys()]).toEqual(["lab/site 2026-11-02", "lab/tools 2026-11-02", "lab/site 2026-11-03"]);
+  });
+
+  it("keeps each item in one group: the sums of the groups are the sums of all items", () => {
+    const groups = [...usageAmountsBy(items, (one) => one.sku).values()];
+    const all = usageAmounts(items);
+    expect(groups.reduce((sum, group) => sum + group.items, 0)).toBe(all.items);
+    expect(groups.reduce((sum, group) => sum + group.net, 0)).toBeCloseTo(all.net, 12);
+    expect(groups.reduce((sum, group) => sum + (group.gross ?? Number.NaN), 0)).toBeCloseTo(all.gross ?? Number.NaN, 12);
+  });
+});
+
+describe("usageDay", () => {
+  it("gives the day of a date, and undefined for no date or a different form", () => {
+    expect(usageDay({ date: "2026-11-02T00:00:00Z" })).toBe("2026-11-02");
+    expect(usageDay({ date: "2026-11-02" })).toBe("2026-11-02");
+    expect(usageDay({ date: undefined })).toBeUndefined();
+    expect(usageDay({ date: "11/02/2026" })).toBeUndefined();
   });
 });
 

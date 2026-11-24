@@ -4,6 +4,7 @@
  * - Each read has a request builder and an extractor. A caller can send the request with its own client.
  * - `readBillingUsage` and `readOrganizationBudgets` send the request with a `RestClient`.
  * - An extractor gives `undefined` for an answer that it cannot read. It does not give a part of a list.
+ * - `usageAmounts` and `usageAmountsBy` add the amounts of the items of a report, for all items or for each group.
  * - `BILLING_PERMISSIONS` gives the permission of a fine-grained token for each endpoint.
  */
 
@@ -43,6 +44,22 @@ export interface BillingUsageItem {
   readonly discountAmount: number | undefined;
   /** This field is the cost after the discounts. */
   readonly netAmount: number;
+  /** This field is the full name of the repository of the item, for example `lab/site`. An item with no repository does not have it. */
+  readonly repository?: string | undefined;
+  /** This field is the login of the organization of the item. An item with no organization does not have it. */
+  readonly organization?: string | undefined;
+}
+
+/** The sums of the amounts of some items of a usage report, in USD. */
+export interface BillingAmounts {
+  /** This field is the count of the items. */
+  readonly items: number;
+  /** This field is the sum of the costs before the discounts. It is `undefined` when an item has no such cost. */
+  readonly gross: number | undefined;
+  /** This field is the sum of the discounts. It is `undefined` when an item has no discount. */
+  readonly discount: number | undefined;
+  /** This field is the sum of the costs after the discounts. */
+  readonly net: number;
 }
 
 /** One budget of an organization. */
@@ -132,9 +149,10 @@ function isAmount(value: unknown): boolean {
 
 function usageItem(value: unknown): BillingUsageItem | undefined {
   if (!isRecord(value)) return undefined;
-  const { product, sku, date, quantity, grossAmount, discountAmount, netAmount } = value;
+  const { product, sku, date, quantity, grossAmount, discountAmount, netAmount, repositoryName, organizationName } = value;
   if (typeof product !== "string" || product === "" || typeof netAmount !== "number" || !Number.isFinite(netAmount)) return undefined;
   if (!isText(sku) || !isText(date) || !isAmount(quantity) || !isAmount(grossAmount) || !isAmount(discountAmount)) return undefined;
+  if (!isText(repositoryName) || !isText(organizationName)) return undefined;
   return {
     product,
     sku: typeof sku === "string" ? sku : undefined,
@@ -143,6 +161,8 @@ function usageItem(value: unknown): BillingUsageItem | undefined {
     grossAmount: typeof grossAmount === "number" ? grossAmount : undefined,
     discountAmount: typeof discountAmount === "number" ? discountAmount : undefined,
     netAmount,
+    ...(typeof repositoryName === "string" && repositoryName !== "" ? { repository: repositoryName } : {}),
+    ...(typeof organizationName === "string" && organizationName !== "" ? { organization: organizationName } : {}),
   };
 }
 
@@ -150,6 +170,7 @@ function usageItem(value: unknown): BillingUsageItem | undefined {
  * This function gives the items of a usage report, or `undefined` when it cannot read the answer.
  * An answer that is not 200, a body with no list `usageItems`, and an item with no product or no net amount cannot be read.
  * A field of an item that has a different type also cannot be read. A `null` field is absent.
+ * An empty name of a repository or of an organization is also absent.
  *
  * @param answer - The answer to `billingUsageRequest`
  */
@@ -173,9 +194,55 @@ export function extractBillingUsage(answer: RestAnswer): readonly BillingUsageIt
  * @param items - The items of a usage report
  */
 export function netAmountByProduct(items: readonly BillingUsageItem[]): ReadonlyMap<string, number> {
-  const sums = new Map<string, number>();
-  for (const item of items) sums.set(item.product.toLowerCase(), (sums.get(item.product.toLowerCase()) ?? 0) + item.netAmount);
-  return sums;
+  return new Map([...usageAmountsBy(items, (item) => item.product.toLowerCase())].map(([product, amounts]) => [product, amounts.net]));
+}
+
+/**
+ * This function gives the sums of the amounts of some items. It does not round the sums.
+ * The sum of the costs before the discounts is `undefined` when an item has no such cost. A sum of a part of the items is not a result.
+ * The same rule applies to the sum of the discounts.
+ *
+ * @param items - The items of a usage report, or a part of them
+ */
+export function usageAmounts(items: readonly BillingUsageItem[]): BillingAmounts {
+  let gross: number | undefined = 0;
+  let discount: number | undefined = 0;
+  let net = 0;
+  for (const item of items) {
+    gross = gross === undefined || item.grossAmount === undefined ? undefined : gross + item.grossAmount;
+    discount = discount === undefined || item.discountAmount === undefined ? undefined : discount + item.discountAmount;
+    net += item.netAmount;
+  }
+  return { items: items.length, gross, discount, net };
+}
+
+/**
+ * This function gives the sums of the amounts of each group of items, in the order of the first item of each group.
+ * The key of an item names its group, for example its repository, its product or its day. An item with the key `undefined` is in no group.
+ *
+ * @param items - The items of a usage report
+ * @param key - The function that gives the key of an item
+ */
+export function usageAmountsBy(items: readonly BillingUsageItem[], key: (item: BillingUsageItem) => string | undefined): ReadonlyMap<string, BillingAmounts> {
+  const groups = new Map<string, BillingUsageItem[]>();
+  for (const item of items) {
+    const name = key(item);
+    if (name === undefined) continue;
+    const group = groups.get(name);
+    if (group === undefined) groups.set(name, [item]);
+    else group.push(item);
+  }
+  return new Map([...groups].map(([name, group]) => [name, usageAmounts(group)]));
+}
+
+/**
+ * This function gives the day of an item as `YYYY-MM-DD`, from the start of its date. It gives `undefined` for an item with no date of that form.
+ *
+ * @param item - The item of a usage report
+ */
+export function usageDay(item: Pick<BillingUsageItem, "date">): string | undefined {
+  const day = item.date?.slice(0, 10);
+  return day !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined;
 }
 
 /**

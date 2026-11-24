@@ -8,6 +8,7 @@
 
 BILLING_PERMISSIONS: dist/billing.d.ts#BILLING_PERMISSIONS
 BillingAccount: dist/billing.d.ts#BillingAccount
+BillingAmounts: dist/billing.d.ts#BillingAmounts
 BillingBudget: dist/billing.d.ts#BillingBudget
 BillingEndpoint: dist/billing.d.ts#BillingEndpoint
 BillingPermission: dist/billing.d.ts#BillingPermission
@@ -80,6 +81,9 @@ rateWaitMs: dist/rest.d.ts#rateWaitMs
 readBillingUsage: dist/billing.d.ts#readBillingUsage
 readOrganizationBudgets: dist/billing.d.ts#readOrganizationBudgets
 registerGhProcedures: dist/module.d.ts#registerGhProcedures
+usageAmounts: dist/billing.d.ts#usageAmounts
+usageAmountsBy: dist/billing.d.ts#usageAmountsBy
+usageDay: dist/billing.d.ts#usageDay
 
 ## ./module (dist/module.d.ts): names
 
@@ -101,6 +105,14 @@ export declare const BILLING_PERMISSIONS: Readonly<Record<BillingEndpoint, Billi
 export interface BillingAccount {
     readonly kind: "user" | "organization";
     readonly login: string;
+}
+
+### dist/billing.d.ts#BillingAmounts
+export interface BillingAmounts {
+    readonly items: number;
+    readonly gross: number | undefined;
+    readonly discount: number | undefined;
+    readonly net: number;
 }
 
 ### dist/billing.d.ts#BillingBudget
@@ -132,6 +144,8 @@ export interface BillingUsageItem {
     readonly grossAmount: number | undefined;
     readonly discountAmount: number | undefined;
     readonly netAmount: number;
+    readonly repository?: string | undefined;
+    readonly organization?: string | undefined;
 }
 
 ### dist/billing.d.ts#BillingUsagePeriod
@@ -161,6 +175,15 @@ export declare function readBillingUsage(client: RestClient, account: BillingAcc
 
 ### dist/billing.d.ts#readOrganizationBudgets
 export declare function readOrganizationBudgets(client: RestClient, organization: string, signal: AbortSignal): Promise<readonly BillingBudget[] | undefined>;
+
+### dist/billing.d.ts#usageAmounts
+export declare function usageAmounts(items: readonly BillingUsageItem[]): BillingAmounts;
+
+### dist/billing.d.ts#usageAmountsBy
+export declare function usageAmountsBy(items: readonly BillingUsageItem[], key: (item: BillingUsageItem) => string | undefined): ReadonlyMap<string, BillingAmounts>;
+
+### dist/billing.d.ts#usageDay
+export declare function usageDay(item: Pick<BillingUsageItem, "date">): string | undefined;
 
 ### dist/module.d.ts#ghModule
 export declare const ghModule: ProcedureModule;
