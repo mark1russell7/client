@@ -4,7 +4,7 @@ import { BROWSER_ENV, CHROME_PATH_ENV, browserCandidates, findBrowser } from "./
 const none = (): boolean => false;
 
 describe("browserCandidates", () => {
-  it("gives the Edge and Chrome folders of Windows first, then the PATH", () => {
+  it("gives the Chrome, Chromium and Edge folders of Windows first, then the PATH, with Chrome before Edge", () => {
     const candidates = browserCandidates("win32", {
       ProgramFiles: "D:\\Apps",
       "ProgramFiles(x86)": "D:\\Apps86",

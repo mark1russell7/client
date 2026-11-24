@@ -136,9 +136,9 @@ const { data } = await renderScreenshotBytes({
 
 1. The option `executable`.
 2. The environment variable `PDF_BROWSER`, then `CHROME_PATH`.
-3. On Windows: Edge, then Chrome, in `Program Files`, `Program Files (x86)` and `LOCALAPPDATA`.
+3. On Windows: Chrome and Chromium, then Edge, in `Program Files`, `Program Files (x86)` and `LOCALAPPDATA`. Edge 158 on Windows makes no PDF file (issue client#756).
 4. On macOS: the app bundles of Chrome, Edge and Chromium in `/Applications` and `~/Applications`.
-5. The `PATH`: `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, `microsoft-edge` and `microsoft-edge-stable`. On Windows, `msedge.exe` and `chrome.exe`.
+5. The `PATH`: `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, `microsoft-edge` and `microsoft-edge-stable`. On Windows, `chrome.exe` and `msedge.exe`.
 
 When the search finds no browser, each render gives an error that names `PDF_BROWSER`. The name comes from `@procedures/pdf`, the first home of the search.
 
