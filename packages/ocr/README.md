@@ -2,6 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/@procedures/ocr?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/ocr)
 
+> **Not on npm yet.** The package is `private` until its first npm publish (the bootstrap of a new package). Until then, use it with `workspace:*` inside this repository.
+
 The text of a PDF page or of an image, as lines and words. Each line and each word has its text, its confidence from 0 to 1 and its box. The package reads the text layer of a PDF page first. It uses OCR only for a page with no text layer.
 
 The package uses the programs of the host. It does not download a program:

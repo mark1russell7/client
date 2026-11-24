@@ -72,8 +72,7 @@
       "@procedures/quantity",
       "@procedures/algebra",
       "@procedures/optional",
-      "@procedures/rational",
-      "@procedures/ocr"
+      "@procedures/rational"
     ]
   ],
   "linked": [],
