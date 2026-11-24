@@ -1,5 +1,15 @@
 # @procedures/snapshot
 
+## 0.68.3
+
+### Patch Changes
+
+- @procedures/client@0.68.3
+  - @procedures/fs@0.68.3
+  - @procedures/git@0.68.3
+  - @procedures/pnpm@0.68.3
+  - @procedures/s3@0.68.3
+
 ## 0.68.2
 
 ### Patch Changes
