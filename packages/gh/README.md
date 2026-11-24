@@ -101,9 +101,14 @@ const cost = items === undefined ? undefined : netAmountByProduct(items).get("ac
 - `BILLING_PERMISSIONS` gives the same permissions as data.
 - The period of a report is a year, a month of a year or a day of a month. The query has the numbers with no zero before them.
 - `extractBillingUsage` gives the items of a report: the product, the SKU, the date, the quantity and the amounts in USD.
+- An item also has its `repository` and its `organization`, when GitHub names them.
 - `extractOrganizationBudgets` gives each budget: the scope, the entity, the product, the amount and `stops`. `stops` is true when GitHub stops the paid use at the limit.
 - An extractor gives `undefined` for an answer that it cannot read. A status that is not 200, a body of a different shape and a list with a next page are such answers. It does not give a part of a list.
 - `netAmountByProduct` adds the net amounts of each product.
+- `usageAmounts` gives the sums of some items: the count, the cost before the discounts (`gross`), the discounts and the cost after them (`net`).
+- `usageAmountsBy(items, key)` gives these sums for each group. The key of an item names its group, and an item with the key `undefined` is in no group.
+- `usageAmountsBy(items, (item) => item.repository)` gives the cost of each repository. `usageAmountsBy(items, usageDay)` gives the cost of each day.
+- A sum is `undefined` when an item has no such amount. A sum of a part of the items is not a result.
 - A builder throws a `RangeError` for a text that is not a valid login of GitHub, or for a period that is not valid. Thus a request stays on its endpoint.
 - GitHub gives the usage report only to an account on the enhanced billing platform.
 
