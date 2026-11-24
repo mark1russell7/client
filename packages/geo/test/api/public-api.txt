@@ -18,6 +18,7 @@ DEFAULT_GEOHASH_PRECISION: dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
 EARTH_RADIUS_KM: dist/distance.d.ts#EARTH_RADIUS_KM
 ELEVATION_ATTRIBUTION: dist/image.d.ts#ELEVATION_ATTRIBUTION
 ELEVATION_URL: dist/image.d.ts#ELEVATION_URL
+FIRST_ZCTA_GAZETTEER_YEAR: dist/zcta.d.ts#FIRST_ZCTA_GAZETTEER_YEAR
 FetchJson: dist/geo.d.ts#FetchJson
 FitZoomOptions: dist/mercator.d.ts#FitZoomOptions
 GEOHASH_ALPHABET: dist/geohash.d.ts#GEOHASH_ALPHABET
@@ -84,6 +85,8 @@ TILE_SIZE: dist/mercator.d.ts#TILE_SIZE
 TRANSIENT_STATUSES: dist/polite.d.ts#TRANSIENT_STATUSES
 TownQuery: dist/address.d.ts#TownQuery
 ViewTile: dist/mercator.d.ts#ViewTile
+ZCTA_GAZETTEER_ATTRIBUTION: dist/zcta.d.ts#ZCTA_GAZETTEER_ATTRIBUTION
+ZctaCenter: dist/zcta.d.ts#ZctaCenter
 answerJson: dist/polite.d.ts#answerJson
 arcgisExchange: dist/features.d.ts#arcgisExchange
 arcgisPage: dist/features.d.ts#arcgisPage
@@ -124,6 +127,7 @@ osmFeatures: dist/features.d.ts#osmFeatures
 overpassExchange: dist/features.d.ts#overpassExchange
 overpassQuery: dist/features.d.ts#overpassQuery
 parseStreetAddress: dist/address.d.ts#parseStreetAddress
+parseZctaGazetteer: dist/zcta.d.ts#parseZctaGazetteer
 project: dist/mercator.d.ts#project
 registerGeoProcedures: dist/module.d.ts#registerGeoProcedures
 soilComponents: dist/soil.d.ts#soilComponents
@@ -131,6 +135,10 @@ soilExchange: dist/soil.d.ts#soilExchange
 soilQuery: dist/soil.d.ts#soilQuery
 tilesFor: dist/mercator.d.ts#tilesFor
 townBox: dist/address.d.ts#townBox
+zctaGazetteerUrl: dist/zcta.d.ts#zctaGazetteerUrl
+zctaIndex: dist/zcta.d.ts#zctaIndex
+zip5: dist/zcta.d.ts#zip5
+zipCenter: dist/zcta.d.ts#zipCenter
 
 ## ./module (dist/module.d.ts): names
 
@@ -816,3 +824,31 @@ export interface GeoOsmFeaturesOutput {
 
 ### dist/types.d.ts#GeoOsmFeaturesOutputSchema
 export declare const GeoOsmFeaturesOutputSchema: z.ZodType<GeoOsmFeaturesOutput>;
+
+### dist/zcta.d.ts#FIRST_ZCTA_GAZETTEER_YEAR
+export declare const FIRST_ZCTA_GAZETTEER_YEAR = 2012;
+
+### dist/zcta.d.ts#ZCTA_GAZETTEER_ATTRIBUTION
+export declare const ZCTA_GAZETTEER_ATTRIBUTION = "U.S. Census Bureau, Gazetteer Files (public domain).";
+
+### dist/zcta.d.ts#ZctaCenter
+export interface ZctaCenter {
+    readonly zcta: string;
+    readonly point: LatLon;
+    readonly landM2: number;
+}
+
+### dist/zcta.d.ts#parseZctaGazetteer
+export declare function parseZctaGazetteer(text: string): ZctaCenter[];
+
+### dist/zcta.d.ts#zctaGazetteerUrl
+export declare function zctaGazetteerUrl(year: number): string;
+
+### dist/zcta.d.ts#zctaIndex
+export declare function zctaIndex(centers: readonly ZctaCenter[]): ReadonlyMap<string, ZctaCenter>;
+
+### dist/zcta.d.ts#zip5
+export declare function zip5(zip: string): string | undefined;
+
+### dist/zcta.d.ts#zipCenter
+export declare function zipCenter(zip: string, index: ReadonlyMap<string, ZctaCenter>): LatLon | undefined;
