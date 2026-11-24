@@ -1,5 +1,13 @@
 # @procedures/geo
 
+## 0.68.5
+
+### Patch Changes
+
+- 22d7850: `geo.arcgisFeatures` and `arcgisExchange` take two new options. `returnGeometry: false` asks the layer for features with no geometry, a smaller answer when only the fields count. `maxAllowableOffset` asks the layer to simplify each geometry, with the largest distance in degrees between a geometry and its simplified form. The defaults keep the old queries.
+- @procedures/client@0.68.5
+  - @procedures/compiler@0.68.5
+
 ## 0.68.4
 
 ### Patch Changes
