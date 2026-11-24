@@ -202,6 +202,17 @@ export interface LocateAddressInput {
   readonly streets?: readonly MapFeature[] | undefined;
   /** The table of street words. The default is `STREET_WORDS`. */
   readonly words?: StreetWords | undefined;
+  /** The town and the postal code of the address. Only a choice between elements with the same number in different towns uses them. */
+  readonly area?: AddressArea | undefined;
+}
+
+/**
+ * The town and the postal code of an address. Two towns of a search box can have the same street and the same number.
+ * The tags `addr:postcode` and `addr:city` of an element tell which town it is in.
+ */
+export interface AddressArea {
+  readonly postcode?: string | undefined;
+  readonly town?: string | undefined;
 }
 
 /** An address element of the map has the number of the address. */
@@ -261,6 +272,27 @@ interface Known {
 }
 
 /**
+ * This function keeps the elements with the number that agree best with the area of the address.
+ * - An element agrees when its tag `addr:postcode` or `addr:city` is the same as the area.
+ * - An element with a different tag is against the area. An element with neither tag is neutral.
+ * - The function keeps the elements that agree. With none, it keeps the neutral elements. With none, it keeps all elements.
+ */
+function inArea<T extends { readonly postcode: string | undefined; readonly town: string | undefined }>(hits: readonly T[], area: AddressArea | undefined): readonly T[] {
+  if (area === undefined || hits.length < 2) return hits;
+  const town = area.town === undefined ? undefined : townName(area.town);
+  const fit = (hit: T): number => {
+    const postcode = area.postcode === undefined || hit.postcode === undefined ? 0 : hit.postcode.trim() === area.postcode.trim() ? 1 : -1;
+    const city = town === undefined || hit.town === undefined ? 0 : townName(hit.town) === town ? 1 : -1;
+    return postcode < 0 || city < 0 ? -1 : Math.max(postcode, city);
+  };
+  for (const level of [1, 0]) {
+    const kept = hits.filter((hit) => fit(hit) === level);
+    if (kept.length > 0) return kept;
+  }
+  return hits;
+}
+
+/**
  * This function gives the point of a street address from the address elements and the roads of the map.
  * An element with the street and the number gives the point. Else the function interpolates the number along the street line.
  *
@@ -278,9 +310,9 @@ export function locateAddress(input: LocateAddressInput): AddressPoint {
     .filter((feature) => normalizeStreet(tagOf(feature, "addr:street"), words) === street)
     .flatMap((feature) => {
       const center = centerOf(feature);
-      return center === undefined ? [] : [{ id: feature.id, center, numbers: houseNumbers(tagOf(feature, "addr:housenumber")) }];
+      return center === undefined ? [] : [{ id: feature.id, center, numbers: houseNumbers(tagOf(feature, "addr:housenumber")), postcode: tagOf(feature, "addr:postcode") || undefined, town: tagOf(feature, "addr:city") || undefined }];
     });
-  const hits = onStreet.filter((element) => element.numbers.includes(number));
+  const hits = inArea(onStreet.filter((element) => element.numbers.includes(number)), input.area);
   const first = hits[0];
   if (first !== undefined) {
     const spreadMeters = Math.max(0, ...hits.map((hit) => distanceMeters(first.center, hit.center)));
