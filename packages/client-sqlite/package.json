@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/sqlite",
-  "version": "0.68.5",
+  "version": "0.68.6",
   "description": "SQLite procedures on node:sqlite through @mark1russell7/sqlite: queries, tables and schemas, transactions, migrations, backups, structured logs, generated procedures on database handles, and SqliteStorage, a durable collection storage with a change log.",
   "keywords": [
     "sqlite",
