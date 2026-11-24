@@ -19,6 +19,8 @@ const SRC = dirname(fileURLToPath(import.meta.url));
 /** The value exports of the entry. */
 const EXPORTS = [
   "ApiStorage",
+  "ArtifactDbError",
+  "ArtifactDbStorage",
   "ConflictError",
   "DEFAULT_PROGRAM_DATABASE",
   "EventsChangeFeed",
@@ -40,6 +42,8 @@ const EXPORTS = [
   "SyncStateError",
   "TabCoordinator",
   "TabGroup",
+  "artifactDbId",
+  "artifactDbSegment",
   "hasIndexedDb",
 ];
 
