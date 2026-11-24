@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/algebra",
-  "version": "0.68.6",
+  "version": "0.68.7",
   "description": "The functions of @mark1russell7/algebra as procedures, made from its types: state machines, timers, failure detection and replay as typed calls, MCP tools and CLI commands.",
   "keywords": [
     "state-machines",
