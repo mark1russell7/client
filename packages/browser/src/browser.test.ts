@@ -11,18 +11,20 @@ describe("browserCandidates", () => {
       LOCALAPPDATA: "D:\\Users\\example\\AppData\\Local",
       Path: "D:\\bin;;E:\\tools",
     });
-    expect(candidates.slice(0, 3)).toEqual([
+    expect(candidates.slice(0, 6)).toEqual([
+      "D:\\Apps\\Google\\Chrome\\Application\\chrome.exe",
+      "D:\\Apps86\\Google\\Chrome\\Application\\chrome.exe",
+      "D:\\Users\\example\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe",
+      "D:\\Users\\example\\AppData\\Local\\Chromium\\Application\\chrome.exe",
       "D:\\Apps86\\Microsoft\\Edge\\Application\\msedge.exe",
       "D:\\Apps\\Microsoft\\Edge\\Application\\msedge.exe",
-      "D:\\Apps\\Google\\Chrome\\Application\\chrome.exe",
     ]);
-    expect(candidates).toContain("D:\\Users\\example\\AppData\\Local\\Chromium\\Application\\chrome.exe");
-    expect(candidates.slice(-4)).toEqual(["D:\\bin\\msedge.exe", "D:\\bin\\chrome.exe", "E:\\tools\\msedge.exe", "E:\\tools\\chrome.exe"]);
+    expect(candidates.slice(-4)).toEqual(["D:\\bin\\chrome.exe", "D:\\bin\\msedge.exe", "E:\\tools\\chrome.exe", "E:\\tools\\msedge.exe"]);
   });
 
   it("uses the default Windows folders when the environment has none", () => {
     const candidates = browserCandidates("win32", {});
-    expect(candidates[0]).toBe("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe");
+    expect(candidates[0]).toBe("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe");
     expect(candidates).toHaveLength(4);
   });
 
