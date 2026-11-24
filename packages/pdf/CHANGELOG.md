@@ -1,5 +1,13 @@
 # @procedures/pdf
 
+## 0.68.7
+
+### Patch Changes
+
+- Updated dependencies [24073a8]
+  - @procedures/browser@0.68.7
+  - @procedures/client@0.68.7
+
 ## 0.68.6
 
 ### Patch Changes
