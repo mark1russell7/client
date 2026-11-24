@@ -256,6 +256,18 @@ describe("arcgisExchange", () => {
     expect(exchange.headers["user-agent"]).toBe(agent);
   });
 
+  it("asks for no geometry, or for simplified geometries", () => {
+    const none = new URL(arcgisExchange({ layerUrl, bbox: box, offset: 0, pageSize: 10, userAgent: agent, returnGeometry: false, maxAllowableOffset: 0.001 }).url);
+    expect(none.searchParams.get("returnGeometry")).toBe("false");
+    expect(none.searchParams.has("maxAllowableOffset")).toBe(false);
+    const simple = new URL(arcgisExchange({ layerUrl, bbox: box, offset: 0, pageSize: 10, userAgent: agent, maxAllowableOffset: 0.00001 }).url);
+    expect(simple.searchParams.get("returnGeometry")).toBe("true");
+    expect(simple.searchParams.get("maxAllowableOffset")).toBe("0.00001");
+    for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => arcgisExchange({ layerUrl, bbox: box, offset: 0, pageSize: 10, userAgent: agent, maxAllowableOffset: bad })).toThrow(/maxAllowableOffset/);
+    }
+  });
+
   it("refuses a URL that is not a layer, a box across the antimeridian and a bad page", () => {
     expect(isArcgisLayerUrl(layerUrl)).toBe(true);
     expect(isArcgisLayerUrl("https://gis.example.org/arcgis/rest/services/Zones/MapServer/3/")).toBe(true);

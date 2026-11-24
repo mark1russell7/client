@@ -281,6 +281,8 @@ export interface ArcgisQuery {
     readonly bbox: BBox;
     readonly where?: string | undefined;
     readonly outFields?: readonly string[] | undefined;
+    readonly returnGeometry?: boolean | undefined;
+    readonly maxAllowableOffset?: number | undefined;
     readonly offset: number;
     readonly pageSize: number;
     readonly userAgent: string;
@@ -716,6 +718,8 @@ export interface GeoArcgisFeaturesInput {
     bbox: GeoBox;
     where?: string | undefined;
     outFields?: string[] | undefined;
+    returnGeometry?: boolean | undefined;
+    maxAllowableOffset?: number | undefined;
     userAgent: string;
     pageSize?: number | undefined;
     maxFeatures?: number | undefined;

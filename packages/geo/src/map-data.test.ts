@@ -117,6 +117,12 @@ describe("geo.arcgisFeatures", () => {
     expect(urls.map((url) => new URL(url).searchParams.get("resultOffset"))).toEqual(["0", "2"]);
   });
 
+  it("gives returnGeometry and maxAllowableOffset to each query", async () => {
+    const { fetch, urls } = scriptedFetch([{ body: page([1], false) }]);
+    await geoArcgisFeatures({ layerUrl, bbox: box, userAgent, returnGeometry: true, maxAllowableOffset: 0.00001 }, { fetch, pace: testPace() });
+    expect(new URL(urls[0]!).searchParams.get("maxAllowableOffset")).toBe("0.00001");
+  });
+
   it("stops at maxFeatures, and tells that the output is truncated", async () => {
     const { fetch, urls } = scriptedFetch([{ body: page([1, 2], true) }]);
     const output = await geoArcgisFeatures({ layerUrl, bbox: box, userAgent, pageSize: 5, maxFeatures: 2 }, { fetch, pace: testPace() });
