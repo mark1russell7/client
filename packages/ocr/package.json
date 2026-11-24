@@ -1,7 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/ocr",
-  "private": true,
   "version": "0.68.4",
   "description": "The text of a PDF page or an image, with the text, the confidence and the box of each line and word: the text layer of the page first (pdftotext), then OCR with a local engine (tesseract).",
   "keywords": [

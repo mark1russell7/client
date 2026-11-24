@@ -1,0 +1,331 @@
+# The public API of @procedures/ocr
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (dist/index.d.ts): names
+
+DEFAULT_DPI: dist/procedures/ocr/page.d.ts#DEFAULT_DPI
+DEFAULT_LANGUAGE: dist/engine.d.ts#DEFAULT_LANGUAGE
+DEFAULT_TIMEOUT_MS: dist/run.d.ts#DEFAULT_TIMEOUT_MS
+FindProgramOptions: dist/programs.d.ts#FindProgramOptions
+LANGUAGE_PATTERN: dist/engine.d.ts#LANGUAGE_PATTERN
+OCR_PROGRAMS: dist/programs.d.ts#OCR_PROGRAMS
+OcrEngine: dist/engine.d.ts#OcrEngine
+OcrEngineOptions: dist/engine.d.ts#OcrEngineOptions
+type OcrHostOptions: dist/run.d.ts#OcrHostOptions
+OcrImageInput: dist/types.d.ts#OcrImageInput
+OcrImageInputSchema: dist/types.d.ts#OcrImageInputSchema
+OcrImageOutput: dist/types.d.ts#OcrImageOutput
+OcrImageOutputSchema: dist/types.d.ts#OcrImageOutputSchema
+OcrLine: dist/text.d.ts#OcrLine
+OcrPageInput: dist/types.d.ts#OcrPageInput
+OcrPageInputSchema: dist/types.d.ts#OcrPageInputSchema
+OcrPageMode: dist/types.d.ts#OcrPageMode
+OcrPageOutput: dist/types.d.ts#OcrPageOutput
+OcrPageOutputSchema: dist/types.d.ts#OcrPageOutputSchema
+type OcrRunner: dist/run.d.ts#OcrRunner
+OcrText: dist/text.d.ts#OcrText
+OcrToolMissingError: dist/programs.d.ts#OcrToolMissingError
+OcrUnit: dist/text.d.ts#OcrUnit
+OcrWord: dist/text.d.ts#OcrWord
+PDFTOPPM: dist/programs.d.ts#PDFTOPPM
+PDFTOTEXT: dist/programs.d.ts#PDFTOTEXT
+ProgramEnv: dist/programs.d.ts#ProgramEnv
+ProgramSpec: dist/programs.d.ts#ProgramSpec
+type Rect: @mark1russell7/layout-contract#Rect (external)
+TESSERACT: dist/programs.d.ts#TESSERACT
+TESSERACT_TSV_COLUMNS: dist/tsv.d.ts#TESSERACT_TSV_COLUMNS
+createOcrModule: dist/module.d.ts#createOcrModule
+createOcrProcedures: dist/module.d.ts#createOcrProcedures
+createOcrRunner: dist/run.d.ts#createOcrRunner
+decodeXmlText: dist/bbox.d.ts#decodeXmlText
+findProgram: dist/programs.d.ts#findProgram
+makeLine: dist/text.d.ts#makeLine
+makeText: dist/text.d.ts#makeText
+meanConfidence: dist/text.d.ts#meanConfidence
+ocrImage: dist/procedures/ocr/image.d.ts#ocrImage
+ocrModule: dist/module.d.ts#ocrModule
+ocrPage: dist/procedures/ocr/page.d.ts#ocrPage
+ocrProcedures: dist/module.d.ts#ocrProcedures
+parsePdftotextBbox: dist/bbox.d.ts#parsePdftotextBbox
+parseTesseractTsv: dist/tsv.d.ts#parseTesseractTsv
+pdftoppmArgs: dist/procedures/ocr/page.d.ts#pdftoppmArgs
+pdftotextArgs: dist/procedures/ocr/page.d.ts#pdftotextArgs
+programCandidates: dist/programs.d.ts#programCandidates
+registerOcrProcedures: dist/module.d.ts#registerOcrProcedures
+requireProgram: dist/programs.d.ts#requireProgram
+scaleText: dist/text.d.ts#scaleText
+tesseractConfidence: dist/tsv.d.ts#tesseractConfidence
+tesseractEngine: dist/engine.d.ts#tesseractEngine
+unionBox: dist/text.d.ts#unionBox
+
+## ./module (dist/module.d.ts): names
+
+createOcrModule: dist/module.d.ts#createOcrModule
+createOcrProcedures: dist/module.d.ts#createOcrProcedures
+default: dist/module.d.ts#ocrModule
+ocrModule: dist/module.d.ts#ocrModule
+ocrProcedures: dist/module.d.ts#ocrProcedures
+registerOcrProcedures: dist/module.d.ts#registerOcrProcedures
+
+## ./register (dist/register.d.ts): names
+
+createOcrModule: dist/module.d.ts#createOcrModule
+createOcrProcedures: dist/module.d.ts#createOcrProcedures
+ocrModule: dist/module.d.ts#ocrModule
+ocrProcedures: dist/module.d.ts#ocrProcedures
+registerOcrProcedures: dist/module.d.ts#registerOcrProcedures
+
+## ./parse (dist/parse.d.ts): names
+
+OcrLine: dist/text.d.ts#OcrLine
+OcrText: dist/text.d.ts#OcrText
+OcrUnit: dist/text.d.ts#OcrUnit
+OcrWord: dist/text.d.ts#OcrWord
+type Rect: @mark1russell7/layout-contract#Rect (external)
+TESSERACT_TSV_COLUMNS: dist/tsv.d.ts#TESSERACT_TSV_COLUMNS
+decodeXmlText: dist/bbox.d.ts#decodeXmlText
+makeLine: dist/text.d.ts#makeLine
+makeText: dist/text.d.ts#makeText
+meanConfidence: dist/text.d.ts#meanConfidence
+parsePdftotextBbox: dist/bbox.d.ts#parsePdftotextBbox
+parseTesseractTsv: dist/tsv.d.ts#parseTesseractTsv
+scaleText: dist/text.d.ts#scaleText
+tesseractConfidence: dist/tsv.d.ts#tesseractConfidence
+unionBox: dist/text.d.ts#unionBox
+
+## Declarations
+
+### dist/bbox.d.ts#decodeXmlText
+export declare function decodeXmlText(text: string): string;
+
+### dist/bbox.d.ts#parsePdftotextBbox
+export declare function parsePdftotextBbox(xhtml: string): OcrText;
+
+### dist/engine.d.ts#DEFAULT_LANGUAGE
+export declare const DEFAULT_LANGUAGE = "eng";
+
+### dist/engine.d.ts#LANGUAGE_PATTERN
+export declare const LANGUAGE_PATTERN: RegExp;
+
+### dist/engine.d.ts#OcrEngine
+export interface OcrEngine {
+    readonly name: string;
+    readonly program: ProgramSpec;
+    argv(image: string, options: OcrEngineOptions): string[];
+    parse(stdout: string): OcrText;
+}
+
+### dist/engine.d.ts#OcrEngineOptions
+export interface OcrEngineOptions {
+    readonly language?: string | undefined;
+    readonly psm?: number | undefined;
+    readonly dpi?: number | undefined;
+}
+
+### dist/engine.d.ts#tesseractEngine
+export declare const tesseractEngine: OcrEngine;
+
+### dist/module.d.ts#createOcrModule
+export declare function createOcrModule(options?: OcrHostOptions): ProcedureModule;
+
+### dist/module.d.ts#createOcrProcedures
+export declare function createOcrProcedures(options?: OcrHostOptions): AnyProcedure[];
+
+### dist/module.d.ts#ocrModule
+export declare const ocrModule: ProcedureModule;
+
+### dist/module.d.ts#ocrProcedures
+export declare const ocrProcedures: AnyProcedure[];
+
+### dist/module.d.ts#registerOcrProcedures
+export declare const registerOcrProcedures: PackageDefinition["register"];
+
+### dist/procedures/ocr/image.d.ts#ocrImage
+export declare function ocrImage(input: OcrImageInput, ctx: Pick<ProcedureContext, "client">, runner?: OcrRunner): Promise<OcrImageOutput>;
+
+### dist/procedures/ocr/page.d.ts#DEFAULT_DPI
+export declare const DEFAULT_DPI = 300;
+
+### dist/procedures/ocr/page.d.ts#ocrPage
+export declare function ocrPage(input: OcrPageInput, ctx: Pick<ProcedureContext, "client">, runner?: OcrRunner): Promise<OcrPageOutput>;
+
+### dist/procedures/ocr/page.d.ts#pdftoppmArgs
+export declare function pdftoppmArgs(file: string, page: number, dpi: number, prefix: string): string[];
+
+### dist/procedures/ocr/page.d.ts#pdftotextArgs
+export declare function pdftotextArgs(file: string, page: number): string[];
+
+### dist/programs.d.ts#FindProgramOptions
+export interface FindProgramOptions {
+    readonly env?: ProgramEnv | undefined;
+    readonly platform?: NodeJS.Platform | undefined;
+    readonly exists?: ((path: string) => boolean) | undefined;
+}
+
+### dist/programs.d.ts#OCR_PROGRAMS
+export declare const OCR_PROGRAMS: readonly ProgramSpec[];
+
+### dist/programs.d.ts#OcrToolMissingError
+export declare class OcrToolMissingError extends Error {
+    readonly code: "OCR_TOOL_MISSING";
+    readonly tool: string;
+    readonly searched: readonly string[];
+    readonly name: string;
+    constructor(spec: ProgramSpec, searched: readonly string[], cause?: string);
+}
+
+### dist/programs.d.ts#PDFTOPPM
+export declare const PDFTOPPM: ProgramSpec;
+
+### dist/programs.d.ts#PDFTOTEXT
+export declare const PDFTOTEXT: ProgramSpec;
+
+### dist/programs.d.ts#ProgramEnv
+export type ProgramEnv = Readonly<Record<string, string | undefined>>;
+
+### dist/programs.d.ts#ProgramSpec
+export interface ProgramSpec {
+    readonly name: string;
+    readonly env: readonly string[];
+    readonly folderEnv?: readonly string[] | undefined;
+    readonly installed: (platform: NodeJS.Platform, env: ProgramEnv) => readonly string[];
+    readonly install: string;
+}
+
+### dist/programs.d.ts#TESSERACT
+export declare const TESSERACT: ProgramSpec;
+
+### dist/programs.d.ts#findProgram
+export declare function findProgram(spec: ProgramSpec, options?: FindProgramOptions & {
+    readonly executable?: string | undefined;
+}): string | undefined;
+
+### dist/programs.d.ts#programCandidates
+export declare function programCandidates(spec: ProgramSpec, platform: NodeJS.Platform, env: ProgramEnv): string[];
+
+### dist/programs.d.ts#requireProgram
+export declare function requireProgram(spec: ProgramSpec, options?: FindProgramOptions & {
+    readonly executable?: string | undefined;
+}): string;
+
+### dist/run.d.ts#DEFAULT_TIMEOUT_MS
+export declare const DEFAULT_TIMEOUT_MS = 120000;
+
+### dist/run.d.ts#OcrHostOptions
+export interface OcrHostOptions extends FindProgramOptions {
+    readonly executables?: Readonly<Record<string, string | undefined>> | undefined;
+    readonly engine?: OcrEngine | undefined;
+    readonly tempFolder?: string | undefined;
+}
+
+### dist/run.d.ts#OcrRunner
+export interface OcrRunner {
+    readonly engine: OcrEngine;
+    readonly tempFolder: string | undefined;
+    run(spec: ProgramSpec, args: readonly string[], timeout: number, ctx: Pick<ProcedureContext, "client">): Promise<string>;
+}
+
+### dist/run.d.ts#createOcrRunner
+export declare function createOcrRunner(options?: OcrHostOptions): OcrRunner;
+
+### dist/text.d.ts#OcrLine
+export interface OcrLine {
+    readonly text: string;
+    readonly confidence: number;
+    readonly box: Rect;
+    readonly words: readonly OcrWord[];
+}
+
+### dist/text.d.ts#OcrText
+export interface OcrText {
+    readonly unit: OcrUnit;
+    readonly width: number;
+    readonly height: number;
+    readonly text: string;
+    readonly confidence: number;
+    readonly lines: readonly OcrLine[];
+}
+
+### dist/text.d.ts#OcrUnit
+export type OcrUnit = "px" | "pt";
+
+### dist/text.d.ts#OcrWord
+export interface OcrWord {
+    readonly text: string;
+    readonly confidence: number;
+    readonly box: Rect;
+}
+
+### dist/text.d.ts#makeLine
+export declare function makeLine(words: readonly OcrWord[], box?: Rect): OcrLine;
+
+### dist/text.d.ts#makeText
+export declare function makeText(lines: readonly OcrLine[], unit: OcrUnit, width: number, height: number): OcrText;
+
+### dist/text.d.ts#meanConfidence
+export declare function meanConfidence(words: readonly OcrWord[]): number;
+
+### dist/text.d.ts#scaleText
+export declare function scaleText(text: OcrText, factor: number, unit: OcrUnit): OcrText;
+
+### dist/text.d.ts#unionBox
+export declare function unionBox(boxes: readonly Rect[]): Rect;
+
+### dist/tsv.d.ts#TESSERACT_TSV_COLUMNS
+export declare const TESSERACT_TSV_COLUMNS: readonly string[];
+
+### dist/tsv.d.ts#parseTesseractTsv
+export declare function parseTesseractTsv(tsv: string): OcrText;
+
+### dist/tsv.d.ts#tesseractConfidence
+export declare function tesseractConfidence(conf: number): number;
+
+### dist/types.d.ts#OcrImageInput
+export interface OcrImageInput {
+    file: string;
+    language?: string | undefined;
+    psm?: number | undefined;
+    dpi?: number | undefined;
+    timeout?: number | undefined;
+}
+
+### dist/types.d.ts#OcrImageInputSchema
+export declare const OcrImageInputSchema: z.ZodType<OcrImageInput>;
+
+### dist/types.d.ts#OcrImageOutput
+export interface OcrImageOutput extends OcrText {
+    readonly engine: string;
+}
+
+### dist/types.d.ts#OcrImageOutputSchema
+export declare const OcrImageOutputSchema: z.ZodType<OcrImageOutput>;
+
+### dist/types.d.ts#OcrPageInput
+export interface OcrPageInput {
+    file: string;
+    page?: number | undefined;
+    mode?: OcrPageMode | undefined;
+    language?: string | undefined;
+    psm?: number | undefined;
+    dpi?: number | undefined;
+    timeout?: number | undefined;
+}
+
+### dist/types.d.ts#OcrPageInputSchema
+export declare const OcrPageInputSchema: z.ZodType<OcrPageInput>;
+
+### dist/types.d.ts#OcrPageMode
+export type OcrPageMode = "auto" | "text" | "ocr";
+
+### dist/types.d.ts#OcrPageOutput
+export interface OcrPageOutput extends OcrText {
+    readonly page: number;
+    readonly source: "text-layer" | "ocr";
+    readonly engine?: string | undefined;
+}
+
+### dist/types.d.ts#OcrPageOutputSchema
+export declare const OcrPageOutputSchema: z.ZodType<OcrPageOutput>;
