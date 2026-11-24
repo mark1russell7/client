@@ -1936,6 +1936,9 @@ importers:
       '@procedures/npm':
         specifier: workspace:*
         version: link:../npm
+      '@procedures/ocr':
+        specifier: workspace:*
+        version: link:../ocr
       '@procedures/pdf':
         specifier: workspace:*
         version: link:../pdf
