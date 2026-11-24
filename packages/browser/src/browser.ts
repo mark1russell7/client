@@ -25,8 +25,11 @@ export const BROWSER_NAMES: readonly string[] = [
   "microsoft-edge-stable",
 ];
 
-/** The program names on the `PATH` of Windows, in order. */
-export const WINDOWS_BROWSER_NAMES: readonly string[] = ["msedge.exe", "chrome.exe"];
+/**
+ * The program names on the `PATH` of Windows, in order. Chrome comes before Edge: Edge 158 on Windows exits with
+ * the code 0 and makes no PDF file (issue client#756).
+ */
+export const WINDOWS_BROWSER_NAMES: readonly string[] = ["chrome.exe", "msedge.exe"];
 
 /** The options of `findBrowser`. Each one has a default from the host. */
 export interface FindBrowserOptions {
@@ -56,14 +59,15 @@ export function browserCandidates(platform: NodeJS.Platform, env: Readonly<Recor
     const programFiles = env["ProgramFiles"] ?? env["PROGRAMFILES"] ?? "C:\\Program Files";
     const programFilesX86 = env["ProgramFiles(x86)"] ?? env["PROGRAMFILES(X86)"] ?? "C:\\Program Files (x86)";
     const localAppData = env["LOCALAPPDATA"];
+    // Chrome and Chromium come before Edge. Edge 158 exits with the code 0 and makes no PDF file (issue client#756).
     const installed = [
-      win32.join(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"),
-      win32.join(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
       win32.join(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
       win32.join(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
       ...(localAppData !== undefined
         ? [win32.join(localAppData, "Google", "Chrome", "Application", "chrome.exe"), win32.join(localAppData, "Chromium", "Application", "chrome.exe")]
         : []),
+      win32.join(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"),
+      win32.join(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
     ];
     const onPath = pathFolders(env, true).flatMap((folder) => WINDOWS_BROWSER_NAMES.map((name) => win32.join(folder, name)));
     return [...installed, ...onPath];
