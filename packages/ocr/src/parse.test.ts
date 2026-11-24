@@ -10,11 +10,15 @@ import {
   makeText,
   meanConfidence,
   parsePdftotextBbox,
+  parseTesseractOsd,
   parseTesseractTsv,
   scaleText,
   tesseractConfidence,
   TESSERACT_TSV_COLUMNS,
+  turnBox,
+  turnText,
   unionBox,
+  type OcrTurn,
 } from "./parse.js";
 
 const fixture = (name: string): string => readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), "utf8");
@@ -161,5 +165,69 @@ describe("the records of a text", () => {
     const text = makeText([], "px", 1, 1);
     expect(() => scaleText(text, 0, "pt")).toThrow(RangeError);
     expect(() => scaleText(text, Number.POSITIVE_INFINITY, "pt")).toThrow(RangeError);
+  });
+});
+
+describe("the turn of a page", () => {
+  // A page of 300 by 100 pixels on its side, with one word near its top-left corner
+  const word = { text: "PARCEL", confidence: 0.9, box: { x: 10, y: 20, w: 5, h: 40 } };
+  const page = makeText([makeLine([word])], "px", 300, 100);
+
+  it("turns a box in the clock direction, in the frame of the turned page", () => {
+    expect(turnBox(word.box, 0, 300, 100)).toEqual(word.box);
+    // The left side of the scan becomes the top of the upright page
+    expect(turnBox(word.box, 90, 300, 100)).toEqual({ x: 40, y: 10, w: 40, h: 5 });
+    expect(turnBox(word.box, 180, 300, 100)).toEqual({ x: 285, y: 40, w: 5, h: 40 });
+    expect(turnBox(word.box, 270, 300, 100)).toEqual({ x: 20, y: 285, w: 40, h: 5 });
+  });
+
+  it("keeps each box in the turned page", () => {
+    for (const turn of [90, 180, 270] as const) {
+      const turned = turnText(page, turn);
+      const box = turned.lines[0]!.words[0]!.box;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.w).toBeLessThanOrEqual(turned.width);
+      expect(box.y + box.h).toBeLessThanOrEqual(turned.height);
+    }
+  });
+
+  it("changes the width and the height for a turn on the side, and keeps the text", () => {
+    const turned = turnText(page, 90);
+    expect([turned.width, turned.height]).toEqual([100, 300]);
+    expect(turned).toMatchObject({ unit: "px", text: "PARCEL", confidence: 0.9 });
+    expect(turned.lines[0]!.box).toEqual({ x: 40, y: 10, w: 40, h: 5 });
+    expect([turnText(page, 180).width, turnText(page, 180).height]).toEqual([300, 100]);
+  });
+
+  it("gives the same text for the turn 0, and the start text after a full turn", () => {
+    expect(turnText(page, 0)).toBe(page);
+    expect(turnText(turnText(page, 90), 270)).toEqual(page);
+    expect(turnText(turnText(page, 180), 180)).toEqual(page);
+    expect(turnText(turnText(turnText(turnText(page, 90), 90), 90), 90)).toEqual(page);
+  });
+
+  it("refuses a turn that is not a multiple of 90 degrees", () => {
+    expect(() => turnText(page, 45 as OcrTurn)).toThrow(RangeError);
+  });
+});
+
+describe("parseTesseractOsd", () => {
+  const lines = (...values: string[]): string => values.map((value) => `${value}\n`).join("");
+
+  it("reads the turn and the confidence of the orientation output", () => {
+    const output = lines("Page number: 0", "Orientation in degrees: 270", "Rotate: 90", "Orientation confidence: 2.00", "Script: Latin", "Script confidence: 0.39");
+    expect(parseTesseractOsd(output)).toEqual({ turn: 90, confidence: 2 });
+    expect(parseTesseractOsd(output.replace(/\n/g, "\r\n"))).toEqual({ turn: 90, confidence: 2 });
+  });
+
+  it("gives the turn 0 and the confidence 0 for an output with no valid turn", () => {
+    expect(parseTesseractOsd("")).toEqual({ turn: 0, confidence: 0 });
+    expect(parseTesseractOsd(lines("Too few characters. Skipping this page"))).toEqual({ turn: 0, confidence: 0 });
+    expect(parseTesseractOsd(lines("Rotate: 45", "Orientation confidence: 9"))).toEqual({ turn: 0, confidence: 0 });
+  });
+
+  it("gives the confidence 0 when the output has a turn but no confidence", () => {
+    expect(parseTesseractOsd(lines("Rotate: 180"))).toEqual({ turn: 180, confidence: 0 });
   });
 });

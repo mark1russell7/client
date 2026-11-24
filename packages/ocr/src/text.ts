@@ -118,3 +118,50 @@ export function scaleText(text: OcrText, factor: number, unit: OcrUnit): OcrText
     })),
   };
 }
+
+/** A turn of a page in the clock direction, in degrees: the turn that makes a page upright. */
+export type OcrTurn = 0 | 90 | 180 | 270;
+
+/** The turns in the clock direction that a page can have. */
+export const OCR_TURNS: readonly OcrTurn[] = [0, 90, 180, 270];
+
+/**
+ * This function gives the box in the frame of the page after a turn of the page in the clock
+ * direction. `width` and `height` are the size of the page before the turn.
+ */
+export function turnBox(box: Rect, turn: OcrTurn, width: number, height: number): Rect {
+  switch (turn) {
+    case 0:
+      return box;
+    case 90:
+      return { x: height - (box.y + box.h), y: box.x, w: box.h, h: box.w };
+    case 180:
+      return { x: width - (box.x + box.w), y: height - (box.y + box.h), w: box.w, h: box.h };
+    case 270:
+      return { x: box.y, y: width - (box.x + box.w), w: box.h, h: box.w };
+  }
+}
+
+/**
+ * This function turns each box, the width and the height of a text by `turn` degrees in the clock
+ * direction. For example, an engine that reads a scan on its side can give the boxes in the frame
+ * of the scan. The turn that makes the scan upright then gives the boxes in the frame of the upright
+ * page. A turn of 90 or 270 degrees changes the width and the height. The text and the order of the
+ * lines do not change.
+ */
+export function turnText(text: OcrText, turn: OcrTurn): OcrText {
+  if (!OCR_TURNS.includes(turn)) throw new RangeError(`The turn must be 0, 90, 180 or 270 degrees, not ${String(turn)}`);
+  if (turn === 0) return text;
+  const { width, height } = text;
+  const side = turn === 90 || turn === 270;
+  return {
+    ...text,
+    width: side ? height : width,
+    height: side ? width : height,
+    lines: text.lines.map((line) => ({
+      ...line,
+      box: turnBox(line.box, turn, width, height),
+      words: line.words.map((word) => ({ ...word, box: turnBox(word.box, turn, width, height) })),
+    })),
+  };
+}

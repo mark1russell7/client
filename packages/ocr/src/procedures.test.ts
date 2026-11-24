@@ -189,3 +189,69 @@ describe("the module", () => {
     expect(registry.has(["shell", "run"])).toBe(true);
   });
 });
+
+describe("upright: a page on its side", () => {
+  const OSD_90 = "Page number: 0\nOrientation in degrees: 270\nRotate: 90\nOrientation confidence: 2.00\nScript: Latin\nScript confidence: 0.39\n";
+  const OSD_0 = "Page number: 0\nOrientation in degrees: 0\nRotate: 0\nOrientation confidence: 11.50\n";
+
+  /** A fake tesseract: the mode 0 gives `osd`, each other mode gives the TSV of an image of 640 by 200 pixels. */
+  function tesseract(osd: string): (input: FakeShellInput) => FakeShellResult {
+    return (input) => {
+      const psm = input.args.indexOf("--psm");
+      return { stdout: psm >= 0 && input.args[psm + 1] === "0" ? osd : TSV };
+    };
+  }
+
+  it("finds the orientation, reads in the mode 1 and gives the boxes of the upright image", async () => {
+    const shell = fakeShell(tesseract(OSD_90));
+    const output = await call<OcrImageOutput>(createOcrModule(HOST), shell, ["ocr", "image"], { file: "scan.png", upright: true });
+    expect(shell.args(0)).toEqual([resolve("scan.png"), "stdout", "--psm", "0"]);
+    expect(shell.args(1)).toEqual([resolve("scan.png"), "stdout", "-l", "eng", "--psm", "1", "tsv"]);
+    expect(output).toMatchObject({ engine: "tesseract", unit: "px", width: 200, height: 640, text: "Hello world\nTotal 12.50", orientation: { turn: 90, confidence: 2 } });
+    // The box 180, 112, 110, 38 of the image of 640 by 200 pixels, after a turn of 90 degrees
+    expect(output.lines[1]!.words[1]!.box).toEqual({ x: 50, y: 180, w: 38, h: 110 });
+  });
+
+  it("reads an upright page in the mode of the input, with the boxes as the engine gives them", async () => {
+    const shell = fakeShell(tesseract(OSD_0));
+    const output = await call<OcrImageOutput>(createOcrModule(HOST), shell, ["ocr", "image"], { file: "scan.png", upright: true, psm: 6, dpi: 300 });
+    expect(shell.args(0)).toEqual([resolve("scan.png"), "stdout", "--psm", "0", "--dpi", "300"]);
+    expect(shell.args(1)).toEqual([resolve("scan.png"), "stdout", "-l", "eng", "--psm", "6", "--dpi", "300", "tsv"]);
+    expect(output).toMatchObject({ width: 640, height: 200, orientation: { turn: 0, confidence: 11.5 } });
+    expect(output.lines[1]!.words[1]!.box).toEqual({ x: 180, y: 112, w: 110, h: 38 });
+  });
+
+  it("keeps the mode of the input for a page on its side", async () => {
+    const shell = fakeShell(tesseract(OSD_90));
+    await call<OcrImageOutput>(createOcrModule(HOST), shell, ["ocr", "image"], { file: "scan.png", upright: true, psm: 4 });
+    expect(shell.args(1)).toContain("4");
+    expect(shell.args(1)).not.toContain("1");
+  });
+
+  it("starts no orientation step without upright, and gives no orientation", async () => {
+    const shell = fakeShell(tesseract(OSD_90));
+    const output = await call<OcrImageOutput>(createOcrModule(HOST), shell, ["ocr", "image"], { file: "scan.png" });
+    expect(shell.calls).toHaveLength(1);
+    expect(output).not.toHaveProperty("orientation");
+  });
+
+  it("gives the size of the upright page of a PDF file, from its text layer", async () => {
+    const shell = fakeShell((input) => (input.command.endsWith("tesseract") ? tesseract(OSD_90)(input) : fakeHost(BBOX_EMPTY)(input)));
+    const output = await call<OcrPageOutput>(createOcrModule(HOST), shell, ["ocr", "page"], { file: "scan.pdf", upright: true });
+    expect(shell.calls.map((input) => input.command)).toEqual(["/opt/pdftotext", "/opt/pdftoppm", "/opt/tesseract", "/opt/tesseract"]);
+    // The text layer gives a page of 595.276 by 841.89 points: the upright page is on its side
+    expect(output).toMatchObject({ source: "ocr", width: 841.89, height: 595.276, orientation: { turn: 90, confidence: 2 } });
+    // 300 dots per inch: a pixel is 0.24 points
+    expect(output.lines[1]!.words[1]!.box).toEqual({ x: 12, y: 43.2, w: 9.12, h: 26.4 });
+    expect(readdirSync(temp)).toEqual([]);
+  });
+
+  it("refuses upright with an engine that has no orientation step, and starts nothing", async () => {
+    const shell = fakeShell(tesseract(OSD_90));
+    const engine: OcrEngine = { ...tesseractEngine, orientation: undefined };
+    await expect(call(createOcrModule({ ...HOST, engine }), shell, ["ocr", "image"], { file: "scan.png", upright: true })).rejects.toThrow(
+      "The OCR engine tesseract cannot find the orientation of a page",
+    );
+    expect(shell.calls).toHaveLength(0);
+  });
+});

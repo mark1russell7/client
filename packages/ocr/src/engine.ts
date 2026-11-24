@@ -5,6 +5,7 @@
  */
 
 import { TESSERACT, type ProgramSpec } from "./programs.js";
+import { type OcrOrientation, parseTesseractOsd } from "./osd.js";
 import type { OcrText } from "./text.js";
 import { parseTesseractTsv } from "./tsv.js";
 
@@ -18,6 +19,19 @@ export interface OcrEngineOptions {
   readonly dpi?: number | undefined;
 }
 
+/** The step of an engine that finds the orientation of a page. */
+export interface OcrOrientationStep {
+  /** This function gives the argv of the program that finds the orientation of one image. */
+  argv(image: string, options: Pick<OcrEngineOptions, "dpi">): string[];
+  /** This function parses the standard output of the program. */
+  parse(stdout: string): OcrOrientation;
+  /**
+   * The page segmentation mode that reads a page on its side. The engine turns the page in this
+   * mode, but it gives the boxes in the frame of the image.
+   */
+  readonly psm: number;
+}
+
 /** An OCR engine. */
 export interface OcrEngine {
   /** The name of the engine in the result, for example `tesseract`. */
@@ -28,6 +42,8 @@ export interface OcrEngine {
   argv(image: string, options: OcrEngineOptions): string[];
   /** This function parses the standard output of the program. The boxes are in the pixels of the image. */
   parse(stdout: string): OcrText;
+  /** The step that finds the orientation of a page. An engine with no step cannot read a page on its side. */
+  readonly orientation?: OcrOrientationStep | undefined;
 }
 
 /** The default language of the recognition. */
@@ -41,7 +57,8 @@ export const LANGUAGE_PATTERN: RegExp = /^[A-Za-z0-9_][A-Za-z0-9_/]*(\+[A-Za-z0-
 
 /**
  * The adapter of tesseract 4 or later. The argv is `<image> stdout -l <language> [--psm N]
- * [--dpi N] tsv`: tesseract writes the TSV of the image to the standard output.
+ * [--dpi N] tsv`: tesseract writes the TSV of the image to the standard output. Its orientation step
+ * is `<image> stdout --psm 0 [--dpi N]`.
  */
 export const tesseractEngine: OcrEngine = {
   name: "tesseract",
@@ -56,4 +73,15 @@ export const tesseractEngine: OcrEngine = {
     return argv;
   },
   parse: parseTesseractTsv,
+  orientation: {
+    // The mode 0 finds only the orientation and the script. It needs the osd data of tesseract
+    argv(image, options) {
+      const argv = [image, "stdout", "--psm", "0"];
+      if (options.dpi !== undefined) argv.push("--dpi", String(options.dpi));
+      return argv;
+    },
+    parse: parseTesseractOsd,
+    // The mode 1 finds the orientation, turns the page and then finds the blocks of the page
+    psm: 1,
+  },
 };

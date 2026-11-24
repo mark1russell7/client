@@ -12,6 +12,7 @@ DEFAULT_TIMEOUT_MS: dist/run.d.ts#DEFAULT_TIMEOUT_MS
 FindProgramOptions: dist/programs.d.ts#FindProgramOptions
 LANGUAGE_PATTERN: dist/engine.d.ts#LANGUAGE_PATTERN
 OCR_PROGRAMS: dist/programs.d.ts#OCR_PROGRAMS
+OCR_TURNS: dist/text.d.ts#OCR_TURNS
 OcrEngine: dist/engine.d.ts#OcrEngine
 OcrEngineOptions: dist/engine.d.ts#OcrEngineOptions
 type OcrHostOptions: dist/run.d.ts#OcrHostOptions
@@ -20,6 +21,8 @@ OcrImageInputSchema: dist/types.d.ts#OcrImageInputSchema
 OcrImageOutput: dist/types.d.ts#OcrImageOutput
 OcrImageOutputSchema: dist/types.d.ts#OcrImageOutputSchema
 OcrLine: dist/text.d.ts#OcrLine
+OcrOrientation: dist/osd.d.ts#OcrOrientation
+OcrOrientationStep: dist/engine.d.ts#OcrOrientationStep
 OcrPageInput: dist/types.d.ts#OcrPageInput
 OcrPageInputSchema: dist/types.d.ts#OcrPageInputSchema
 OcrPageMode: dist/types.d.ts#OcrPageMode
@@ -28,6 +31,7 @@ OcrPageOutputSchema: dist/types.d.ts#OcrPageOutputSchema
 type OcrRunner: dist/run.d.ts#OcrRunner
 OcrText: dist/text.d.ts#OcrText
 OcrToolMissingError: dist/programs.d.ts#OcrToolMissingError
+OcrTurn: dist/text.d.ts#OcrTurn
 OcrUnit: dist/text.d.ts#OcrUnit
 OcrWord: dist/text.d.ts#OcrWord
 PDFTOPPM: dist/programs.d.ts#PDFTOPPM
@@ -50,6 +54,7 @@ ocrModule: dist/module.d.ts#ocrModule
 ocrPage: dist/procedures/ocr/page.d.ts#ocrPage
 ocrProcedures: dist/module.d.ts#ocrProcedures
 parsePdftotextBbox: dist/bbox.d.ts#parsePdftotextBbox
+parseTesseractOsd: dist/osd.d.ts#parseTesseractOsd
 parseTesseractTsv: dist/tsv.d.ts#parseTesseractTsv
 pdftoppmArgs: dist/procedures/ocr/page.d.ts#pdftoppmArgs
 pdftotextArgs: dist/procedures/ocr/page.d.ts#pdftotextArgs
@@ -59,6 +64,8 @@ requireProgram: dist/programs.d.ts#requireProgram
 scaleText: dist/text.d.ts#scaleText
 tesseractConfidence: dist/tsv.d.ts#tesseractConfidence
 tesseractEngine: dist/engine.d.ts#tesseractEngine
+turnBox: dist/text.d.ts#turnBox
+turnText: dist/text.d.ts#turnText
 unionBox: dist/text.d.ts#unionBox
 
 ## ./module (dist/module.d.ts): names
@@ -80,8 +87,11 @@ registerOcrProcedures: dist/module.d.ts#registerOcrProcedures
 
 ## ./parse (dist/parse.d.ts): names
 
+OCR_TURNS: dist/text.d.ts#OCR_TURNS
 OcrLine: dist/text.d.ts#OcrLine
+OcrOrientation: dist/osd.d.ts#OcrOrientation
 OcrText: dist/text.d.ts#OcrText
+OcrTurn: dist/text.d.ts#OcrTurn
 OcrUnit: dist/text.d.ts#OcrUnit
 OcrWord: dist/text.d.ts#OcrWord
 type Rect: @mark1russell7/layout-contract#Rect (external)
@@ -91,9 +101,12 @@ makeLine: dist/text.d.ts#makeLine
 makeText: dist/text.d.ts#makeText
 meanConfidence: dist/text.d.ts#meanConfidence
 parsePdftotextBbox: dist/bbox.d.ts#parsePdftotextBbox
+parseTesseractOsd: dist/osd.d.ts#parseTesseractOsd
 parseTesseractTsv: dist/tsv.d.ts#parseTesseractTsv
 scaleText: dist/text.d.ts#scaleText
 tesseractConfidence: dist/tsv.d.ts#tesseractConfidence
+turnBox: dist/text.d.ts#turnBox
+turnText: dist/text.d.ts#turnText
 unionBox: dist/text.d.ts#unionBox
 
 ## Declarations
@@ -116,6 +129,7 @@ export interface OcrEngine {
     readonly program: ProgramSpec;
     argv(image: string, options: OcrEngineOptions): string[];
     parse(stdout: string): OcrText;
+    readonly orientation?: OcrOrientationStep | undefined;
 }
 
 ### dist/engine.d.ts#OcrEngineOptions
@@ -123,6 +137,13 @@ export interface OcrEngineOptions {
     readonly language?: string | undefined;
     readonly psm?: number | undefined;
     readonly dpi?: number | undefined;
+}
+
+### dist/engine.d.ts#OcrOrientationStep
+export interface OcrOrientationStep {
+    argv(image: string, options: Pick<OcrEngineOptions, "dpi">): string[];
+    parse(stdout: string): OcrOrientation;
+    readonly psm: number;
 }
 
 ### dist/engine.d.ts#tesseractEngine
@@ -142,6 +163,15 @@ export declare const ocrProcedures: AnyProcedure[];
 
 ### dist/module.d.ts#registerOcrProcedures
 export declare const registerOcrProcedures: PackageDefinition["register"];
+
+### dist/osd.d.ts#OcrOrientation
+export interface OcrOrientation {
+    readonly turn: OcrTurn;
+    readonly confidence: number;
+}
+
+### dist/osd.d.ts#parseTesseractOsd
+export declare function parseTesseractOsd(output: string): OcrOrientation;
 
 ### dist/procedures/ocr/image.d.ts#ocrImage
 export declare function ocrImage(input: OcrImageInput, ctx: Pick<ProcedureContext, "client">, runner?: OcrRunner): Promise<OcrImageOutput>;
@@ -231,6 +261,9 @@ export interface OcrRunner {
 ### dist/run.d.ts#createOcrRunner
 export declare function createOcrRunner(options?: OcrHostOptions): OcrRunner;
 
+### dist/text.d.ts#OCR_TURNS
+export declare const OCR_TURNS: readonly OcrTurn[];
+
 ### dist/text.d.ts#OcrLine
 export interface OcrLine {
     readonly text: string;
@@ -248,6 +281,9 @@ export interface OcrText {
     readonly confidence: number;
     readonly lines: readonly OcrLine[];
 }
+
+### dist/text.d.ts#OcrTurn
+export type OcrTurn = 0 | 90 | 180 | 270;
 
 ### dist/text.d.ts#OcrUnit
 export type OcrUnit = "px" | "pt";
@@ -271,6 +307,12 @@ export declare function meanConfidence(words: readonly OcrWord[]): number;
 ### dist/text.d.ts#scaleText
 export declare function scaleText(text: OcrText, factor: number, unit: OcrUnit): OcrText;
 
+### dist/text.d.ts#turnBox
+export declare function turnBox(box: Rect, turn: OcrTurn, width: number, height: number): Rect;
+
+### dist/text.d.ts#turnText
+export declare function turnText(text: OcrText, turn: OcrTurn): OcrText;
+
 ### dist/text.d.ts#unionBox
 export declare function unionBox(boxes: readonly Rect[]): Rect;
 
@@ -290,6 +332,7 @@ export interface OcrImageInput {
     psm?: number | undefined;
     dpi?: number | undefined;
     timeout?: number | undefined;
+    upright?: boolean | undefined;
 }
 
 ### dist/types.d.ts#OcrImageInputSchema
@@ -298,6 +341,7 @@ export declare const OcrImageInputSchema: z.ZodType<OcrImageInput>;
 ### dist/types.d.ts#OcrImageOutput
 export interface OcrImageOutput extends OcrText {
     readonly engine: string;
+    readonly orientation?: OcrOrientation | undefined;
 }
 
 ### dist/types.d.ts#OcrImageOutputSchema
@@ -312,6 +356,7 @@ export interface OcrPageInput {
     psm?: number | undefined;
     dpi?: number | undefined;
     timeout?: number | undefined;
+    upright?: boolean | undefined;
 }
 
 ### dist/types.d.ts#OcrPageInputSchema
@@ -325,6 +370,7 @@ export interface OcrPageOutput extends OcrText {
     readonly page: number;
     readonly source: "text-layer" | "ocr";
     readonly engine?: string | undefined;
+    readonly orientation?: OcrOrientation | undefined;
 }
 
 ### dist/types.d.ts#OcrPageOutputSchema
