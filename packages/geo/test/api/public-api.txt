@@ -6,6 +6,7 @@
 
 ## . (dist/index.d.ts): names
 
+AddressArea: dist/address.d.ts#AddressArea
 AddressInterpolation: dist/address.d.ts#AddressInterpolation
 AddressMatch: dist/address.d.ts#AddressMatch
 AddressMiss: dist/address.d.ts#AddressMiss
@@ -169,6 +170,12 @@ tileUrl: dist/tiles.d.ts#tileUrl
 
 ## Declarations
 
+### dist/address.d.ts#AddressArea
+export interface AddressArea {
+    readonly postcode?: string | undefined;
+    readonly town?: string | undefined;
+}
+
 ### dist/address.d.ts#AddressInterpolation
 export interface AddressInterpolation {
     readonly kind: "interpolation";
@@ -208,6 +215,7 @@ export interface LocateAddressInput {
     readonly addresses: readonly MapFeature[];
     readonly streets?: readonly MapFeature[] | undefined;
     readonly words?: StreetWords | undefined;
+    readonly area?: AddressArea | undefined;
 }
 
 ### dist/address.d.ts#MapFeature

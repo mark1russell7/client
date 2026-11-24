@@ -310,7 +310,7 @@ export function locateAddress(input: LocateAddressInput): AddressPoint {
     .filter((feature) => normalizeStreet(tagOf(feature, "addr:street"), words) === street)
     .flatMap((feature) => {
       const center = centerOf(feature);
-      return center === undefined ? [] : [{ id: feature.id, center, numbers: houseNumbers(tagOf(feature, "addr:housenumber")), postcode: tagOf(feature, "addr:postcode"), town: tagOf(feature, "addr:city") }];
+      return center === undefined ? [] : [{ id: feature.id, center, numbers: houseNumbers(tagOf(feature, "addr:housenumber")), postcode: tagOf(feature, "addr:postcode") || undefined, town: tagOf(feature, "addr:city") || undefined }];
     });
   const hits = inArea(onStreet.filter((element) => element.numbers.includes(number)), input.area);
   const first = hits[0];
