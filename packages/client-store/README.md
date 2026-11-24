@@ -203,6 +203,31 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 });
 ```
 
+### The db of an artifact page
+
+`ArtifactDbStorage` gives one collection of the db of an artifact page as a `CollectionStorage`. The page gets the db from its host with `window.claude.use("db")`.
+
+- Each item is one document `<collection>/<id>` with the body `{ value, order }`. The storage ignores a document of another writer.
+- An id with characters outside the path grammar of the db is escaped as `~XX` for each byte of UTF-8. A list gives the id back.
+- The entries keep the order of the first set of each id. The field `order` keeps it on the db.
+- The db has no versions. A write with an expected version rejects with a `TypeError`.
+- An error with the code `unavailable` or `resource_exhausted` gives `ArtifactDbError` with the code `UNAVAILABLE` and `retryable: true`. A `HybridStorage` then keeps its queue.
+- An error with the code `invalid_argument` gives the code `VALIDATION_ERROR`, and the write leaves the queue of a `HybridStorage`.
+- The module imports nothing at run time. The contract suite of `@procedures/collections/testing` tests it.
+
+```ts
+import { ArtifactDbStorage, HybridStorage, IndexedDbQueueStore, IndexedDbStorage } from "@procedures/store/browser";
+import { ms } from "@procedures/client/browser";
+
+const db = await window.claude.use("db");
+const notes = new HybridStorage(new ArtifactDbStorage<Note>(db, { collection: "notes" }), {
+  mode: "write-back",
+  local: new IndexedDbStorage<Note>("notes"),
+  queueStore: new IndexedDbQueueStore("notes-queue"),
+  syncInterval: ms(3000),
+});
+```
+
 ## The modes of `HybridStorage`
 
 `HybridStorage` keeps a local copy of a remote collection storage. It has five modes, and `setMode()` changes the mode while the storage operates.

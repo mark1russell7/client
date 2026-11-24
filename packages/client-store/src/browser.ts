@@ -5,6 +5,7 @@
  * - `HybridStorage` keeps a local copy in front of a remote storage, with its errors and its types.
  * - `ApiStorage` is the remote storage over the collection procedures of a server.
  * - `EventsChangeFeed` pushes the remote changes to a `HybridStorage`.
+ * - `ArtifactDbStorage` is a remote storage over the db of an artifact page (`window.claude.use("db")`).
  * - `TabCoordinator` lets one leader tab run the sync of a `HybridStorage`, and the other tabs
  *   copy its changes (roadmap CLI-25). It uses the Web Locks API and `BroadcastChannel`.
  * - `TabGroup` does the same for many collections, with one lock and one channel (roadmap CLI-64).
@@ -57,6 +58,17 @@ export type {
   TabSnapshotOptions,
 } from "./storage/tab-coordinator.js";
 export type { ConflictResolution, SyncError, SyncStatus } from "./storage/types.js";
+// The collection storage over the db of an artifact page
+export { ArtifactDbError, ArtifactDbStorage, artifactDbId, artifactDbSegment } from "./storage/artifact-db.js";
+export type {
+  ArtifactDb,
+  ArtifactDbCollectionRef,
+  ArtifactDbData,
+  ArtifactDbDocRef,
+  ArtifactDbDocSnapshot,
+  ArtifactDbQuerySnapshot,
+  ArtifactDbStorageOptions,
+} from "./storage/artifact-db.js";
 export { ApiStorage } from "./storage/api.js";
 export type { ApiStorageOptions } from "./storage/api.js";
 export { EventsChangeFeed } from "./storage/feed.js";

@@ -34,6 +34,18 @@ export {
 } from "./serialization.js";
 export type { SerializeOptions, DeserializeOptions } from "./serialization.js";
 
+// The collection storage over the db of an artifact page (no Client)
+export { ArtifactDbError, ArtifactDbStorage, artifactDbId, artifactDbSegment } from "./artifact-db.js";
+export type {
+  ArtifactDb,
+  ArtifactDbCollectionRef,
+  ArtifactDbData,
+  ArtifactDbDocRef,
+  ArtifactDbDocSnapshot,
+  ArtifactDbQuerySnapshot,
+  ArtifactDbStorageOptions,
+} from "./artifact-db.js";
+
 // The collection storages that need a Client (before: "@procedures/client/collections")
 export { ApiStorage } from "./api.js";
 export type { ApiStorageOptions } from "./api.js";

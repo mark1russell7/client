@@ -8,6 +8,15 @@
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
+type ArtifactDb: dist/storage/artifact-db.d.ts#ArtifactDb
+type ArtifactDbCollectionRef: dist/storage/artifact-db.d.ts#ArtifactDbCollectionRef
+type ArtifactDbData: dist/storage/artifact-db.d.ts#ArtifactDbData
+type ArtifactDbDocRef: dist/storage/artifact-db.d.ts#ArtifactDbDocRef
+type ArtifactDbDocSnapshot: dist/storage/artifact-db.d.ts#ArtifactDbDocSnapshot
+ArtifactDbError: dist/storage/artifact-db.d.ts#ArtifactDbError
+type ArtifactDbQuerySnapshot: dist/storage/artifact-db.d.ts#ArtifactDbQuerySnapshot
+ArtifactDbStorage: dist/storage/artifact-db.d.ts#ArtifactDbStorage
+type ArtifactDbStorageOptions: dist/storage/artifact-db.d.ts#ArtifactDbStorageOptions
 type ChangeEventSource: dist/storage/feed.d.ts#ChangeEventSource
 CollectionProgramStore: dist/program-store/collection.d.ts#CollectionProgramStore
 ConflictError: dist/storage/hybrid.d.ts#ConflictError
@@ -90,6 +99,8 @@ type TabRetryOptions: dist/storage/tab-coordinator.d.ts#TabRetryOptions
 type TabRole: dist/storage/tab-coordinator.d.ts#TabRole
 type TabSnapshotOptions: dist/storage/tab-coordinator.d.ts#TabSnapshotOptions
 type WriteStrategy: dist/storage/types.d.ts#WriteStrategy
+artifactDbId: dist/storage/artifact-db.d.ts#artifactDbId
+artifactDbSegment: dist/storage/artifact-db.d.ts#artifactDbSegment
 attachProgramStore: dist/program-store/attach.d.ts#attachProgramStore
 checkStoredProgram: dist/program-store/types.d.ts#checkStoredProgram
 createApiSyncedRegistry: dist/storage/factory.d.ts#createApiSyncedRegistry
@@ -169,6 +180,15 @@ hasIndexedDb: dist/indexeddb/idb.d.ts#hasIndexedDb
 
 ApiStorage: dist/storage/api.d.ts#ApiStorage
 type ApiStorageOptions: dist/storage/api.d.ts#ApiStorageOptions
+type ArtifactDb: dist/storage/artifact-db.d.ts#ArtifactDb
+type ArtifactDbCollectionRef: dist/storage/artifact-db.d.ts#ArtifactDbCollectionRef
+type ArtifactDbData: dist/storage/artifact-db.d.ts#ArtifactDbData
+type ArtifactDbDocRef: dist/storage/artifact-db.d.ts#ArtifactDbDocRef
+type ArtifactDbDocSnapshot: dist/storage/artifact-db.d.ts#ArtifactDbDocSnapshot
+ArtifactDbError: dist/storage/artifact-db.d.ts#ArtifactDbError
+type ArtifactDbQuerySnapshot: dist/storage/artifact-db.d.ts#ArtifactDbQuerySnapshot
+ArtifactDbStorage: dist/storage/artifact-db.d.ts#ArtifactDbStorage
+type ArtifactDbStorageOptions: dist/storage/artifact-db.d.ts#ArtifactDbStorageOptions
 type ChangeEventSource: dist/storage/feed.d.ts#ChangeEventSource
 ConflictError: dist/storage/hybrid.d.ts#ConflictError
 type ConflictResolution: dist/storage/types.d.ts#ConflictResolution
@@ -230,6 +250,8 @@ type TabLockManagerLike: dist/storage/tab-coordinator.d.ts#TabLockManagerLike
 type TabRetryOptions: dist/storage/tab-coordinator.d.ts#TabRetryOptions
 type TabRole: dist/storage/tab-coordinator.d.ts#TabRole
 type TabSnapshotOptions: dist/storage/tab-coordinator.d.ts#TabSnapshotOptions
+artifactDbId: dist/storage/artifact-db.d.ts#artifactDbId
+artifactDbSegment: dist/storage/artifact-db.d.ts#artifactDbSegment
 hasIndexedDb: dist/indexeddb/idb.d.ts#hasIndexedDb
 
 ## Declarations
@@ -572,6 +594,80 @@ export interface ApiStorageOptions {
     signal?: AbortSignal;
     closeClient?: boolean;
 }
+
+### dist/storage/artifact-db.d.ts#ArtifactDb
+export interface ArtifactDb {
+    doc(path: string): ArtifactDbDocRef;
+    collection(path: string): ArtifactDbCollectionRef;
+}
+
+### dist/storage/artifact-db.d.ts#ArtifactDbCollectionRef
+export interface ArtifactDbCollectionRef {
+    get(): Promise<ArtifactDbQuerySnapshot>;
+}
+
+### dist/storage/artifact-db.d.ts#ArtifactDbData
+export type ArtifactDbData = Record<string, unknown>;
+
+### dist/storage/artifact-db.d.ts#ArtifactDbDocRef
+export interface ArtifactDbDocRef {
+    get(): Promise<ArtifactDbDocSnapshot>;
+    set(data: ArtifactDbData): Promise<void>;
+    delete(): Promise<void>;
+}
+
+### dist/storage/artifact-db.d.ts#ArtifactDbDocSnapshot
+export interface ArtifactDbDocSnapshot {
+    readonly id: string;
+    readonly exists: boolean;
+    data(): ArtifactDbData | undefined;
+}
+
+### dist/storage/artifact-db.d.ts#ArtifactDbError
+export declare class ArtifactDbError extends Error {
+    readonly code: string;
+    readonly retryable: boolean;
+    readonly dbCode: string;
+    constructor(dbCode: string, message: string, cause: unknown);
+}
+
+### dist/storage/artifact-db.d.ts#ArtifactDbQuerySnapshot
+export interface ArtifactDbQuerySnapshot {
+    readonly docs: readonly ArtifactDbDocSnapshot[];
+}
+
+### dist/storage/artifact-db.d.ts#ArtifactDbStorage
+export declare class ArtifactDbStorage<T> implements CollectionStorage<T> {
+    readonly collection: string;
+    constructor(db: ArtifactDb, options: ArtifactDbStorageOptions);
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries(): Promise<Array<[string, T]>>;
+    getIds(): Promise<string[]>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
+    clear(): Promise<void>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
+    deleteBatch(ids: string[]): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    getMetadata(): Promise<StorageMetadata>;
+    close(): Promise<void>;
+}
+
+### dist/storage/artifact-db.d.ts#ArtifactDbStorageOptions
+export interface ArtifactDbStorageOptions {
+    readonly collection: string;
+    readonly now?: (() => number) | undefined;
+}
+
+### dist/storage/artifact-db.d.ts#artifactDbId
+export declare function artifactDbId(segment: string): string | undefined;
+
+### dist/storage/artifact-db.d.ts#artifactDbSegment
+export declare function artifactDbSegment(id: string): string;
 
 ### dist/storage/factory.d.ts#CreateSyncedRegistryConfig
 export interface CreateSyncedRegistryConfig {
