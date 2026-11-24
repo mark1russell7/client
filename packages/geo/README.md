@@ -164,6 +164,31 @@ Both procedures send their requests through `polite-crawler/api`:
 
 The public Overpass servers ask for moderate use and a `User-Agent` that names your application, so `userAgent` is necessary. Give `baseUrl` to use your own Overpass server.
 
+## The point of a ZIP code, with no request that names it
+
+`zipCenter` gives an approximate point for a US ZIP code. The point is the internal point of its ZIP Code Tabulation Area (ZCTA). The data comes from the national ZCTA file of the Census Gazetteer. The caller downloads the whole file one time, so no request names the ZIP code.
+
+```ts
+import { readZipEntries } from "@mark1russell7/files/archive";
+import { parseZctaGazetteer, zctaGazetteerUrl, zctaIndex, zipCenter } from "@procedures/geo";
+
+const bytes = new Uint8Array(await (await fetch(zctaGazetteerUrl(2024))).arrayBuffer());
+const read = readZipEntries(bytes);
+const entry = read.ok ? read.entries.find((file) => file.name.endsWith(".txt")) : undefined;
+const index = zctaIndex(parseZctaGazetteer(new TextDecoder().decode(entry?.bytes)));
+const point = zipCenter("00001-0002", index);
+```
+
+- `zctaGazetteerUrl` gives the URL of the file of a year, from 2012. The file is a ZIP archive of approximately 1 MB with one text file.
+- This package does not unzip the file. The caller unzips it, for example with `readZipEntries` of `@mark1russell7/files/archive` on Node.
+- `parseZctaGazetteer` reads the text. It finds the columns `GEOID`, `ALAND`, `INTPTLAT` and `INTPTLONG` by name, and ignores the spaces around each value.
+- A text without these columns gives an error. A row with a bad value gives an error with its line number.
+- Each record has the 5 digits of the ZCTA, its internal point, and its land area in square metres.
+- `zip5` gives the 5 digits of `12345` and `12345-6789`. `zipCenter` accepts the two forms.
+- A ZIP code with no ZCTA gives `undefined`. A ZIP code of post office boxes only often has no ZCTA.
+- The internal point is in the area, but it is not the center of the population. Its error can be some kilometres in a large rural area.
+- The files are public domain. `ZCTA_GAZETTEER_ATTRIBUTION` names the source.
+
 ## The policy of the public servers
 
 The Nominatim policy permits at most one request each second. A `User-Agent` that names your application is necessary, so `geo.geocode` has the field `userAgent`. The OSRM demonstration server has a fair-use limit. Give `baseUrl` to use your own server of either kind.
