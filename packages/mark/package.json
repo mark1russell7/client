@@ -123,6 +123,7 @@
     "@procedures/node": "workspace:*",
     "@procedures/notify": "workspace:*",
     "@procedures/npm": "workspace:*",
+    "@procedures/ocr": "workspace:*",
     "@procedures/pdf": "workspace:*",
     "@procedures/privacy-scan": "workspace:*",
     "@procedures/restic": "workspace:*",

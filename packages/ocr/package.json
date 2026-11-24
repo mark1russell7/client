@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@procedures/ocr",
+  "version": "0.68.4",
+  "description": "The text of a PDF page or an image, with the text, the confidence and the box of each line and word: the text layer of the page first (pdftotext), then OCR with a local engine (tesseract).",
+  "keywords": [
+    "ocr",
+    "tesseract",
+    "pdftotext",
+    "poppler",
+    "pdf",
+    "text",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/ocr"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./module": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.js",
+      "default": "./dist/module.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "import": "./dist/register.js",
+      "default": "./dist/register.js"
+    },
+    "./parse": {
+      "types": "./dist/parse.d.ts",
+      "import": "./dist/parse.js",
+      "default": "./dist/parse.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/.tsbuildinfo",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "sideEffects": [
+    "./dist/register.js"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "^2.1.0",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "client": {
+    "procedures": "./dist/register.js",
+    "browser": [
+      "./parse"
+    ]
+  },
+  "dependencies": {
+    "@mark1russell7/layout-contract": "^0.11.1",
+    "@procedures/client": "workspace:*",
+    "@procedures/shell": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}

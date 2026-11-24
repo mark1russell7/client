@@ -41,6 +41,8 @@
     "packages/pdf/src/**/*.ts",
     "packages/browser/README.md",
     "packages/browser/src/**/*.ts",
+    "packages/ocr/README.md",
+    "packages/ocr/src/**/*.ts",
     "packages/statistics/README.md",
     "packages/statistics/src/module.ts",
     "packages/generators/README.md",
