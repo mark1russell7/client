@@ -121,6 +121,30 @@ describe("locateAddress: a match", () => {
   });
 });
 
+describe("locateAddress: the area of the address", () => {
+  // Two made-up towns with the same street and number, 5 km apart.
+  const near = feature("way/1", { type: "Point", coordinates: position(0, 0) }, { "addr:housenumber": "8", "addr:street": "Elm Street" });
+  const far = feature("way/2", { type: "Point", coordinates: position(5000, 0) }, { "addr:housenumber": "8", "addr:street": "Elm Street", "addr:postcode": "00002", "addr:city": "Othertown" });
+  const tagged = feature("way/3", { type: "Point", coordinates: position(0, 10) }, { "addr:housenumber": "8", "addr:street": "Elm Street", "addr:postcode": "00001" });
+  const address = { number: "8", street: "Elm Street" };
+
+  it("keeps the element with the same postal code or town, and gives its spread", () => {
+    expect(locateAddress({ address, addresses: [near, far, tagged], area: { postcode: "00001" } })).toMatchObject({ kind: "match", ids: ["way/3"], spreadMeters: 0 });
+    expect(locateAddress({ address, addresses: [near, far], area: { town: "Town of Othertown" } })).toMatchObject({ kind: "match", ids: ["way/2"] });
+  });
+
+  it("keeps the neutral elements when no element agrees, and all elements when each is against the area", () => {
+    expect(locateAddress({ address, addresses: [near, far], area: { postcode: "00001" } })).toMatchObject({ kind: "match", ids: ["way/1"], spreadMeters: 0 });
+    expect(locateAddress({ address, addresses: [far], area: { postcode: "00001" } })).toMatchObject({ kind: "match", ids: ["way/2"] });
+  });
+
+  it("keeps all elements with no area, so the spread tells the doubt", () => {
+    const found = locateAddress({ address, addresses: [near, far] });
+    expect(found).toMatchObject({ kind: "match", ids: ["way/1", "way/2"] });
+    expect(found.kind === "match" && found.spreadMeters).toBeGreaterThan(4900);
+  });
+});
+
 describe("locateAddress: loose features", () => {
   it("skips a feature with no correct geometry, and reads only the string tags", () => {
     const loose = [
