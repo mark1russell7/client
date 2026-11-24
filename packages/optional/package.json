@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/optional",
-  "version": "0.68.3",
+  "version": "0.68.4",
   "description": "The functions of @mark1russell7/optional as procedures, made from its types: optional values and results as typed calls, MCP tools and CLI commands.",
   "keywords": [
     "optional",
