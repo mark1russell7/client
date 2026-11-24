@@ -169,6 +169,8 @@ export interface GeoArcgisFeaturesInput {
   bbox: GeoBox;
   where?: string | undefined;
   outFields?: string[] | undefined;
+  returnGeometry?: boolean | undefined;
+  maxAllowableOffset?: number | undefined;
   userAgent: string;
   pageSize?: number | undefined;
   maxFeatures?: number | undefined;
@@ -180,6 +182,8 @@ export const GeoArcgisFeaturesInputSchema: z.ZodType<GeoArcgisFeaturesInput> = z
   bbox: box,
   where: z.string().min(1).max(2000).regex(noControl).optional().describe("The SQL condition of the query (default: 1=1, each feature)"),
   outFields: z.array(z.string().min(1).max(100).regex(/^[A-Za-z0-9_.]+$/)).max(100).optional().describe("The fields of each feature (default: each field)"),
+  returnGeometry: z.boolean().optional().describe("False for features with no geometry, a smaller answer (default: true)"),
+  maxAllowableOffset: z.number().positive().max(1).optional().describe("The largest distance in degrees between a geometry and its simplified form (default: no simplification)"),
   userAgent,
   pageSize: z.number().int().min(1).max(2000).optional().describe("The largest number of features of one request (default: 1000)"),
   maxFeatures: z.number().int().min(1).max(100_000).optional().describe("The largest number of features of the output (default: 10000)"),

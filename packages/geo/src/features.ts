@@ -335,6 +335,13 @@ export interface ArcgisQuery {
   readonly where?: string | undefined;
   /** These are the fields of each feature. The default is each field. */
   readonly outFields?: readonly string[] | undefined;
+  /** This value is `false` for features with no geometry: a smaller answer when only the fields count. The default is `true`. */
+  readonly returnGeometry?: boolean | undefined;
+  /**
+   * This value is the largest distance in degrees between a geometry and its simplified form (`maxAllowableOffset`).
+   * The layer simplifies each geometry. The default is no simplification. For example, 0.00001 degrees is about 1 m.
+   */
+  readonly maxAllowableOffset?: number | undefined;
   /** This value is the number of features before this page. */
   readonly offset: number;
   /** This value is the largest number of features of the page. */
@@ -361,6 +368,7 @@ export function arcgisExchange(query: ArcgisQuery): Exchange {
   checkBox(query.bbox);
   if (query.bbox.west > query.bbox.east) throw new RangeError("The box crosses the antimeridian: give each part of bboxParts to its own query");
   if (!Number.isInteger(query.offset) || query.offset < 0 || !Number.isInteger(query.pageSize) || query.pageSize < 1) throw new RangeError("The offset or the page size is not valid");
+  if (query.maxAllowableOffset !== undefined && !(Number.isFinite(query.maxAllowableOffset) && query.maxAllowableOffset > 0)) throw new RangeError("The maxAllowableOffset is not a finite number more than 0");
   const { west, south, east, north } = query.bbox;
   // The path ends with the number of the layer and at most one "/" (isArcgisLayerUrl)
   const url = new URL(query.layerUrl);
@@ -372,7 +380,8 @@ export function arcgisExchange(query: ArcgisQuery): Exchange {
     inSR: "4326",
     spatialRel: "esriSpatialRelIntersects",
     outFields: query.outFields === undefined || query.outFields.length === 0 ? "*" : query.outFields.join(","),
-    returnGeometry: "true",
+    returnGeometry: query.returnGeometry === false ? "false" : "true",
+    ...(query.maxAllowableOffset !== undefined && query.returnGeometry !== false ? { maxAllowableOffset: String(query.maxAllowableOffset) } : {}),
     outSR: "4326",
     resultOffset: String(query.offset),
     resultRecordCount: String(query.pageSize),

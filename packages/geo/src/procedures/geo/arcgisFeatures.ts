@@ -33,7 +33,7 @@ export async function geoArcgisFeatures(input: GeoArcgisFeaturesInput, context: 
         truncated = true;
         break;
       }
-      const exchange = arcgisExchange({ layerUrl: input.layerUrl, bbox: part, where: input.where, outFields: input.outFields, offset, pageSize: Math.min(pageSize, room), userAgent: input.userAgent });
+      const exchange = arcgisExchange({ layerUrl: input.layerUrl, bbox: part, where: input.where, outFields: input.outFields, returnGeometry: input.returnGeometry, maxAllowableOffset: input.maxAllowableOffset, offset, pageSize: Math.min(pageSize, room), userAgent: input.userAgent });
       const reply = await geoSend(context, { source: "ArcGIS layer", what: `the features of the layer from ${offset}`, exchange, timeoutMs });
       requests += 1;
       const page = arcgisPage(answerJson(reply, "The ArcGIS layer"));
