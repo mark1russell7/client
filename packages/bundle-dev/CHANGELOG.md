@@ -1,5 +1,20 @@
 # @procedures/bundle-dev
 
+## 0.68.4
+
+### Patch Changes
+
+- @procedures/client@0.68.4
+  - @procedures/cli-run@0.68.4
+  - @procedures/dag@0.68.4
+  - @procedures/fs@0.68.4
+  - @procedures/git@0.68.4
+  - @procedures/lib@0.68.4
+  - @procedures/pnpm@0.68.4
+  - @procedures/procedure@0.68.4
+  - @procedures/shell@0.68.4
+  - @procedures/compiler@0.68.4
+
 ## 0.68.3
 
 ### Patch Changes
