@@ -1,5 +1,17 @@
 # @procedures/geo
 
+## 0.68.3
+
+### Patch Changes
+
+- 70cb9d4: `@procedures/geo` reads the values of an ArcGIS image service at points (`getSamples`), for example the USGS 3DEP elevation. The pure function `imageSamplesExchange` builds the request, and `imageSamples` reads the answer. `ELEVATION_URL` and `ELEVATION_ATTRIBUTION` give the 3DEP service and its citation.
+- e7afb10: `@procedures/geo` finds the point of a street address in the features of `geo.osmFeatures`, with no request to a geocoder. The pure function `locateAddress` gives the point of an element with the number. Else it interpolates the number along the street line, and gives the error of the method on the known numbers (each element removed in turn). `normalizeStreet` and `STREET_WORDS` compare the street names of the United States. `parseStreetAddress`, `houseNumbers` and `townBox` are also new. The lines come from `joinLines` and `lineReference` of `@mark1russell7/geo` 0.5.5, and the fit from `leastSquares` of `@mark1russell7/rigor-statistics`. The new generated procedures `geo.joinLines`, `geo.nearestOnLine` and `geo.pointAlongLine` call the new functions of `@mark1russell7/geo` 0.5.5.
+- 1e4e921: `drivingRoute` and the procedure `geo.route` take a new option `line`: `"full"` or `"simplified"`. With it, the result also has `line`, the points of the route from the start to the destination (the GeoJSON line of OSRM). Use it, for example, to find the bridges on a route. Without the option, the request and the result do not change.
+- f2f04e6: `@procedures/geo` reads the soil at a point from the USDA NRCS Soil Data Access service (SSURGO). The pure functions `soilQuery`, `soilExchange` and `soilComponents` give the request and read the answer. Each major component of the map unit gets its septic field rating (`ENG - Septic Tank Absorption Fields`). It also gets its low, representative and high slope, its drainage class and its hydric rating. Send the exchange with `send` of `polite-crawler/api`. The service takes only a POST, so a procedure `geo.soilAtPoint` waits for POST requests in the fetch of the module.
+- 276413d: An automated dependency update changes the shipped files, so this PATCH ships them.
+- @procedures/client@0.68.3
+  - @procedures/compiler@0.68.3
+
 ## 0.68.2
 
 ### Patch Changes
