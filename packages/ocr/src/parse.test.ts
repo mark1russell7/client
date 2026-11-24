@@ -117,6 +117,14 @@ describe("parsePdftotextBbox", () => {
     expect(parsePdftotextBbox(two).text).toBe("one");
   });
 
+  it("reads a tag with a long run of name characters and no = in linear time", () => {
+    const tag = `<page${" :".repeat(1)}${":".repeat(200_000)} width="10" height="20">`;
+    const started = performance.now();
+    const text = parsePdftotextBbox(`${tag}</page>`);
+    expect([text.width, text.height]).toEqual([10, 20]);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   it("throws for an output with no page element", () => {
     expect(() => parsePdftotextBbox("<html></html>")).toThrow(/no page element/);
   });

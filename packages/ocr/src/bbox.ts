@@ -24,10 +24,14 @@ function safeCodePoint(code: number, entity: string): string {
   return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity;
 }
 
-/** This function gives the attributes of the start tag of an element, by name. */
+/**
+ * This function gives the attributes of the start tag of an element, by name. Each attribute starts
+ * after a white space, so a match starts only at a white space. Thus the time is linear in the
+ * length of the tag, also for a long run of name characters with no `=`.
+ */
 function attributes(tag: string): Map<string, string> {
   const result = new Map<string, string>();
-  for (const match of tag.matchAll(/([A-Za-z_:][\w:.-]*)="([^"]*)"/g)) result.set(match[1]!, match[2]!);
+  for (const match of tag.matchAll(/\s([A-Za-z_:][\w:.-]*)="([^"]*)"/g)) result.set(match[1]!, match[2]!);
   return result;
 }
 
