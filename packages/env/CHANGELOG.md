@@ -1,5 +1,11 @@
 # @procedures/env
 
+## 0.68.9
+
+### Patch Changes
+
+- @procedures/client@0.68.9
+
 ## 0.68.8
 
 ### Patch Changes
