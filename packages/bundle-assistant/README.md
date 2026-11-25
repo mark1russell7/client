@@ -19,7 +19,7 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | `ics.parse`, `ics.occurrences` | They read a calendar file and its repeated events. They are pure. |
 | `ics.write` | It writes a calendar file from events. It is pure. |
 | `mail.parse` | It reads the headers and the text of a message. It is pure. |
-| `geo.geocode`, `geo.route` | They read one public service each. |
+| `geo.geocode`, `geo.route`, `geo.soilAtPoint` | They read one public service each. `geo.soilAtPoint` sends a POST that only reads, and only to Soil Data Access. |
 | `geo.distanceKm`, `geo.geohash` | They give the distance between two points and the geohash of a point. They are pure. |
 | `geo.distance` | It gives the same distance as `geo.distanceKm` with `radiusKm: 6371`. It is deprecated: use `geo.distanceKm`. |
 | `weather.forecast` | It reads one public service. |
@@ -28,7 +28,7 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 The dev-tools server sends the requests of `geo.geocode`, `geo.route`, `geo.osmFeatures`, `geo.arcgisFeatures`, `weather.forecast` and `ics.fetch` through the default host policy of `@procedures/http`. The policy refuses a `baseUrl` or a feed on a loopback, private or link-local address.
 
 - `weather.forecast` uses the policy in each registry.
-- The export `mcpHostModules` gives `geo` and `ics` with the policy. The dev-tools server gives them to `createRegistry()` before the bundle, so they replace the default modules.
+- The export `mcpHostModules` gives `geo` and `ics` with the policy. The `fetch` of `geo` also takes the POST of `geo.soilAtPoint`, and only for the host `sdmdataaccess.sc.egov.usda.gov` (the option `readOnlyPost` of `createHostFetch()`). The dev-tools server gives them to `createRegistry()` before the bundle, so they replace the default modules.
 - The bundle keeps the default modules of `geo` and `ics`. Thus `mark` and the site load the bundle next to the packages `geo` and `ics`.
 
 Another host does the same:

@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 624 across 59 namespaces. Loaded 55 package register(s).
+**Total procedures:** 625 across 59 namespaces. Loaded 55 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 64 procedure(s)
+- [`geo.*`](#geo) — 65 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`handle.*`](#handle) — 2 procedure(s)
@@ -360,6 +360,7 @@
 | `geo.simplifyLines` | This function simplifies lines, for example the roads of a map at a small scale, with the method of Douglas and Peucker. It gives one line for each line of the input, in the same direction. Each position of the result is a position of the input. |
 | `geo.simplifyRegions` | This function simplifies regions that share borders, for example the counties of a state, with the method of Douglas and Peucker. It gives one region for each region of the input, with the same type. |
 | `geo.snapToRoad` | This function connects a point to a road graph. It gives the nearest node, or a new node at the nearest point of an edge. |
+| `geo.soilAtPoint` | Give the soil at a point from USDA Soil Data Access (SSURGO): the major components of the map unit, with the septic rating, the slope, the drainage and the hydric rating |
 | `geo.sunDay` | This function gives the sunrise, the solar noon and the sunset at a point on a date, or a polar day or night. |
 | `geo.sunPosition` | This function gives the place of the sun at an instant, with the low-precision formulas of The Astronomical Almanac. |
 | `geo.toGeoJsonBBox` | This function gives the GeoJSON form `[west, south, east, north]` of a box. |

@@ -6,7 +6,10 @@
 
 import type { Exchange } from "polite-crawler/api";
 
-/** The tabular endpoint of Soil Data Access. It takes a SQL query in a JSON body. */
+/** The host of Soil Data Access, for the `readOnlyPost` option of `createHostFetch()` of `@procedures/http`. */
+export const SOIL_DATA_ACCESS_HOST = "sdmdataaccess.sc.egov.usda.gov";
+
+/** The tabular endpoint of Soil Data Access, on `SOIL_DATA_ACCESS_HOST`. It takes a SQL query in a JSON body. */
 export const SOIL_DATA_ACCESS_URL = "https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest";
 
 /** The citation of the soil data. SSURGO is a work of the US government, in the public domain. */

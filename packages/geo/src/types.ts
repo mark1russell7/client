@@ -2,6 +2,7 @@
  * Type definitions of the procedures of this package
  */
 
+import type { SoilComponent } from "./soil.js";
 import * as z from "zod";
 import type { Point } from "./geo.js";
 import type { GeohashCell } from "@mark1russell7/geo";
@@ -201,4 +202,46 @@ export const GeoArcgisFeaturesOutputSchema: z.ZodType<GeoArcgisFeaturesOutput> =
   collection: featureCollection,
   requests: z.number().int().describe("The number of requests to the layer"),
   truncated: z.boolean().describe("True when the layer has more features than maxFeatures, or when it stopped the pages"),
+});
+
+/** The input of `geo.soilAtPoint`: a point, and the User-Agent of the request. */
+export interface GeoSoilAtPointInput {
+  lat: number;
+  lon: number;
+  userAgent: string;
+  timeoutMs?: number | undefined;
+}
+
+export const GeoSoilAtPointInputSchema: z.ZodType<GeoSoilAtPointInput> = z.object({
+  lat: z.number().min(-90).max(90).describe("The latitude of the point, in degrees (WGS84)"),
+  lon: z.number().min(-180).max(180).describe("The longitude of the point, in degrees (WGS84)"),
+  userAgent,
+  timeoutMs: z.number().int().positive().max(120_000).optional().describe("The time limit of the request, in milliseconds (default: 30000)"),
+});
+
+/** The output of `geo.soilAtPoint`: the major components of the map unit at the point, and the citation of the data. */
+export interface GeoSoilAtPointOutput {
+  components: SoilComponent[];
+  attribution: string;
+}
+
+const nullableNumber = z.number().nullable();
+
+export const GeoSoilAtPointOutputSchema: z.ZodType<GeoSoilAtPointOutput> = z.object({
+  components: z
+    .array(
+      z.object({
+        mukey: z.string().describe("The key of the map unit"),
+        mapUnit: z.string().describe("The name of the map unit"),
+        component: z.string().describe("The name of the component"),
+        percent: nullableNumber.describe("The percent of the map unit that the component covers"),
+        septic: z.enum(["Not limited", "Somewhat limited", "Very limited"]).nullable().describe("The rating class for septic tank absorption fields"),
+        septicValue: nullableNumber.describe("The septic rating from 0 (no limit) to 1 (the most limit)"),
+        slope: z.object({ low: nullableNumber, representative: nullableNumber, high: nullableNumber }).describe("The slope of the component, in percent"),
+        drainage: z.string().nullable().describe("The drainage class, for example Somewhat poorly drained"),
+        hydric: z.string().nullable().describe("The hydric rating: Yes, No or Unranked"),
+      })
+    )
+    .describe("The major components of the map unit at the point, the largest first. An empty list: the survey has no map unit at the point"),
+  attribution: z.string().describe("The citation of the soil data (SSURGO, public domain)"),
 });

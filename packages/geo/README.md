@@ -20,6 +20,7 @@ A host registers the procedures with `createRegistry(geoModule)`, or with `impor
 | `geo.route` | reads `network` | Gives the kilometres and the minutes of a drive between two points. With `line`, it also gives the points of the route. |
 | `geo.osmFeatures` | reads `network` | Gives the features of OpenStreetMap in a box, as GeoJSON. |
 | `geo.arcgisFeatures` | reads `network` | Gives the features of an ArcGIS layer in a box, as GeoJSON. |
+| `geo.soilAtPoint` | reads `network` | Gives the soil at a point, from USDA Soil Data Access (SSURGO): the septic rating, the slope, the drainage and the hydric rating of each major component. |
 | `geo.distance` | none | Gives the great-circle distance between two points, in kilometres. It is deprecated: use `geo.distanceKm`. |
 | `geo.geohash` | none | Gives the geohash of a point and the cell of that geohash. |
 | 45 generated procedures | none | Each one calls one function of `@mark1russell7/geo`, for example `geo.distanceKm`, `geo.destinationKm` and `geo.bboxOfPoints`. |
@@ -73,7 +74,7 @@ node scripts/wraps.ts generate --package geo
 
 The command writes `src/manifest.ts`. It also raises the ratchet of the library in `wraps.coverage.json`. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current, or when the share of the functions with a procedure falls.
 
-The wrap is pure: its `wrap.json` has `"pure": true`. So the check also examines the effects of the generated procedures, the browser entries and the program `point-at-the-median-distance` of `wraps.programs.json`. The hand-written procedures `geo.geocode`, `geo.route`, `geo.osmFeatures` and `geo.arcgisFeatures` read the network. They are not in the manifest, so the gate does not examine them.
+The wrap is pure: its `wrap.json` has `"pure": true`. So the check also examines the effects of the generated procedures, the browser entries and the program `point-at-the-median-distance` of `wraps.programs.json`. The hand-written procedures `geo.geocode`, `geo.route`, `geo.osmFeatures`, `geo.arcgisFeatures` and `geo.soilAtPoint` read the network. They are not in the manifest, so the gate does not examine them.
 
 ## Distance and geohash
 
@@ -129,6 +130,25 @@ const zones = await client.exec(["geo", "arcgisFeatures"], {
 - An error of the layer, for example a bad condition or a token that it needs, is an error.
 
 A box that crosses the antimeridian has its `west` more than its `east`. It gives two queries.
+
+`geo.soilAtPoint` asks USDA Soil Data Access for the major components of the map unit at a point:
+
+```ts
+const soil = await client.exec(["geo", "soilAtPoint"], { lat: 44.9, lon: -69.2, userAgent: "my-app/1.0 (me@example.org)" });
+// soil.components[0].septic: "Very limited", soil.attribution: the citation of SSURGO
+```
+
+- The service takes its SQL query only in the body of a POST. The query only reads, and the point goes into it only as two numbers.
+- The request goes only to the endpoint of Soil Data Access (`SOIL_DATA_ACCESS_URL`). The input has no `baseUrl`.
+- The transport of this package sends a POST only for a request that tells that it only reads. The other procedures send no POST.
+- A `fetch` of `createHostFetch()` sends no POST by default. A host that gives `geo.soilAtPoint` names the host in the option `readOnlyPost`:
+
+```ts
+createGeoModule({ fetch: createHostFetch({ readOnlyPost: ["sdmdataaccess.sc.egov.usda.gov"] }) });
+```
+
+- An empty list of components tells that the survey has no map unit at the point.
+- SSURGO is a work of the US government, in the public domain. The output has its citation in `attribution`.
 
 ## The point of an address, with no geocoder
 

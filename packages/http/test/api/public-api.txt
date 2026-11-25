@@ -19,6 +19,7 @@ HOST_NOT_ALLOWED: dist/policy.d.ts#HOST_NOT_ALLOWED
 type HeaderSource: dist/frame.d.ts#HeaderSource
 type HostFetch: dist/host-fetch.d.ts#HostFetch
 type HostFetchInit: dist/host-fetch.d.ts#HostFetchInit
+type HostFetchOptions: dist/host-fetch.d.ts#HostFetchOptions
 type HostFetchResponse: dist/host-fetch.d.ts#HostFetchResponse
 type HostPolicy: dist/policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/policy.d.ts#HostPolicyOptions
@@ -180,9 +181,15 @@ export type HostFetch = (url: string, init?: HostFetchInit) => Promise<HostFetch
 
 ### dist/host-fetch.d.ts#HostFetchInit
 export interface HostFetchInit {
-    readonly method?: "GET" | "HEAD" | undefined;
+    readonly method?: "GET" | "HEAD" | "POST" | undefined;
     readonly headers?: Readonly<Record<string, string>> | undefined;
+    readonly body?: string | undefined;
     readonly signal?: AbortSignal | undefined;
+}
+
+### dist/host-fetch.d.ts#HostFetchOptions
+export interface HostFetchOptions extends HttpModuleOptions {
+    readonly readOnlyPost?: readonly string[] | undefined;
 }
 
 ### dist/host-fetch.d.ts#HostFetchResponse
@@ -196,7 +203,7 @@ export interface HostFetchResponse {
 }
 
 ### dist/host-fetch.d.ts#createHostFetch
-export declare function createHostFetch(options?: HttpModuleOptions): HostFetch;
+export declare function createHostFetch(options?: HostFetchOptions): HostFetch;
 
 ### dist/module.d.ts#HttpModuleOptions
 export interface HttpModuleOptions extends HostPolicyOptions {

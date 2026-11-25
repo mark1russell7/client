@@ -47,6 +47,10 @@ GeoOsmFeaturesOutput: dist/types.d.ts#GeoOsmFeaturesOutput
 GeoOsmFeaturesOutputSchema: dist/types.d.ts#GeoOsmFeaturesOutputSchema
 GeoProceduresOptions: dist/procedures.d.ts#GeoProceduresOptions
 GeoRequest: dist/polite.d.ts#GeoRequest
+GeoSoilAtPointInput: dist/types.d.ts#GeoSoilAtPointInput
+GeoSoilAtPointInputSchema: dist/types.d.ts#GeoSoilAtPointInputSchema
+GeoSoilAtPointOutput: dist/types.d.ts#GeoSoilAtPointOutput
+GeoSoilAtPointOutputSchema: dist/types.d.ts#GeoSoilAtPointOutputSchema
 GeocodeResult: dist/geo.d.ts#GeocodeResult
 GeohashCell: dist/geohash.d.ts#GeohashCell
 ImageInterpolation: dist/image.d.ts#ImageInterpolation
@@ -74,6 +78,7 @@ Point: dist/geo.d.ts#Point
 RouteLine: dist/geo.d.ts#RouteLine
 RouteResult: dist/geo.d.ts#RouteResult
 SEPTIC_RULE: dist/soil.d.ts#SEPTIC_RULE
+SOIL_DATA_ACCESS_HOST: dist/soil.d.ts#SOIL_DATA_ACCESS_HOST
 SOIL_DATA_ACCESS_URL: dist/soil.d.ts#SOIL_DATA_ACCESS_URL
 SSURGO_ATTRIBUTION: dist/soil.d.ts#SSURGO_ATTRIBUTION
 STREET_WORDS: dist/address.d.ts#STREET_WORDS
@@ -110,6 +115,7 @@ geoPace: dist/polite.d.ts#geoPace
 geoProcedures: dist/procedures.d.ts#geoProcedures
 geoRouteProcedure: dist/procedures.d.ts#geoRouteProcedure
 geoSend: dist/polite.d.ts#geoSend
+geoSoilAtPointProcedure: dist/procedures.d.ts#geoSoilAtPointProcedure
 geoTransport: dist/polite.d.ts#geoTransport
 geocode: dist/geo.d.ts#geocode
 geohash: dist/geohash.d.ts#geohash
@@ -561,6 +567,8 @@ export type GeoFetch = (url: string, init: {
     headers: Record<string, string>;
     signal: AbortSignal;
     redirect?: "manual";
+    method?: "POST";
+    body?: string;
 }) => Promise<GeoFetchResponse>;
 
 ### dist/polite.d.ts#GeoFetchHeaders
@@ -585,6 +593,7 @@ export interface GeoRequest {
     readonly exchange: Exchange;
     readonly timeoutMs: number;
     readonly attempts?: number | undefined;
+    readonly readOnlyPost?: boolean | undefined;
 }
 
 ### dist/polite.d.ts#MapDataContext
@@ -601,7 +610,7 @@ export declare const TRANSIENT_STATUSES: ReadonlySet<number>;
 export declare function answerJson(reply: Reply, source: string): unknown;
 
 ### dist/polite.d.ts#fetchLikeOf
-export declare function fetchLikeOf(fetch: GeoFetch): FetchLike;
+export declare function fetchLikeOf(fetch: GeoFetch, readOnlyPost?: boolean): FetchLike;
 
 ### dist/polite.d.ts#geoPace
 export declare function geoPace(): Pace;
@@ -610,7 +619,7 @@ export declare function geoPace(): Pace;
 export declare function geoSend(context: MapDataContext, request: GeoRequest): Promise<Reply>;
 
 ### dist/polite.d.ts#geoTransport
-export declare function geoTransport(fetch: GeoFetch, timeoutMs: number): Transport;
+export declare function geoTransport(fetch: GeoFetch, timeoutMs: number, readOnlyPost?: boolean): Transport;
 
 ### dist/procedures.d.ts#GeoProceduresOptions
 export interface GeoProceduresOptions {
@@ -642,8 +651,14 @@ export declare const geoProcedures: AnyProcedure[];
 ### dist/procedures.d.ts#geoRouteProcedure
 export declare const geoRouteProcedure: AnyProcedure;
 
+### dist/procedures.d.ts#geoSoilAtPointProcedure
+export declare const geoSoilAtPointProcedure: AnyProcedure;
+
 ### dist/soil.d.ts#SEPTIC_RULE
 export declare const SEPTIC_RULE = "ENG - Septic Tank Absorption Fields";
+
+### dist/soil.d.ts#SOIL_DATA_ACCESS_HOST
+export declare const SOIL_DATA_ACCESS_HOST = "sdmdataaccess.sc.egov.usda.gov";
 
 ### dist/soil.d.ts#SOIL_DATA_ACCESS_URL
 export declare const SOIL_DATA_ACCESS_URL = "https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest";
@@ -836,6 +851,26 @@ export interface GeoOsmFeaturesOutput {
 
 ### dist/types.d.ts#GeoOsmFeaturesOutputSchema
 export declare const GeoOsmFeaturesOutputSchema: z.ZodType<GeoOsmFeaturesOutput>;
+
+### dist/types.d.ts#GeoSoilAtPointInput
+export interface GeoSoilAtPointInput {
+    lat: number;
+    lon: number;
+    userAgent: string;
+    timeoutMs?: number | undefined;
+}
+
+### dist/types.d.ts#GeoSoilAtPointInputSchema
+export declare const GeoSoilAtPointInputSchema: z.ZodType<GeoSoilAtPointInput>;
+
+### dist/types.d.ts#GeoSoilAtPointOutput
+export interface GeoSoilAtPointOutput {
+    components: SoilComponent[];
+    attribution: string;
+}
+
+### dist/types.d.ts#GeoSoilAtPointOutputSchema
+export declare const GeoSoilAtPointOutputSchema: z.ZodType<GeoSoilAtPointOutput>;
 
 ### dist/zcta.d.ts#FIRST_ZCTA_GAZETTEER_YEAR
 export declare const FIRST_ZCTA_GAZETTEER_YEAR = 2012;
