@@ -121,7 +121,7 @@ describe("ocr.page", () => {
 
   it("keeps the error of a failed program that has no other program with its name", async () => {
     const shell = fakeShell({ exitCode: 1, stderr: "read_params_file: Can't open Glyph & Cog" });
-    await expect(call(createOcrModule(HOST), shell, ["ocr", "image"], { file: "sign.png" })).rejects.toThrow(/^tesseract failed (exit code 1): read_params_file/);
+    await expect(call(createOcrModule(HOST), shell, ["ocr", "image"], { file: "sign.png" })).rejects.toThrow(/^tesseract failed \(exit code 1\): read_params_file/);
   });
 
   it("gives the standard output of a failed program when its standard error is empty", async () => {
