@@ -7,7 +7,7 @@
  *
  * - `ics.parse`, `ics.occurrences`, `ics.write`, `mail.parse`, `geo.distance`, `geo.distanceKm`,
  *   `geo.geohash`: pure. `geo.distance` is deprecated, and `geo.distanceKm` replaces it.
- * - `geo.geocode`, `geo.route`, `weather.forecast`: they read one public service each.
+ * - `geo.geocode`, `geo.route`, `geo.soilAtPoint`, `weather.forecast`: they read one public service each.
  * - `exif.read`: it reads a file of the host.
  *
  * These procedures are not tools:
@@ -23,7 +23,9 @@
  *
  * The request of `weather.forecast` goes through the default host policy of `@procedures/http`.
  * The policy refuses a `baseUrl` on a loopback, private or link-local address (audit pass 2, O55).
- * `mcpHostModules` gives `geo` and `ics` with the same policy, for an MCP host.
+ * `mcpHostModules` gives `geo` and `ics` with the same policy, for an MCP host. The `fetch` of `geo`
+ * also sends the POST of `geo.soilAtPoint`, and only to the host of Soil Data Access.
+ * That service takes its query only in the body of a POST, and the query only reads.
  *
  * This file has no side effects: an MCP host builds its own registry from `bundleAssistantModules`.
  * `register.ts` registers the same modules in the global registry.
@@ -34,6 +36,7 @@ import { createHostFetch } from "@procedures/http";
 import icsModule, { createIcsModule } from "@procedures/ics/module";
 import mailModule from "@procedures/mail/module";
 import geoModule, { createGeoModule, geoManifest } from "@procedures/geo/module";
+import { SOIL_DATA_ACCESS_URL } from "@procedures/geo";
 import weatherModule from "@procedures/weather/module";
 import exifModule from "@procedures/exif/module";
 
@@ -43,6 +46,9 @@ export const bundleAssistantModules: readonly ProcedureModule[] = [icsModule, ma
 /** The `fetch` of `mcpHostModules`: the default host policy of `@procedures/http`. */
 const hostFetch = createHostFetch();
 
+/** The `fetch` of `geo` in `mcpHostModules`: the default host policy, and a POST that only reads to the one host of `geo.soilAtPoint`. */
+const geoHostFetch = createHostFetch({ readOnlyPost: [new URL(SOIL_DATA_ACCESS_URL).hostname] });
+
 /**
  * The modules of `geo` and `ics` with the default host policy of `@procedures/http`, for an MCP
  * host. The host gives them to `createRegistry()` before the bundle. In one call, the first
@@ -51,7 +57,7 @@ const hostFetch = createHostFetch();
  * The bundle keeps the default modules. A registry with the default modules (`mark`, the site)
  * refuses a second copy of a procedure with another handler.
  */
-export const mcpHostModules: readonly ProcedureModule[] = [createIcsModule({ fetch: hostFetch }), createGeoModule({ fetch: hostFetch })];
+export const mcpHostModules: readonly ProcedureModule[] = [createIcsModule({ fetch: hostFetch }), createGeoModule({ fetch: geoHostFetch })];
 
 const bundleAssistantPackage: PackageDefinition = definePackage("@procedures/bundle-assistant", [], bundleAssistantModules);
 

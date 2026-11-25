@@ -1,6 +1,6 @@
 /**
  * The procedures of `@procedures/geo`: `geo.geocode`, `geo.route`, `geo.osmFeatures`,
- * `geo.arcgisFeatures`, `geo.distance` and `geo.geohash`.
+ * `geo.arcgisFeatures`, `geo.soilAtPoint`, `geo.distance` and `geo.geohash`.
  *
  * The procedures that use the network send their requests with the `fetch` of the module. The default is
  * the global `fetch`, so the root stays safe for a browser. A Node host that takes calls from
@@ -17,6 +17,7 @@ import { geoArcgisFeatures } from "./procedures/geo/arcgisFeatures.js";
 import { geoDistance } from "./procedures/geo/distance.js";
 import { geoGeohash } from "./procedures/geo/geohash.js";
 import { geoOsmFeatures } from "./procedures/geo/osmFeatures.js";
+import { geoSoilAtPoint } from "./procedures/geo/soilAtPoint.js";
 import {
   GeoArcgisFeaturesInputSchema,
   GeoArcgisFeaturesOutputSchema,
@@ -30,6 +31,10 @@ import {
   GeoDistanceOutputSchema,
   GeoGeohashInputSchema,
   GeoGeohashOutputSchema,
+  GeoSoilAtPointInputSchema,
+  GeoSoilAtPointOutputSchema,
+  type GeoSoilAtPointInput,
+  type GeoSoilAtPointOutput,
   type GeoDistanceInput,
   type GeoDistanceOutput,
   type GeoGeohashInput,
@@ -51,7 +56,7 @@ export interface GeoProceduresOptions {
    */
   readonly fetch?: GeoFetch | undefined;
   /**
-   * The pace of the map data procedures (`geo.osmFeatures`, `geo.arcgisFeatures`): one request in
+   * The pace of the map data procedures (`geo.osmFeatures`, `geo.arcgisFeatures`, `geo.soilAtPoint`): one request in
    * progress for each host, and a rest between two requests. The default is the pace of the process
    * (`geoPace()`). Give the pace of your other API clients to share it.
    */
@@ -181,6 +186,24 @@ function arcgisFeaturesProcedure(fetch: GeoFetch | undefined, pace: Pace | undef
     .build();
 }
 
+function soilAtPointProcedure(fetch: GeoFetch | undefined, pace: Pace | undefined): AnyProcedure {
+  return createProcedure()
+    .path(["geo", "soilAtPoint"])
+    .input(GeoSoilAtPointInputSchema)
+    .output(GeoSoilAtPointOutputSchema)
+    .meta({
+      description:
+        "Give the soil at a point from USDA Soil Data Access (SSURGO): the major components of the map unit, with the septic rating, the slope, the drainage and the hydric rating",
+      output: "json",
+      effects: NETWORK_READ,
+    })
+    .handler(
+      async (input: GeoSoilAtPointInput, ctx?: ProcedureContext): Promise<GeoSoilAtPointOutput> =>
+        geoSoilAtPoint(input, { fetch: fetch ?? globalFetch, pace: pace ?? geoPace(), signal: ctx?.signal })
+    )
+    .build();
+}
+
 export const geoGeocodeProcedure: AnyProcedure = geocodeProcedure(undefined);
 
 export const geoRouteProcedure: AnyProcedure = routeProcedure(undefined);
@@ -188,6 +211,8 @@ export const geoRouteProcedure: AnyProcedure = routeProcedure(undefined);
 export const geoOsmFeaturesProcedure: AnyProcedure = osmFeaturesProcedure(undefined, undefined);
 
 export const geoArcgisFeaturesProcedure: AnyProcedure = arcgisFeaturesProcedure(undefined, undefined);
+
+export const geoSoilAtPointProcedure: AnyProcedure = soilAtPointProcedure(undefined, undefined);
 
 // =============================================================================
 // geo.distance
@@ -234,6 +259,7 @@ export const geoProcedures: AnyProcedure[] = [
   geoRouteProcedure,
   geoOsmFeaturesProcedure,
   geoArcgisFeaturesProcedure,
+  geoSoilAtPointProcedure,
   geoDistanceProcedure,
   geoGeohashProcedure,
 ];
@@ -249,6 +275,7 @@ export function createGeoProcedures(options: GeoProceduresOptions = {}): AnyProc
     routeProcedure(options.fetch),
     osmFeaturesProcedure(options.fetch, options.pace),
     arcgisFeaturesProcedure(options.fetch, options.pace),
+    soilAtPointProcedure(options.fetch, options.pace),
     geoDistanceProcedure,
     geoGeohashProcedure,
   ];

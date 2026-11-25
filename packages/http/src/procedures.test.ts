@@ -791,3 +791,62 @@ describe("createHostFetch", () => {
     expect((error as { name?: string }).name).toBe("TimeoutError");
   });
 });
+
+describe("createHostFetch: a POST that only reads", () => {
+  const caught = (promise: Promise<unknown>): Promise<unknown> =>
+    promise.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+  const post = { method: "POST", headers: { "content-type": "application/json" }, body: '{"query":"x"}' } as const;
+
+  it("refuses each POST by default, before a request", async () => {
+    seen.delete("/echo");
+    for (const hostFetch of [createHostFetch({ allow: ["127.0.0.1"] }), createHostFetch({ allow: ["127.0.0.1"], readOnlyPost: ["127.0.0.1:1", "other.test"] })]) {
+      const error = await caught(hostFetch(`${base}/echo`, post));
+      expect(isHostNotAllowed(error)).toBe(true);
+      expect((error as Error).message).toContain("takes no POST");
+    }
+    expect(seen.has("/echo")).toBe(false);
+  });
+
+  it("sends a POST with its body and its headers to a host of readOnlyPost", async () => {
+    for (const entry of ["127.0.0.1", `127.0.0.1:${port}`]) {
+      const hostFetch = createHostFetch({ allow: ["127.0.0.1"], readOnlyPost: [entry] });
+      const response = await hostFetch(`${base}/echo`, post);
+      expect(response).toMatchObject({ ok: true, status: 200 });
+      const echo = (await response.json()) as { method: string; headers: Record<string, string>; body: string };
+      expect(echo).toMatchObject({ method: "POST", body: '{"query":"x"}' });
+      expect(echo.headers["content-type"]).toBe("application/json");
+    }
+  });
+
+  it("keeps the host policy for a host of readOnlyPost", async () => {
+    seen.delete("/echo");
+    const error = await caught(createHostFetch({ readOnlyPost: ["127.0.0.1"] })(`${base}/echo`, post));
+    expect(isHostNotAllowed(error)).toBe(true);
+    expect((error as Error).message).toContain("loopback");
+    expect(seen.has("/echo")).toBe(false);
+  });
+
+  it("gives the response of a redirect, and does not follow it", async () => {
+    seen.delete("/echo");
+    const hostFetch = createHostFetch({ allow: ["127.0.0.1"], readOnlyPost: ["127.0.0.1"] });
+    const moved = await hostFetch(`${base}/redirect/307`, post);
+    expect(moved).toMatchObject({ ok: false, status: 307, url: `${base}/redirect/307` });
+    expect(seen.has("/echo")).toBe(false);
+  });
+
+  it("refuses a body without the method POST", async () => {
+    const hostFetch = createHostFetch({ allow: ["127.0.0.1"], readOnlyPost: ["127.0.0.1"] });
+    const error = await caught(hostFetch(`${base}/echo`, { body: "x" }));
+    expect((error as Error).message).toContain("a body needs the method POST");
+  });
+
+  it("throws for a bad entry of readOnlyPost when it makes the fetch", () => {
+    for (const entry of ["*.example.test", "10.0.0.0/8", "a b", "example.test:0", "user@example.test", ""]) {
+      expect(() => createHostFetch({ readOnlyPost: [entry] }), entry).toThrow(/readOnlyPost entry/);
+    }
+    expect(() => createHostFetch({ readOnlyPost: ["Example.Test.", "[::1]:8080", "::1", "10.0.0.1:443"] })).not.toThrow();
+  });
+});

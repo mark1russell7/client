@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 611 across 59 namespaces. Loaded 55 package register(s).
+**Total procedures:** 612 across 59 namespaces. Loaded 55 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 51 procedure(s)
+- [`geo.*`](#geo) — 52 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`handle.*`](#handle) — 2 procedure(s)
@@ -350,6 +350,7 @@
 | `geo.ringWinding` | This function gives the winding of a ring in the plane of longitude and latitude: the sign of its exact signed area. The sum uses exact dyadic numbers, so a rounding error cannot change the result. For a ring that crosses itself, the result is the sign of the sum of the signed areas of its loops. |
 | `geo.route` | Give the time and the distance of a drive between two points (OSRM) |
 | `geo.simplifyRegions` | This function simplifies regions that share borders, for example the counties of a state, with the method of Douglas and Peucker. It gives one region for each region of the input, with the same type. |
+| `geo.soilAtPoint` | Give the soil at a point from USDA Soil Data Access (SSURGO): the major components of the map unit, with the septic rating, the slope, the drainage and the hydric rating |
 | `geo.toGeoJsonBBox` | This function gives the GeoJSON form `[west, south, east, north]` of a box. |
 | `geo.toPosition` | This function gives the GeoJSON position `[lon, lat]` of a point. |
 | `geo.toUnitVector` | This function gives the unit vector of a point, from the center of a sphere to the point. A drawing in 3D multiplies the vector by its radius. |

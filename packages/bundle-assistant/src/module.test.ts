@@ -17,6 +17,7 @@ const TOOLS = [
   "geo.geocode",
   "geo.geohash",
   "geo.route",
+  "geo.soilAtPoint",
   "ics.occurrences",
   "ics.parse",
   "ics.write",

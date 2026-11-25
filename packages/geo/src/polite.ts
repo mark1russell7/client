@@ -28,10 +28,13 @@ export interface GeoFetchResponse {
  * The `fetch` of the module. The global `fetch` and `createHostFetch()` of `@procedures/http` have
  * each member. A `FetchJson` is sufficient for `geo.geocode` and `geo.route`. The map data
  * procedures also need `text()` and the headers.
+ *
+ * Only `geo.soilAtPoint` sends a `POST` with a body: a query that only reads. `createHostFetch()`
+ * sends it only to a host of its option `readOnlyPost`.
  */
 export type GeoFetch = (
   url: string,
-  init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "manual" }
+  init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "manual"; method?: "POST" | undefined; body?: string | undefined }
 ) => Promise<GeoFetchResponse>;
 
 /** The User-Agent of the transport. Each exchange of this package sends its own User-Agent, from the input. */
@@ -51,12 +54,24 @@ function eachHeader(headers: GeoFetchHeaders | undefined, callback: (value: stri
 
 /**
  * This function gives a `FetchLike` of `polite-crawler/api` over the `fetch` of the module. It
- * sends only GET requests. A fetch with a host policy keeps its policy, and its own rules for redirects.
+ * sends GET requests. With `readOnlyPost`, it also sends a POST with its body: the caller tells that
+ * the POST only reads, for example the query of `geo.soilAtPoint`. A fetch with a host policy keeps
+ * its policy, and its own rules for redirects.
+ *
+ * @param readOnlyPost - True when each POST of the transport only reads. The default is false: no POST.
  */
-export function fetchLikeOf(fetch: GeoFetch): FetchLike {
+export function fetchLikeOf(fetch: GeoFetch, readOnlyPost = false): FetchLike {
   return async (url, init) => {
-    if (init.method !== "GET") throw new ApiError(`The fetch of @procedures/geo sends only GET requests, not ${init.method}`);
-    const response = await fetch(url, { headers: { ...init.headers }, signal: init.signal, redirect: init.redirect });
+    const post = init.method === "POST" && readOnlyPost;
+    if (init.method !== "GET" && !post) {
+      throw new ApiError(`The fetch of @procedures/geo sends only GET requests, and a POST only for a query that only reads, not ${init.method}`);
+    }
+    const response = await fetch(url, {
+      headers: { ...init.headers },
+      signal: init.signal,
+      redirect: init.redirect,
+      ...(post ? { method: "POST" as const, ...(init.body !== undefined ? { body: init.body } : {}) } : {}),
+    });
     const text = response.text;
     if (typeof text !== "function") throw new ApiError("The fetch of the module gives no text(): give the global fetch or createHostFetch() of @procedures/http");
     return {
@@ -68,9 +83,13 @@ export function fetchLikeOf(fetch: GeoFetch): FetchLike {
   };
 }
 
-/** This function gives the transport of one call: the `fetch` of the module, with a time limit. */
-export function geoTransport(fetch: GeoFetch, timeoutMs: number): Transport {
-  return fetchTransport({ userAgent: TRANSPORT_AGENT, timeoutMs, fetch: fetchLikeOf(fetch) });
+/**
+ * This function gives the transport of one call: the `fetch` of the module, with a time limit.
+ *
+ * @param readOnlyPost - True when each POST of the call only reads (`fetchLikeOf`). The default is false: no POST.
+ */
+export function geoTransport(fetch: GeoFetch, timeoutMs: number, readOnlyPost = false): Transport {
+  return fetchTransport({ userAgent: TRANSPORT_AGENT, timeoutMs, fetch: fetchLikeOf(fetch, readOnlyPost) });
 }
 
 let processPace: Pace | undefined;
@@ -103,6 +122,8 @@ export interface GeoRequest {
   readonly timeoutMs: number;
   /** The largest number of sends when the answer has a status of `TRANSIENT_STATUSES`. The default is `DEFAULT_ATTEMPTS`. */
   readonly attempts?: number | undefined;
+  /** True when the exchange is a POST that only reads, for example the query of `geo.soilAtPoint`. The default is false: a POST fails. */
+  readonly readOnlyPost?: boolean | undefined;
 }
 
 /** These statuses tell that the server is busy for a time: 429, 502, 503 and 504. The pace parks the host after each of them. */
@@ -137,7 +158,7 @@ export async function geoSend(context: MapDataContext, request: GeoRequest): Pro
   const { source, what, exchange } = request;
   const attempts = request.attempts ?? DEFAULT_ATTEMPTS;
   if (!Number.isInteger(attempts) || attempts < 1) throw new RangeError("The number of attempts is not a whole number from 1");
-  const transport = geoTransport(fetch, request.timeoutMs);
+  const transport = geoTransport(fetch, request.timeoutMs, request.readOnlyPost === true);
   const host = new URL(exchange.url).host;
   try {
     for (let attempt = 1; ; attempt += 1) {
