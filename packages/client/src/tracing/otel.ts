@@ -52,6 +52,26 @@ export function endApiSpan(span: Span, error?: unknown): void {
   span.end();
 }
 
+/**
+ * This function gives the items of the iterable of `open`. It starts `open` and each step of the
+ * iterator (`next`, `return` and `throw`) in the context `from`. An instrumentation that starts in a
+ * step, for example the instrumentation of `fetch`, thus gets the span of `from` as its parent.
+ * The context manager of a browser keeps a context only during a synchronous function. There, only
+ * the part of a step before its first `await` is in the context. The HTTP transport starts `fetch`
+ * in that part.
+ */
+export function iterateInContext<T>(from: Context, open: () => AsyncIterable<T>): AsyncIterable<T> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<T> {
+      const iterator = context.with(from, () => open()[Symbol.asyncIterator]());
+      const steps: AsyncIterator<T> = { next: (...args: [] | [unknown]) => context.with(from, () => iterator.next(...args)) };
+      if (iterator.return !== undefined) steps.return = (value?: unknown) => context.with(from, () => iterator.return!(value));
+      if (iterator.throw !== undefined) steps.throw = (error?: unknown) => context.with(from, () => iterator.throw!(error));
+      return steps;
+    },
+  };
+}
+
 const metadataSetter: TextMapSetter<Record<string, unknown>> = {
   set: (carrier, key, value) => {
     carrier[key] = value;
