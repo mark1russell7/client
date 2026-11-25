@@ -2,7 +2,7 @@
  * The parse of the orientation output of tesseract (`tesseract <image> stdout --psm 0`). This file
  * starts no process and reads no file.
  *
- * The output has lines such as `Orientation in degrees: 270`, `Rotate: 90` and
+ * The output has lines, for example `Orientation in degrees: 270`, `Rotate: 90` and
  * `Orientation confidence: 2.00`. `Rotate` is the turn in the clock direction that makes the page
  * upright.
  */
@@ -15,7 +15,7 @@ export interface OcrOrientation {
   readonly turn: OcrTurn;
   /**
    * The confidence of the engine in the turn. For tesseract, it is the margin of the best
-   * orientation over the next orientation: it has no upper limit, and a value below 2 is weak.
+   * orientation over the next orientation. It has no upper limit, and a value below 2 is weak.
    * A page with too few letters gives 0.
    */
   readonly confidence: number;

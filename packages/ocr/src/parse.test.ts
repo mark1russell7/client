@@ -229,5 +229,6 @@ describe("parseTesseractOsd", () => {
 
   it("gives the confidence 0 when the output has a turn but no confidence", () => {
     expect(parseTesseractOsd(lines("Rotate: 180"))).toEqual({ turn: 180, confidence: 0 });
+    expect(parseTesseractOsd(lines("Rotate: 180", "Orientation confidence: 1.2.3"))).toEqual({ turn: 180, confidence: 0 });
   });
 });

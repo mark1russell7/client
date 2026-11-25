@@ -25,9 +25,9 @@ export interface Recognition {
 
 /**
  * This function reads the text of one image. `image` is an absolute path. With `upright`, the
- * engine finds the orientation of the page first. A page on its side is then read in the mode of
- * the orientation step of the engine (unless the options give a mode), and each box is turned
- * into the frame of the upright page.
+ * engine finds the orientation of the page first. The engine then reads a page on its side in the
+ * mode of its orientation step, unless the options give a mode. Then each box is turned into the
+ * frame of the upright page.
  */
 export async function recognize(runner: OcrRunner, image: string, options: RecognizeOptions, ctx: Pick<ProcedureContext, "client">): Promise<Recognition> {
   const { engine } = runner;
