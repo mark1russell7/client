@@ -1,5 +1,28 @@
 # @procedures/mark
 
+## 0.68.10
+
+### Patch Changes
+
+- Updated dependencies [c2899fe]
+  - @procedures/shell@0.68.10
+  - @procedures/peer@0.68.10
+  - @procedures/cli-run@0.68.10
+  - @procedures/lib@0.68.10
+  - @procedures/pnpm@0.68.10
+  - @procedures/vitest@0.68.10
+  - @procedures/server@0.68.10
+  - @procedures/mcp-dev-tools@0.68.10
+  - @procedures/algebra@0.68.10
+  - @procedures/cli-kit@0.68.10
+  - @procedures/client@0.68.10
+  - @procedures/fs@0.68.10
+  - @procedures/procedure@0.68.10
+  - @procedures/optional@0.68.10
+  - @procedures/predicates@0.68.10
+  - @procedures/quantity@0.68.10
+  - @procedures/rational@0.68.10
+
 ## 0.68.9
 
 ### Patch Changes

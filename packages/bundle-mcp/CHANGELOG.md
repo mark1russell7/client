@@ -1,5 +1,21 @@
 # @procedures/bundle-mcp
 
+## 0.68.10
+
+### Patch Changes
+
+- @procedures/cue@0.68.10
+  - @procedures/docker@0.68.10
+  - @procedures/lib@0.68.10
+  - @procedures/vitest@0.68.10
+  - @procedures/client@0.68.10
+  - @procedures/dag@0.68.10
+  - @procedures/mongo@0.68.10
+  - @procedures/procedure@0.68.10
+  - @procedures/sqlite@0.68.10
+  - @procedures/compiler@0.68.10
+  - @procedures/json@0.68.10
+
 ## 0.68.9
 
 ### Patch Changes

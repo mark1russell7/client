@@ -1,5 +1,15 @@
 # @procedures/server
 
+## 0.68.10
+
+### Patch Changes
+
+- Updated dependencies [c2899fe]
+  - @procedures/shell@0.68.10
+  - @procedures/peer@0.68.10
+  - @procedures/client@0.68.10
+  - @procedures/fs@0.68.10
+
 ## 0.68.9
 
 ### Patch Changes
