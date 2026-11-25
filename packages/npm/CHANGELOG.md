@@ -1,5 +1,13 @@
 # @procedures/npm
 
+## 0.68.8
+
+### Patch Changes
+
+- @procedures/client@0.68.8
+  - @procedures/shell@0.68.8
+  - @procedures/json@0.68.8
+
 ## 0.68.7
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @procedures/geo
 
+## 0.68.8
+
+### Patch Changes
+
+- 94fb4ce: `locateAddress` takes an optional `area`: the town and the postal code of the address. Two towns in one search box can have the same street and number. The function then keeps the elements whose `addr:postcode` or `addr:city` agree with the area. With no area, the result does not change.
+- @procedures/client@0.68.8
+  - @procedures/compiler@0.68.8
+
 ## 0.68.7
 
 ### Patch Changes

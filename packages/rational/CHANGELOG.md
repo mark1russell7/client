@@ -1,5 +1,12 @@
 # @procedures/rational
 
+## 0.68.8
+
+### Patch Changes
+
+- @procedures/client@0.68.8
+  - @procedures/compiler@0.68.8
+
 ## 0.68.7
 
 ### Patch Changes
