@@ -89,13 +89,16 @@ describeCollectionStorageContract(
 
 describe("ArtifactDbStorage: the ids, the documents and the errors", () => {
   it("the segment of each id is in the path grammar, and the id comes back from it", () => {
+    // A code point escapes to at most 4 bytes of 3 characters, so 16 code points give at most 192 characters, under the limit of 200.
+    // Graphemes of 30 gave segments over the limit (main 7161250, 11-25): a long id is the case of the next property, not of this one.
     fc.assert(
-      fc.property(fc.string({ unit: "grapheme", maxLength: 30 }), (id) => {
+      fc.property(fc.string({ unit: "binary", maxLength: 16 }), (id) => {
         const segment = artifactDbSegment(id);
         expect(segment).toMatch(SEGMENT);
         expect(segment === "." || segment === "..").toBe(false);
         expect(artifactDbId(segment)).toBe(id);
       }),
+      { seed: 20261125, numRuns: 500 },
     );
     expect(artifactDbSegment("met.winter.storm")).toBe("met.winter.storm");
     expect(artifactDbSegment("a b/c~")).toBe("a~20b~2Fc~7E");
@@ -103,6 +106,20 @@ describe("ArtifactDbStorage: the ids, the documents and the errors", () => {
     expect(artifactDbId("~4")).toBeUndefined();
     expect(artifactDbId("~FF")).toBeUndefined();
     expect(() => artifactDbSegment("x".repeat(201))).toThrow(TypeError);
+  });
+
+  it("an id is refused exactly when its segment is longer than 200 characters", () => {
+    // "x" stays 1 character, "é" escapes to 2 bytes (6 characters), "😀" to 4 bytes (12 characters).
+    const unit = fc.constantFrom(["x", 1] as const, ["é", 6] as const, ["😀", 12] as const);
+    fc.assert(
+      fc.property(fc.array(unit, { maxLength: 60 }), (parts) => {
+        const id = parts.map(([char]) => char).join("");
+        const length = parts.reduce((sum, [, n]) => sum + n, 0);
+        if (length > 200) expect(() => artifactDbSegment(id)).toThrow(TypeError);
+        else expect(artifactDbSegment(id)).toHaveLength(id === "" ? 1 : length);
+      }),
+      { seed: 20261125, numRuns: 500 },
+    );
   });
 
   it("an id with characters outside the grammar is one document, and a list gives the id back", async () => {
