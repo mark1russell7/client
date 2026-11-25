@@ -36,7 +36,7 @@ import { createHostFetch } from "@procedures/http";
 import icsModule, { createIcsModule } from "@procedures/ics/module";
 import mailModule from "@procedures/mail/module";
 import geoModule, { createGeoModule, geoManifest } from "@procedures/geo/module";
-import { SOIL_DATA_ACCESS_URL } from "@procedures/geo";
+import { SOIL_DATA_ACCESS_HOST } from "@procedures/geo";
 import weatherModule from "@procedures/weather/module";
 import exifModule from "@procedures/exif/module";
 
@@ -47,7 +47,7 @@ export const bundleAssistantModules: readonly ProcedureModule[] = [icsModule, ma
 const hostFetch = createHostFetch();
 
 /** The `fetch` of `geo` in `mcpHostModules`: the default host policy, and a POST that only reads to the one host of `geo.soilAtPoint`. */
-const geoHostFetch = createHostFetch({ readOnlyPost: [new URL(SOIL_DATA_ACCESS_URL).hostname] });
+const geoHostFetch = createHostFetch({ readOnlyPost: [SOIL_DATA_ACCESS_HOST] });
 
 /**
  * The modules of `geo` and `ics` with the default host policy of `@procedures/http`, for an MCP

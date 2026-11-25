@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createGeoModule } from "./module.js";
 import { fetchLikeOf, type GeoFetch } from "./polite.js";
 import { geoSoilAtPoint } from "./procedures/geo/soilAtPoint.js";
-import { SOIL_DATA_ACCESS_URL, SSURGO_ATTRIBUTION } from "./soil.js";
+import { SOIL_DATA_ACCESS_HOST, SOIL_DATA_ACCESS_URL, SSURGO_ATTRIBUTION } from "./soil.js";
 
 const userAgent = "test-app/1.0 (test@example.org)";
 const columns = ["mukey", "muname", "compname", "comppct_r", "interphrc", "interphr", "slope_l", "slope_r", "slope_h", "drainagecl", "hydricrating"];
@@ -38,6 +38,7 @@ describe("geo.soilAtPoint", () => {
     const output = await geoSoilAtPoint({ lat: 44.9, lon: -69.2, userAgent }, { fetch, pace: testPace() });
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({ url: SOIL_DATA_ACCESS_URL, method: "POST" });
+    expect(new URL(SOIL_DATA_ACCESS_URL).hostname).toBe(SOIL_DATA_ACCESS_HOST);
     expect(requests[0]?.headers).toMatchObject({ "content-type": "application/json", "user-agent": userAgent });
     expect(JSON.parse(requests[0]?.body ?? "{}")).toMatchObject({ format: "JSON+COLUMNNAME" });
     expect(JSON.parse(requests[0]?.body ?? "{}").query).toContain("point(-69.200000 44.900000)");
