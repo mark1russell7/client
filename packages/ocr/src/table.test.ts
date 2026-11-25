@@ -44,11 +44,11 @@ describe("tableOfText", () => {
   });
 
   it("gives the words, the mean confidence and the union box of each cell", () => {
-    const words = [word("12", 60, 30, 0.8), word("Oak", 81, 30, 0.6), word("9", 200, 30)];
+    const words = [word("12", 60, 30, 0.8), word("Oak", 75, 30, 0.6), word("9", 200, 30)];
     const cell = tableOfText(words, { minShare: 0 }).rows[0]?.cells[0];
     expect(cell?.text).toBe("12 Oak");
     expect(cell?.confidence).toBeCloseTo(0.7);
-    expect(cell?.box).toEqual({ x: 60, y: 30, w: 39, h: 10 });
+    expect(cell?.box).toEqual({ x: 60, y: 30, w: 33, h: 10 });
     expect(cell?.words).toHaveLength(2);
   });
 
@@ -58,7 +58,7 @@ describe("tableOfText", () => {
   });
 
   it("keeps a word in a row when its box is a little higher or lower", () => {
-    const words = [word("1-2", 10, 30), word("12", 60, 33), word("Oak", 81, 28)];
+    const words = [word("1-2", 10, 30), word("12", 60, 33), word("Oak", 75, 28)];
     const table = tableOfText(words, { minShare: 0 });
     expect(table.rows).toHaveLength(1);
     expect(table.rows[0]?.cells.map((cell) => cell?.text)).toEqual(["1-2", "12 Oak"]);
@@ -71,10 +71,23 @@ describe("tableOfText", () => {
   });
 
   it("puts a long cell that touches the next column into two cells at the edge of that column", () => {
-    // The street ends 2 after the start of the name column, with no wide gap
+    // The street ends 3 after the start of the name column, with no wide gap.
+    // Its start at 140 is inside the street column, so it does not move the edge of the name column.
     const touch = [word("1-6", 10, 90), word("Longest", 140, 90), word("Way", 185, 90), word("Name", 200, 90)];
     const table = tableOfText([...ROWS.flat(), ...touch]);
     expect(table.rows[4]?.cells.slice(0, 3).map((cell) => cell?.text)).toEqual(["1-6", "Longest Way", "Name"]);
+  });
+
+  it("keeps a right-aligned first column of numbers as one column", () => {
+    const numbers = ["9", "99999", "9", "99999"].map((text, index) => row(10 + 20 * index, [[30 - 6 * text.length, text], [60, "x"]]));
+    const table = tableOfText(numbers.flat());
+    expect(table.columns).toEqual([0, 60]);
+    expect(table.rows.map((each) => each.cells.map((cell) => cell?.text ?? null))).toEqual([
+      ["9", "x"],
+      ["99999", "x"],
+      ["9", "x"],
+      ["99999", "x"],
+    ]);
   });
 
   it("does not make a column from the start of one cell in a single row", () => {
@@ -86,7 +99,7 @@ describe("tableOfText", () => {
 
   it("reads the words of an OCR text, and skips the empty words", () => {
     const words = [...ROWS.flat(), word(" ", 300, 30)];
-    const text = makeText("px", 500, 100, [makeLine(words)]);
+    const text = makeText([makeLine(words)], "px", 500, 100);
     expect(tableOfText(text)).toEqual(tableOfText(ROWS.flat()));
   });
 

@@ -94,6 +94,8 @@ function median(values: readonly number[]): number {
  * - A column of numbers is often right-aligned. Then its starts are far apart, and they make
  *   two clusters or more. Two clusters next to each other can be one column.
  *   This is true when the median right edges of their cells are near, and no row has a cell in each cluster.
+ *   Also, the left edge of the two clusters must be to the right of each cell of the column before them.
+ *   Thus a long cell that starts inside the column before does not move the edge of the next column.
  * - A cluster with starts in less than `minShare` of the rows is not a column.
  */
 function findColumns(rows: readonly OcrWord[][], gap: number, tolerance: number, minShare: number): number[] {
@@ -121,8 +123,10 @@ function findColumns(rows: readonly OcrWord[][], gap: number, tolerance: number,
   for (const cluster of clusters) {
     const before = merged[merged.length - 1];
     const rowsBefore = new Set(before?.map((start) => start.row));
+    const previous = merged[merged.length - 2];
     const aligned =
       before !== undefined &&
+      (previous === undefined || Math.min(...before.map((start) => start.x)) >= Math.max(...previous.map((start) => start.end))) &&
       Math.abs(median(before.map((start) => start.end)) - median(cluster.map((start) => start.end))) <= tolerance &&
       cluster.every((start) => !rowsBefore.has(start.row));
     if (aligned) before.push(...cluster);
