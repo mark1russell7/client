@@ -29,6 +29,10 @@ OcrPageMode: dist/types.d.ts#OcrPageMode
 OcrPageOutput: dist/types.d.ts#OcrPageOutput
 OcrPageOutputSchema: dist/types.d.ts#OcrPageOutputSchema
 type OcrRunner: dist/run.d.ts#OcrRunner
+OcrTable: dist/table.d.ts#OcrTable
+OcrTableCell: dist/table.d.ts#OcrTableCell
+OcrTableOptions: dist/table.d.ts#OcrTableOptions
+OcrTableRow: dist/table.d.ts#OcrTableRow
 OcrText: dist/text.d.ts#OcrText
 OcrToolMissingError: dist/programs.d.ts#OcrToolMissingError
 OcrTurn: dist/text.d.ts#OcrTurn
@@ -62,6 +66,7 @@ programCandidates: dist/programs.d.ts#programCandidates
 registerOcrProcedures: dist/module.d.ts#registerOcrProcedures
 requireProgram: dist/programs.d.ts#requireProgram
 scaleText: dist/text.d.ts#scaleText
+tableOfText: dist/table.d.ts#tableOfText
 tesseractConfidence: dist/tsv.d.ts#tesseractConfidence
 tesseractEngine: dist/engine.d.ts#tesseractEngine
 turnBox: dist/text.d.ts#turnBox
@@ -90,6 +95,10 @@ registerOcrProcedures: dist/module.d.ts#registerOcrProcedures
 OCR_TURNS: dist/text.d.ts#OCR_TURNS
 OcrLine: dist/text.d.ts#OcrLine
 OcrOrientation: dist/osd.d.ts#OcrOrientation
+OcrTable: dist/table.d.ts#OcrTable
+OcrTableCell: dist/table.d.ts#OcrTableCell
+OcrTableOptions: dist/table.d.ts#OcrTableOptions
+OcrTableRow: dist/table.d.ts#OcrTableRow
 OcrText: dist/text.d.ts#OcrText
 OcrTurn: dist/text.d.ts#OcrTurn
 OcrUnit: dist/text.d.ts#OcrUnit
@@ -104,6 +113,7 @@ parsePdftotextBbox: dist/bbox.d.ts#parsePdftotextBbox
 parseTesseractOsd: dist/osd.d.ts#parseTesseractOsd
 parseTesseractTsv: dist/tsv.d.ts#parseTesseractTsv
 scaleText: dist/text.d.ts#scaleText
+tableOfText: dist/table.d.ts#tableOfText
 tesseractConfidence: dist/tsv.d.ts#tesseractConfidence
 turnBox: dist/text.d.ts#turnBox
 turnText: dist/text.d.ts#turnText
@@ -260,6 +270,37 @@ export interface OcrRunner {
 
 ### dist/run.d.ts#createOcrRunner
 export declare function createOcrRunner(options?: OcrHostOptions): OcrRunner;
+
+### dist/table.d.ts#OcrTable
+export interface OcrTable {
+    readonly columns: readonly number[];
+    readonly rows: readonly OcrTableRow[];
+}
+
+### dist/table.d.ts#OcrTableCell
+export interface OcrTableCell {
+    readonly text: string;
+    readonly confidence: number;
+    readonly box: Rect;
+    readonly words: readonly OcrWord[];
+}
+
+### dist/table.d.ts#OcrTableOptions
+export interface OcrTableOptions {
+    readonly rowTolerance?: number | undefined;
+    readonly cellGap?: number | undefined;
+    readonly columnTolerance?: number | undefined;
+    readonly minShare?: number | undefined;
+}
+
+### dist/table.d.ts#OcrTableRow
+export interface OcrTableRow {
+    readonly box: Rect;
+    readonly cells: readonly (OcrTableCell | null)[];
+}
+
+### dist/table.d.ts#tableOfText
+export declare function tableOfText(source: OcrText | readonly OcrWord[], options?: OcrTableOptions): OcrTable;
 
 ### dist/text.d.ts#OCR_TURNS
 export declare const OCR_TURNS: readonly OcrTurn[];

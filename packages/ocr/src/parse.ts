@@ -7,3 +7,4 @@ export * from "./text.js";
 export * from "./tsv.js";
 export * from "./bbox.js";
 export * from "./osd.js";
+export * from "./table.js";
