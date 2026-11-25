@@ -105,6 +105,25 @@ describe("ocr.page", () => {
     );
   });
 
+  it("throws a typed error when the pdftotext on the path is the one of Xpdf", async () => {
+    const xpdf = "pdftotext version 4.00\nCopyright 1996-2017 Glyph & Cog, LLC\nUsage: pdftotext [options] <PDF-file> [<text-file>]\n";
+    const shell = fakeShell(fakeHost(BBOX, { pdftotext: { exitCode: 99, stderr: xpdf } }));
+    const failure = call(createOcrModule(HOST), shell, ["ocr", "page"], { file: "menu.pdf" });
+    await expect(failure).rejects.toMatchObject({ code: "OCR_TOOL_MISSING", tool: "pdftotext", other: "Xpdf", searched: ["/opt/pdftotext"] });
+    await expect(failure).rejects.toThrow(/^The program pdftotext at \/opt\/pdftotext is the program of Xpdf, and this package cannot use it\. Install .* or set PDFTOTEXT_EXE or POPPLER_PATH\.$/);
+  });
+
+  it("keeps the error of a failed run of Poppler, whose usage text also names Glyph & Cog", async () => {
+    const poppler = "pdftotext version 24.02.0\nCopyright 2005-2024 The Poppler Developers - http://poppler.freedesktop.org\nCopyright 1996-2011, 2022 Glyph & Cog, LLC\n";
+    const shell = fakeShell(fakeHost(BBOX, { pdftotext: { exitCode: 99, stderr: poppler } }));
+    await expect(call(createOcrModule(HOST), shell, ["ocr", "page"], { file: "menu.pdf" })).rejects.toThrow(/^pdftotext failed \(exit code 99\): pdftotext version 24\.02\.0/);
+  });
+
+  it("keeps the error of a failed program that has no other program with its name", async () => {
+    const shell = fakeShell({ exitCode: 1, stderr: "read_params_file: Can't open Glyph & Cog" });
+    await expect(call(createOcrModule(HOST), shell, ["ocr", "image"], { file: "sign.png" })).rejects.toThrow(/^tesseract failed \(exit code 1\): read_params_file/);
+  });
+
   it("gives the standard output of a failed program when its standard error is empty", async () => {
     const shell = fakeShell(fakeHost(BBOX, { pdftotext: { exitCode: 1, stdout: "Syntax Error" } }));
     await expect(call(createOcrModule(HOST), shell, ["ocr", "page"], { file: "menu.pdf" })).rejects.toThrow("pdftotext failed (exit code 1): Syntax Error");

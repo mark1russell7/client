@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { findProgram, OCR_PROGRAMS, OcrToolMissingError, PDFTOPPM, PDFTOTEXT, programCandidates, requireProgram, TESSERACT } from "./programs.js";
+import { findProgram, OCR_PROGRAMS, OcrToolMissingError, PDFTOPPM, PDFTOTEXT, programCandidates, requireProgram, TESSERACT, XPDF } from "./programs.js";
 
 const none = (): boolean => false;
 const only =
@@ -92,6 +92,14 @@ describe("requireProgram", () => {
   });
 
   it("tells the start error when a program did not start", () => {
+    expect(XPDF.matches("pdftotext version 4.00\nCopyright 1996-2017 Glyph & Cog, LLC")).toBe(true);
+    expect(XPDF.matches("Copyright 2005-2024 The Poppler Developers\nCopyright 1996-2011 Glyph & Cog, LLC")).toBe(false);
+    expect(XPDF.matches("Syntax Error")).toBe(false);
+    expect(PDFTOTEXT.others).toEqual([XPDF]);
+    expect(new OcrToolMissingError(PDFTOTEXT, ["/opt/pdftotext"], undefined, "Xpdf").other).toBe("Xpdf");
+    expect(new OcrToolMissingError(PDFTOTEXT, [], undefined, "Xpdf").message).toMatch(/^The program pdftotext at the path of the search is the program of Xpdf,/);
+    expect(PDFTOPPM.others).toEqual([XPDF]);
+    expect(TESSERACT.others).toBeUndefined();
     expect(new OcrToolMissingError(TESSERACT, ["/opt/t"], "spawn /opt/t ENOENT").message).toMatch(/^The program tesseract is not on this host\. It did not start: spawn \/opt\/t ENOENT\. .* or set TESSERACT_EXE\.$/);
   });
 });
