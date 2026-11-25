@@ -4,6 +4,7 @@
 
 import * as z from "zod";
 import { LANGUAGE_PATTERN } from "./engine.js";
+import type { OcrOrientation } from "./osd.js";
 import type { OcrText } from "./text.js";
 
 // =============================================================================
@@ -43,7 +44,16 @@ const engineFields = {
   language: z.string().regex(LANGUAGE_PATTERN, "a language name of the engine, for example eng or eng+deu").optional().describe("The language of the text (default: eng)"),
   psm: z.number().int().min(0).max(13).optional().describe("The page segmentation mode of tesseract, from 0 to 13"),
   timeout: z.number().int().positive().optional().describe("The time limit of each program, in milliseconds (default: 120000)"),
+  upright: z
+    .boolean()
+    .optional()
+    .describe("When true, OCR finds the orientation of the page first, and the boxes are in the frame of the upright page (default: false)"),
 };
+
+const OrientationSchema = z.object({
+  turn: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).describe("The turn in the clock direction that makes the page upright, in degrees"),
+  confidence: z.number().min(0).describe("The confidence of the engine in the turn. For tesseract, a value below 2 is weak"),
+});
 
 // =============================================================================
 // ocr.page: the text of a PDF page
@@ -61,6 +71,8 @@ export interface OcrPageInput {
   psm?: number | undefined;
   dpi?: number | undefined;
   timeout?: number | undefined;
+  /** When true, OCR finds the orientation of the page first, and the boxes are in the frame of the upright page. */
+  upright?: boolean | undefined;
 }
 
 export const OcrPageInputSchema: z.ZodType<OcrPageInput> = z.object({
@@ -82,12 +94,15 @@ export interface OcrPageOutput extends OcrText {
   readonly source: "text-layer" | "ocr";
   /** The OCR engine, when the source is `ocr`. */
   readonly engine?: string | undefined;
+  /** The orientation that OCR found, when the input has `upright` and the source is `ocr`. */
+  readonly orientation?: OcrOrientation | undefined;
 }
 
 export const OcrPageOutputSchema: z.ZodType<OcrPageOutput> = z.object({
   page: z.number().describe("The number of the page"),
   source: z.enum(["text-layer", "ocr"]).describe("Where the text comes from: the text layer, or OCR of an image of the page"),
   engine: z.string().optional().describe("The OCR engine, when the source is ocr"),
+  orientation: OrientationSchema.optional().describe("The orientation that OCR found, when the input has upright and the source is ocr"),
   ...textFields,
 });
 
@@ -102,6 +117,8 @@ export interface OcrImageInput {
   psm?: number | undefined;
   dpi?: number | undefined;
   timeout?: number | undefined;
+  /** When true, OCR finds the orientation of the page first, and the boxes are in the frame of the upright page. */
+  upright?: boolean | undefined;
 }
 
 export const OcrImageInputSchema: z.ZodType<OcrImageInput> = z.object({
@@ -114,9 +131,12 @@ export const OcrImageInputSchema: z.ZodType<OcrImageInput> = z.object({
 export interface OcrImageOutput extends OcrText {
   /** The OCR engine. */
   readonly engine: string;
+  /** The orientation that OCR found, when the input has `upright`. */
+  readonly orientation?: OcrOrientation | undefined;
 }
 
 export const OcrImageOutputSchema: z.ZodType<OcrImageOutput> = z.object({
   engine: z.string().describe("The OCR engine"),
+  orientation: OrientationSchema.optional().describe("The orientation that OCR found, when the input has upright"),
   ...textFields,
 });

@@ -54,6 +54,23 @@ mark ocr page report.pdf --page 2
 mark ocr image photo.png --language eng+deu
 ```
 
+## A page on its side
+
+A scan of a wide table is often on its side. Give `upright: true` to `ocr.page` or to `ocr.image`. Then the engine finds the orientation of the page first:
+
+1. Tesseract finds the turn that makes the page upright (`--psm 0`). This step needs the `osd` data of tesseract. The installers of tesseract include it.
+2. For a page on its side, tesseract reads the page in the mode `--psm 1`, unless the input gives `psm`. In this mode, tesseract turns the page, but it gives the boxes in the frame of the scan.
+3. The procedure turns each box into the frame of the upright page. A turn of 90 or 270 degrees changes the width and the height.
+
+The result then has `orientation`: the `turn` in the clock direction (0, 90, 180 or 270 degrees) and the `confidence` of the engine. For tesseract, a confidence below 2 is weak. A page with too few letters gives the turn 0 and the confidence 0.
+
+```ts
+const scan = await outputValue(await invokePath(["ocr", "page"], { file: "auction.pdf", page: 3, upright: true }, { registry }));
+// { source: "ocr", width: 792, height: 612, orientation: { turn: 90, confidence: 2 }, lines: [...] }
+```
+
+The function `turnText(text, turn)` of the parsers does step 3 for a text from another source.
+
 ## The result
 
 Each result has `unit`, `width`, `height`, `text`, `confidence` and `lines`. Each line has `text`, `confidence`, `box` and `words`. Each word has `text`, `confidence` and `box`.
@@ -88,8 +105,10 @@ The parsers start no process and read no file. The root and the entry `@procedur
 
 - `parseTesseractTsv(tsv)` reads the TSV output of tesseract (`tesseract <image> stdout tsv`).
 - `parsePdftotextBbox(xhtml)` reads the output of `pdftotext -bbox-layout` for one page.
+- `parseTesseractOsd(output)` reads the orientation output of tesseract (`tesseract <image> stdout --psm 0`).
+- `turnText(text, turn)` turns each box, the width and the height by 0, 90, 180 or 270 degrees in the clock direction.
 - `scaleText(text, factor, unit)` changes the unit of the boxes. For example, the factor `72 / 300` changes the pixels of an image at 300 dots per inch to PDF points.
 
 ## Other engines
 
-An OCR engine is an `OcrEngine` adapter: a program, the argv for one image and the parse of its output. `tesseractEngine` is the first adapter. Give another adapter to `createOcrModule({ engine })`.
+An OCR engine is an `OcrEngine` adapter: a program, the argv for one image and the parse of its output. An optional `orientation` step finds the orientation of a page. An engine with no step cannot read a page with `upright`. `tesseractEngine` is the first adapter. Give another adapter to `createOcrModule({ engine })`.

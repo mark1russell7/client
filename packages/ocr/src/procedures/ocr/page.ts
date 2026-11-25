@@ -15,6 +15,7 @@ import { PDFTOPPM, PDFTOTEXT } from "../../programs.js";
 import { createOcrRunner, DEFAULT_TIMEOUT_MS, type OcrRunner } from "../../run.js";
 import { scaleText } from "../../text.js";
 import type { OcrPageInput, OcrPageOutput } from "../../types.js";
+import { recognize } from "./recognize.js";
 
 /** The default resolution of the image of a page for OCR, in dots per inch. */
 export const DEFAULT_DPI = 300;
@@ -35,7 +36,8 @@ export function pdftoppmArgs(file: string, page: number, dpi: number, prefix: st
 /**
  * This function gives the text of one page of the PDF file of the input. The boxes are in PDF
  * points. In the mode `auto`, a page with a word in its text layer gives the text layer. A page
- * with no word gives the text of OCR.
+ * with no word gives the text of OCR. With `upright`, OCR finds the orientation of the page first,
+ * and the boxes and the size are in the frame of the upright page.
  */
 export async function ocrPage(input: OcrPageInput, ctx: Pick<ProcedureContext, "client">, runner: OcrRunner = createOcrRunner()): Promise<OcrPageOutput> {
   // An absolute path does not start with "-", so a program cannot read it as a flag
@@ -56,12 +58,12 @@ export async function ocrPage(input: OcrPageInput, ctx: Pick<ProcedureContext, "
     await runner.run(PDFTOPPM, pdftoppmArgs(file, page, dpi, prefix), timeout, ctx);
     const image = `${prefix}.png`;
     if (!existsSync(image)) throw new Error(`pdftoppm made no image of page ${page}`);
-    const argv = engine.argv(image, { language: input.language, psm: input.psm, dpi });
-    const pixels = engine.parse(await runner.run(engine.program, argv, timeout, ctx));
-    const points = scaleText(pixels, POINTS_PER_INCH / dpi, "pt");
-    // The size of the page comes from the text layer, when it has one
-    const size = layer.width > 0 && layer.height > 0 ? { width: layer.width, height: layer.height } : {};
-    return { page, source: "ocr", engine: engine.name, ...points, ...size };
+    const { text, orientation } = await recognize(runner, image, { language: input.language, psm: input.psm, dpi, upright: input.upright, timeout }, ctx);
+    const points = scaleText(text, POINTS_PER_INCH / dpi, "pt");
+    // The size of the page comes from the text layer, when it has one. A turn on the side changes the width and the height
+    const side = orientation?.turn === 90 || orientation?.turn === 270;
+    const size = layer.width > 0 && layer.height > 0 ? (side ? { width: layer.height, height: layer.width } : { width: layer.width, height: layer.height }) : {};
+    return { page, source: "ocr", engine: engine.name, ...points, ...size, ...(orientation === undefined ? {} : { orientation }) };
   } finally {
     removeFolder(folder);
   }
