@@ -8,9 +8,8 @@
     "functions": 11
   },
   "@mark1russell7/geo": {
-    "procedures": 45,
-    "functions": 52,
-    "reason": "geo 0.5.5 adds 4 functions. lineReference gives an object with functions, so it has no procedure (output-not-json). The ratchet falls by that one function only: 46 of 52 is above 42 of 48."
+    "procedures": 58,
+    "functions": 65
   },
   "@mark1russell7/optional": {
     "procedures": 20,
