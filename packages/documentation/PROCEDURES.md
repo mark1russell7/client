@@ -359,8 +359,8 @@
 | `geo.routeSteps` | This function gives the steps of a route for a route on paper: a leg for each road, with its turn, and the arrival. |
 | `geo.simplifyLines` | This function simplifies lines, for example the roads of a map at a small scale, with the method of Douglas and Peucker. It gives one line for each line of the input, in the same direction. Each position of the result is a position of the input. |
 | `geo.simplifyRegions` | This function simplifies regions that share borders, for example the counties of a state, with the method of Douglas and Peucker. It gives one region for each region of the input, with the same type. |
-| `geo.soilAtPoint` | Give the soil at a point from USDA Soil Data Access (SSURGO): the major components of the map unit, with the septic rating, the slope, the drainage and the hydric rating |
 | `geo.snapToRoad` | This function connects a point to a road graph. It gives the nearest node, or a new node at the nearest point of an edge. |
+| `geo.soilAtPoint` | Give the soil at a point from USDA Soil Data Access (SSURGO): the major components of the map unit, with the septic rating, the slope, the drainage and the hydric rating |
 | `geo.sunDay` | This function gives the sunrise, the solar noon and the sunset at a point on a date, or a polar day or night. |
 | `geo.sunPosition` | This function gives the place of the sun at an instant, with the low-precision formulas of The Astronomical Almanac. |
 | `geo.toGeoJsonBBox` | This function gives the GeoJSON form `[west, south, east, north]` of a box. |
