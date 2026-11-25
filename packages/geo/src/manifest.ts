@@ -1,10 +1,10 @@
-// The manifest of @mark1russell7/geo 0.5.5, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
+// The manifest of @mark1russell7/geo 0.5.13, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
 import type { ExportsManifest } from "@procedures/compiler";
 
 export const manifest: ExportsManifest = {
   "format": "procedures-exports/1",
   "package": "@mark1russell7/geo",
-  "version": "0.5.5",
+  "version": "0.5.13",
   "entry": ".",
   "namespace": [
     "geo"
@@ -73,6 +73,73 @@ export const manifest: ExportsManifest = {
       ]
     },
     "FeatureCollection_Feature_Geometry_null_GeoJsonProperties": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "FeatureCollection"
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+          }
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            },
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 6,
+              "maxItems": 6
+            }
+          ],
+          "description": "The bounding box of the object (RFC 7946, section 5)."
+        }
+      },
+      "required": [
+        "type",
+        "features"
+      ]
+    },
+    "FeatureCollection_Feature_Geometry_null_GeoJsonProperties_2": {
       "type": "object",
       "properties": {
         "type": {
@@ -635,6 +702,24 @@ export const manifest: ExportsManifest = {
         "geometries"
       ]
     },
+    "ImpliedOneway": {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "tag",
+        "values"
+      ]
+    },
     "LatLon": {
       "type": "object",
       "properties": {
@@ -652,6 +737,31 @@ export const manifest: ExportsManifest = {
         "lon"
       ]
     },
+    "LengthNearLines": {
+      "type": "object",
+      "properties": {
+        "meters": {
+          "type": "number",
+          "description": "The sum of the lengths of `parts`."
+        },
+        "lengthMeters": {
+          "type": "number",
+          "description": "The length of the line."
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinePart"
+          },
+          "description": "The parts of the line within the distance of a line, in the order along the line. Two parts do not touch."
+        }
+      },
+      "required": [
+        "meters",
+        "lengthMeters",
+        "parts"
+      ]
+    },
     "LineOptions": {
       "type": "object",
       "properties": {
@@ -660,6 +770,21 @@ export const manifest: ExportsManifest = {
           "description": "The plane of the measures. The default is `azimuthalEquidistant` with the center at the first position of the line. Each length is in the metres of this plane."
         }
       }
+    },
+    "LinePart": {
+      "type": "object",
+      "properties": {
+        "fromMeters": {
+          "type": "number"
+        },
+        "toMeters": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "fromMeters",
+        "toMeters"
+      ]
     },
     "LineSide": {
       "enum": [
@@ -991,6 +1116,22 @@ export const manifest: ExportsManifest = {
       "required": [
         "type",
         "coordinates"
+      ]
+    },
+    "NearestNode": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/RoadNode"
+        },
+        "meters": {
+          "type": "number",
+          "description": "The distance from the point to the node, from `distanceMeters`."
+        }
+      },
+      "required": [
+        "node",
+        "meters"
       ]
     },
     "NearestOnLine": {
@@ -1350,6 +1491,591 @@ export const manifest: ExportsManifest = {
         "degenerate"
       ]
     },
+    "RoadEdge": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        },
+        "meters": {
+          "type": "number",
+          "description": "The length of `line` on the sphere, from `distanceMeters`."
+        },
+        "line": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "minItems": 2
+          },
+          "description": "The positions from the node `from` to the node `to`."
+        },
+        "feature": {
+          "type": "number",
+          "description": "The index of the feature of the way in the input."
+        },
+        "segment": {
+          "type": "number",
+          "description": "The number of the part of the way. The two directions of one part have the same number."
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "weight",
+        "meters",
+        "line",
+        "feature",
+        "segment"
+      ]
+    },
+    "RoadGraph": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/RoadNode"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "x-procedures-codec": "map"
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RoadEdge"
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "nodes",
+        "edges"
+      ]
+    },
+    "RoadGraphOptions": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "const": "drive"
+            },
+            {
+              "const": "walk"
+            },
+            {
+              "$ref": "#/$defs/TravelMode"
+            }
+          ],
+          "description": "The travel mode: a name of `TRAVEL_MODES`, or a table."
+        },
+        "tags": {
+          "type": "object",
+          "description": "This function gives the tags of a feature. The default is the object `properties.tags` when the feature has it, else `properties`.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "feature"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+              }
+            ],
+            "output": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": {}
+                }
+              ]
+            }
+          }
+        },
+        "vertexKey": {
+          "type": "object",
+          "description": "This function gives the key of a position. Two positions with the same key are one node. The default key is the latitude and the normalized longitude, with no rounding. Give the identifier of the OpenStreetMap node when the input has it.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "position",
+              "feature",
+              "index",
+              "part"
+            ],
+            "inputs": [
+              {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "minItems": 2
+              },
+              {
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "output": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "mode"
+      ]
+    },
+    "RoadNode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "point": {
+          "$ref": "#/$defs/LatLon"
+        }
+      },
+      "required": [
+        "id",
+        "point"
+      ]
+    },
+    "RoadSnap": {
+      "type": "object",
+      "properties": {
+        "graph": {
+          "$ref": "#/$defs/RoadGraph",
+          "description": "The graph with the new node and its edges. It is the input graph when the point goes to a node."
+        },
+        "node": {
+          "$ref": "#/$defs/RoadNode",
+          "description": "The node of the point: a node of the input graph, or a new node on an edge."
+        },
+        "meters": {
+          "type": "number",
+          "description": "The distance from the point to the node in metres."
+        },
+        "split": {
+          "type": "boolean",
+          "description": "True when the function cut an edge to add the node."
+        }
+      },
+      "required": [
+        "graph",
+        "node",
+        "meters",
+        "split"
+      ]
+    },
+    "RouteLine": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "$ref": "#/$defs/LineString"
+        },
+        "meters": {
+          "type": "number",
+          "description": "The sum of the `meters` of the edges."
+        }
+      },
+      "required": [
+        "line",
+        "meters"
+      ]
+    },
+    "RouteStep": {
+      "type": "object",
+      "properties": {
+        "turn": {
+          "$ref": "#/$defs/RouteTurn",
+          "description": "The turn at the start of the step."
+        },
+        "bearingChange": {
+          "type": "number",
+          "description": "The change of the bearing at the start of the step, in degrees from -180 to less than 180. A negative value is a turn to the left. It is 0 for `depart`, for `arrive` and for a leg with no direction."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the road. An empty name is an unnamed road."
+        },
+        "ref": {
+          "type": "string",
+          "description": "The value of the tag `ref` of the first edge of the leg, when it has one."
+        },
+        "meters": {
+          "type": "number",
+          "description": "The sum of the `meters` of the edges of the leg. It is 0 for `arrive`."
+        },
+        "startIndex": {
+          "type": "number",
+          "description": "The index of the first edge of the leg in the edge list. For `arrive`, it is the index of the last edge."
+        },
+        "endIndex": {
+          "type": "number",
+          "description": "The index of the last edge of the leg in the edge list. For `arrive`, it is the index of the last edge."
+        }
+      },
+      "required": [
+        "turn",
+        "bearingChange",
+        "name",
+        "meters",
+        "startIndex",
+        "endIndex"
+      ]
+    },
+    "RouteStepsOptions": {
+      "type": "object",
+      "properties": {
+        "features": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureCollection_Feature_Geometry_null_GeoJsonProperties_2"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+              }
+            }
+          ],
+          "description": "The features that made the graph, as the input of `roadGraph`. The field `feature` of each edge is an index into this list. With no features, each road has an empty name."
+        },
+        "tags": {
+          "type": "object",
+          "description": "This function gives the tags of a feature. The default is the default of `roadGraph`.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "feature"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+              }
+            ],
+            "output": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": {}
+                }
+              ]
+            }
+          }
+        },
+        "nameOf": {
+          "type": "object",
+          "description": "This function gives the name of the road of a feature. The default is the tag `name`, then the tag `ref`, then an empty name.",
+          "required": [
+            "$proc"
+          ],
+          "properties": {
+            "$proc": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "input": {},
+            "$when": {
+              "const": "$never"
+            }
+          },
+          "x-procedures-program": {
+            "params": [
+              "feature",
+              "index"
+            ],
+            "inputs": [
+              {
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "output": {
+              "type": "string"
+            }
+          }
+        },
+        "minLegMeters": {
+          "type": "number",
+          "description": "A leg shorter than this length joins the legs on its two sides when those two legs have the same name. The default is 0, so no leg joins."
+        }
+      }
+    },
+    "RouteTurn": {
+      "enum": [
+        "arrive",
+        "depart",
+        "left",
+        "right",
+        "sharp-left",
+        "sharp-right",
+        "slight-left",
+        "slight-right",
+        "straight",
+        "u-turn"
+      ]
+    },
+    "SnapOptions": {
+      "type": "object",
+      "properties": {
+        "toleranceMeters": {
+          "type": "number",
+          "description": "The distance from an end of an edge in metres, within which the point goes to that end and not to a new node. The default is 0.5."
+        },
+        "id": {
+          "type": "string",
+          "description": "The identifier of a new node. The default is the key of its position, as the default key of `roadGraph`."
+        }
+      }
+    },
+    "SunDay": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "polar-day"
+            },
+            "noon": {
+              "type": "number"
+            },
+            "daylightHours": {
+              "const": 24
+            }
+          },
+          "required": [
+            "kind",
+            "noon",
+            "daylightHours"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "polar-night"
+            },
+            "noon": {
+              "type": "number"
+            },
+            "daylightHours": {
+              "const": 0
+            }
+          },
+          "required": [
+            "kind",
+            "noon",
+            "daylightHours"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "rise-set"
+            },
+            "rise": {
+              "type": "number"
+            },
+            "noon": {
+              "type": "number"
+            },
+            "set": {
+              "type": "number"
+            },
+            "daylightHours": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "rise",
+            "noon",
+            "set",
+            "daylightHours"
+          ]
+        }
+      ]
+    },
+    "SunDayOptions": {
+      "type": "object",
+      "properties": {
+        "altitudeDeg": {
+          "type": "number",
+          "description": "The altitude of the center of the sun at sunrise and at sunset, in degrees from -90 to 90. The default is `SUNRISE_ALTITUDE_DEG`. For example, -6 gives the start and the end of civil twilight."
+        }
+      }
+    },
+    "SunPosition": {
+      "type": "object",
+      "properties": {
+        "declinationDeg": {
+          "type": "number",
+          "description": "The declination, in degrees. It is from approximately -23.44 to 23.44."
+        },
+        "rightAscensionDeg": {
+          "type": "number",
+          "description": "The right ascension, in degrees from 0 to less than 360."
+        },
+        "equationOfTimeMin": {
+          "type": "number",
+          "description": "The equation of time: the apparent solar time minus the mean solar time, in minutes."
+        }
+      },
+      "required": [
+        "declinationDeg",
+        "rightAscensionDeg",
+        "equationOfTimeMin"
+      ]
+    },
+    "TravelMode": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "highways": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "access": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "denied": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "oneway": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "impliedOneway": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ImpliedOneway"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "highways",
+        "access",
+        "denied",
+        "oneway",
+        "impliedOneway"
+      ]
+    },
     "UnitVector": {
       "type": "object",
       "properties": {
@@ -1368,9 +2094,60 @@ export const manifest: ExportsManifest = {
         "y",
         "z"
       ]
+    },
+    "WayAccess": {
+      "enum": [
+        "backward",
+        "both",
+        "closed",
+        "forward"
+      ]
     }
   },
   "procedures": [
+    {
+      "name": "areaSquareMeters",
+      "path": [
+        "geo",
+        "areaSquareMeters"
+      ],
+      "description": "This function gives the area of a Polygon or a MultiPolygon on an ellipsoid, in square metres. An edge is a straight line in longitude and latitude, as RFC 7946 tells. The direction of a ring does not change the result.",
+      "params": [
+        "polygon",
+        "ellipsoid"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "polygon": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MultiPolygon"
+              },
+              {
+                "$ref": "#/$defs/Polygon"
+              }
+            ],
+            "description": "The polygon. The holes of a polygon must be inside its exterior, and the polygons of a MultiPolygon\nmust not overlap."
+          },
+          "ellipsoid": {
+            "$ref": "#/$defs/Ellipsoid",
+            "description": "The ellipsoid. The default is `WGS84`."
+          }
+        },
+        "required": [
+          "polygon"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
     {
       "name": "bboxCenter",
       "path": [
@@ -1787,6 +2564,52 @@ export const manifest: ExportsManifest = {
             "$ref": "#/$defs/Polygon"
           }
         ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "commonAreaSquareMeters",
+      "path": [
+        "geo",
+        "commonAreaSquareMeters"
+      ],
+      "description": "This function gives the area of the part that all the Polygons and MultiPolygons have in common, on an ellipsoid, in square metres. An edge is a straight line in longitude and latitude, as RFC 7946 tells. The polygons can cross the antimeridian: a polygon moved by 360 degrees is the same area of the Earth. For one polygon, the result is its area.",
+      "params": [
+        "polygons",
+        "ellipsoid"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "polygons": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MultiPolygon"
+                },
+                {
+                  "$ref": "#/$defs/Polygon"
+                }
+              ]
+            },
+            "description": "The polygons. The holes of a polygon must be inside its exterior, and the polygons of a\nMultiPolygon must not overlap."
+          },
+          "ellipsoid": {
+            "$ref": "#/$defs/Ellipsoid",
+            "description": "The ellipsoid. The default is `WGS84`."
+          }
+        },
+        "required": [
+          "polygons"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
       },
       "effects": {
         "reads": [],
@@ -2716,6 +3539,87 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "lengthNearLines",
+      "path": [
+        "geo",
+        "lengthNearLines"
+      ],
+      "description": "This function gives the length of the parts of a line that are within a distance of other lines. For example, the length of the edge of a parcel along a road (its frontage), or the length of a path along a river.",
+      "params": [
+        "line",
+        "others",
+        "withinMeters",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 2
+            },
+            "description": "The positions of the line, two or more."
+          },
+          "others": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "minItems": 2
+              }
+            },
+            "description": "The other lines. Each line has two or more positions. An empty list gives 0."
+          },
+          "withinMeters": {
+            "type": "number",
+            "description": "The distance, 0 or more."
+          },
+          "options": {
+            "$ref": "#/$defs/LineOptions",
+            "description": "The plane of the measures."
+          }
+        },
+        "required": [
+          "line",
+          "others",
+          "withinMeters"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/LengthNearLines"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "locatePoint",
       "path": [
         "geo",
@@ -2751,6 +3655,48 @@ export const manifest: ExportsManifest = {
       },
       "output": {
         "$ref": "#/$defs/PointLocation"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "nearestNode",
+      "path": [
+        "geo",
+        "nearestNode"
+      ],
+      "description": "This function gives the node of a road graph that is nearest to a point, with the distance from `distanceMeters`. Two nodes at the same distance give the first in the order of `graph.nodes`.",
+      "params": [
+        "graph",
+        "point"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "graph": {
+            "$ref": "#/$defs/RoadGraph"
+          },
+          "point": {
+            "$ref": "#/$defs/LatLon"
+          }
+        },
+        "required": [
+          "graph",
+          "point"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/NearestNode"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "effects": {
         "reads": [],
@@ -2833,6 +3779,62 @@ export const manifest: ExportsManifest = {
         },
         "required": [
           "lon"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "number"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "overlapAreaSquareMeters",
+      "path": [
+        "geo",
+        "overlapAreaSquareMeters"
+      ],
+      "description": "This function gives the area of the overlap of two Polygons or MultiPolygons on an ellipsoid, in square metres. It is `commonAreaSquareMeters([a, b], ellipsoid)`.",
+      "params": [
+        "a",
+        "b",
+        "ellipsoid"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MultiPolygon"
+              },
+              {
+                "$ref": "#/$defs/Polygon"
+              }
+            ],
+            "description": "The first polygon. The holes of a polygon must be inside its exterior, and the polygons of a\nMultiPolygon must not overlap."
+          },
+          "b": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MultiPolygon"
+              },
+              {
+                "$ref": "#/$defs/Polygon"
+              }
+            ],
+            "description": "The second polygon, with the same rules."
+          },
+          "ellipsoid": {
+            "$ref": "#/$defs/Ellipsoid",
+            "description": "The ellipsoid. The default is `WGS84`."
+          }
+        },
+        "required": [
+          "a",
+          "b"
         ],
         "additionalProperties": false
       },
@@ -3090,6 +4092,217 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "roadGraph",
+      "path": [
+        "geo",
+        "roadGraph"
+      ],
+      "description": "This function makes the road graph of a travel mode from GeoJSON lines, for example the ways of OpenStreetMap.",
+      "params": [
+        "features",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "features": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FeatureCollection_Feature_Geometry_null_GeoJsonProperties_2"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+                }
+              }
+            ],
+            "description": "The features, or a feature collection."
+          },
+          "options": {
+            "$ref": "#/$defs/RoadGraphOptions",
+            "description": "The travel mode, and the functions that read the tags and the keys."
+          }
+        },
+        "required": [
+          "features",
+          "options"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/RoadGraph"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "routeLine",
+      "path": [
+        "geo",
+        "routeLine"
+      ],
+      "description": "This function gives the GeoJSON line of a route, from the lines of its edges, and its length.",
+      "params": [
+        "graph",
+        "edges"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "graph": {
+            "$ref": "#/$defs/RoadGraph"
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "graph",
+          "edges"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/RouteLine"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "routeSteps",
+      "path": [
+        "geo",
+        "routeSteps"
+      ],
+      "description": "This function gives the steps of a route for a route on paper: a leg for each road, with its turn, and the arrival.",
+      "params": [
+        "graph",
+        "edges",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "graph": {
+            "$ref": "#/$defs/RoadGraph",
+            "description": "The road graph of the route."
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "The indices of the edges of the route in `graph.edges`."
+          },
+          "options": {
+            "$ref": "#/$defs/RouteStepsOptions",
+            "description": "The features of the graph, the tag reader, the name of a road and the shortest leg."
+          }
+        },
+        "required": [
+          "graph",
+          "edges"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/RouteStep"
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "simplifyLines",
+      "path": [
+        "geo",
+        "simplifyLines"
+      ],
+      "description": "This function simplifies lines, for example the roads of a map at a small scale, with the method of Douglas and Peucker. It gives one line for each line of the input, in the same direction. Each position of the result is a position of the input.",
+      "params": [
+        "lines",
+        "toleranceKm",
+        "radiusKm"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "minItems": 2
+              }
+            },
+            "description": "The lines: each one is a list of two or more positions."
+          },
+          "toleranceKm": {
+            "type": "number",
+            "description": "The largest distance in kilometres from a removed position to the result, 0 or more."
+          },
+          "radiusKm": {
+            "type": "number",
+            "description": "The radius of the sphere, more than 0. The default is `EARTH_MEAN_RADIUS_KM`."
+          }
+        },
+        "required": [
+          "lines",
+          "toleranceKm"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "minItems": 2
+          }
+        }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "simplifyRegions",
       "path": [
         "geo",
@@ -3131,6 +4344,125 @@ export const manifest: ExportsManifest = {
         "items": {
           "$ref": "#/$defs/Region"
         }
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "snapToRoad",
+      "path": [
+        "geo",
+        "snapToRoad"
+      ],
+      "description": "This function connects a point to a road graph. It gives the nearest node, or a new node at the nearest point of an edge.",
+      "params": [
+        "graph",
+        "point",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "graph": {
+            "$ref": "#/$defs/RoadGraph"
+          },
+          "point": {
+            "$ref": "#/$defs/LatLon"
+          },
+          "options": {
+            "$ref": "#/$defs/SnapOptions"
+          }
+        },
+        "required": [
+          "graph",
+          "point"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RoadSnap"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sunDay",
+      "path": [
+        "geo",
+        "sunDay"
+      ],
+      "description": "This function gives the sunrise, the solar noon and the sunset at a point on a date, or a polar day or night.",
+      "params": [
+        "point",
+        "date",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "point": {
+            "$ref": "#/$defs/LatLon",
+            "description": "The point, with a latitude from -90 to 90"
+          },
+          "date": {
+            "type": "string",
+            "description": "The date, `YYYY-MM-DD`"
+          },
+          "options": {
+            "$ref": "#/$defs/SunDayOptions",
+            "description": "The altitude of the sun at sunrise and sunset"
+          }
+        },
+        "required": [
+          "point",
+          "date"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/SunDay"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
+      "name": "sunPosition",
+      "path": [
+        "geo",
+        "sunPosition"
+      ],
+      "description": "This function gives the place of the sun at an instant, with the low-precision formulas of The Astronomical Almanac.",
+      "params": [
+        "at"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "number",
+            "description": "The instant, in milliseconds from the Unix epoch"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/SunPosition"
       },
       "effects": {
         "reads": [],
@@ -3238,6 +4570,60 @@ export const manifest: ExportsManifest = {
         "reads": [],
         "writes": []
       }
+    },
+    {
+      "name": "wayAccess",
+      "path": [
+        "geo",
+        "wayAccess"
+      ],
+      "description": "This function gives the directions of a way for a travel mode, from the tags of the way.",
+      "params": [
+        "tags",
+        "mode"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": {}
+              }
+            ]
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "const": "drive"
+              },
+              {
+                "const": "walk"
+              },
+              {
+                "$ref": "#/$defs/TravelMode"
+              }
+            ]
+          }
+        },
+        "required": [
+          "tags",
+          "mode"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "#/$defs/WayAccess"
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
     }
   ],
   "exempt": [
@@ -3281,7 +4667,7 @@ export const manifest: ExportsManifest = {
     "classes": [
       "GeoError"
     ],
-    "values": 13,
-    "types": 35
+    "values": 20,
+    "types": 55
   }
 };
