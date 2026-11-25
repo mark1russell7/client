@@ -106,8 +106,9 @@ jobs:
     needs: [changes, plan]
     strategy:
       fail-fast: false
-      # At most 3 runners at one time: the runner slots of the account are a budget (2026-10-30)
-      max-parallel: 3
+      # As many runners as the default count of shards, so a default run does not wait inside itself. The fleet
+      # dispatch caps the runners of each account (2026-11-25; before: 3, a budget of 2026-10-30).
+      max-parallel: 4
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     runs-on: ubuntu-24.04
