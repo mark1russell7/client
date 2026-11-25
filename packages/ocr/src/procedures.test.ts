@@ -119,6 +119,11 @@ describe("ocr.page", () => {
     await expect(call(createOcrModule(HOST), shell, ["ocr", "page"], { file: "menu.pdf" })).rejects.toThrow(/^pdftotext failed \(exit code 99\): pdftotext version 24\.02\.0/);
   });
 
+  it("keeps the error of a failed program that has no other program with its name", async () => {
+    const shell = fakeShell({ exitCode: 1, stderr: "read_params_file: Can't open Glyph & Cog" });
+    await expect(call(createOcrModule(HOST), shell, ["ocr", "image"], { file: "sign.png" })).rejects.toThrow(/^tesseract failed (exit code 1): read_params_file/);
+  });
+
   it("gives the standard output of a failed program when its standard error is empty", async () => {
     const shell = fakeShell(fakeHost(BBOX, { pdftotext: { exitCode: 1, stdout: "Syntax Error" } }));
     await expect(call(createOcrModule(HOST), shell, ["ocr", "page"], { file: "menu.pdf" })).rejects.toThrow("pdftotext failed (exit code 1): Syntax Error");

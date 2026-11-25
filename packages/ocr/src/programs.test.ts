@@ -96,6 +96,8 @@ describe("requireProgram", () => {
     expect(XPDF.matches("Copyright 2005-2024 The Poppler Developers\nCopyright 1996-2011 Glyph & Cog, LLC")).toBe(false);
     expect(XPDF.matches("Syntax Error")).toBe(false);
     expect(PDFTOTEXT.others).toEqual([XPDF]);
+    expect(new OcrToolMissingError(PDFTOTEXT, ["/opt/pdftotext"], undefined, "Xpdf").other).toBe("Xpdf");
+    expect(new OcrToolMissingError(PDFTOTEXT, [], undefined, "Xpdf").message).toMatch(/^The program pdftotext at the path of the search is the program of Xpdf,/);
     expect(PDFTOPPM.others).toEqual([XPDF]);
     expect(TESSERACT.others).toBeUndefined();
     expect(new OcrToolMissingError(TESSERACT, ["/opt/t"], "spawn /opt/t ENOENT").message).toMatch(/^The program tesseract is not on this host\. It did not start: spawn \/opt\/t ENOENT\. .* or set TESSERACT_EXE\.$/);
