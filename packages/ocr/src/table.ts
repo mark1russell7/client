@@ -14,6 +14,7 @@
  * works for pixels and for points.
  */
 
+import { median } from "@mark1russell7/rigor-statistics";
 import { unionBox, type OcrText, type OcrWord, type Rect } from "./text.js";
 
 /** The options of `tableOfText`. Each length is a share of the median height of the words. */
@@ -78,13 +79,6 @@ interface CellStart {
   readonly x: number;
   readonly end: number;
   readonly row: number;
-}
-
-/** This function gives the median of a list of numbers that is not empty. */
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const half = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? (sorted[half] as number) : ((sorted[half - 1] as number) + (sorted[half] as number)) / 2;
 }
 
 /**
