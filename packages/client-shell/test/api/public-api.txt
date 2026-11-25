@@ -21,6 +21,10 @@ type CommandOptions: dist/command/run.d.ts#CommandOptions
 type CommandResult: dist/command/run.d.ts#CommandResult
 type CommandStreamItem: dist/command/stream.d.ts#CommandStreamItem
 DEFAULT_MAX_OUTPUT_BYTES: dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
+EXEC_MAX_BUFFER: dist/command/exec.d.ts#EXEC_MAX_BUFFER
+type ExecProgramError: dist/command/exec.d.ts#ExecProgramError
+type ExecProgramOptions: dist/command/exec.d.ts#ExecProgramOptions
+type ExecProgramSyncOptions: dist/command/exec.d.ts#ExecProgramSyncOptions
 FLAG_NAME: dist/cli/argv.d.ts#FLAG_NAME
 FOLLOW_BUFFER_BYTES: dist/command/processes.d.ts#FOLLOW_BUFFER_BYTES
 type FollowOptions: dist/command/processes.d.ts#FollowOptions
@@ -29,6 +33,7 @@ type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
 type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
 type ProcessOutputListener: dist/command/processes.d.ts#ProcessOutputListener
 ProcessRegistry: dist/command/processes.d.ts#ProcessRegistry
+type ProgramError: dist/command/exec.d.ts#ProgramError
 type ProgramSpawnOptions: dist/command/spawn.d.ts#ProgramSpawnOptions
 type ShellExecInput: dist/types.d.ts#ShellExecInput
 ShellExecInputSchema: dist/types.d.ts#ShellExecInputSchema
@@ -53,12 +58,15 @@ cliToolOutputFields: dist/cli/output.d.ts#cliToolOutputFields
 cliToolOutputSchema: dist/cli/output.d.ts#cliToolOutputSchema
 defineCliTool: dist/cli/tool.d.ts#defineCliTool
 execPathProgram: dist/cli/program.d.ts#execPathProgram
+execProgram: dist/command/exec.d.ts#execProgram
+execProgramSync: dist/command/exec.d.ts#execProgramSync
 findInPath: dist/cli/program.d.ts#findInPath
 killTree: dist/command/tree-kill.d.ts#killTree
 nodeScript: dist/cli/program.d.ts#nodeScript
 parseJsonDocument: dist/cli/argv.d.ts#parseJsonDocument
 parseJsonOutput: dist/cli/argv.d.ts#parseJsonOutput
 processes: dist/command/processes.d.ts#processes
+programError: dist/command/exec.d.ts#programError
 registerShellProcedures: dist/module.d.ts#registerShellProcedures
 runCommand: dist/command/run.d.ts#runCommand
 shellExec: dist/procedures/shell/exec.d.ts#shellExec
@@ -86,6 +94,10 @@ type CommandOptions: dist/command/run.d.ts#CommandOptions
 type CommandResult: dist/command/run.d.ts#CommandResult
 type CommandStreamItem: dist/command/stream.d.ts#CommandStreamItem
 DEFAULT_MAX_OUTPUT_BYTES: dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
+EXEC_MAX_BUFFER: dist/command/exec.d.ts#EXEC_MAX_BUFFER
+type ExecProgramError: dist/command/exec.d.ts#ExecProgramError
+type ExecProgramOptions: dist/command/exec.d.ts#ExecProgramOptions
+type ExecProgramSyncOptions: dist/command/exec.d.ts#ExecProgramSyncOptions
 FOLLOW_BUFFER_BYTES: dist/command/processes.d.ts#FOLLOW_BUFFER_BYTES
 type FollowOptions: dist/command/processes.d.ts#FollowOptions
 type ManagedProcessInfo: dist/command/processes.d.ts#ManagedProcessInfo
@@ -93,13 +105,17 @@ type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
 type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
 type ProcessOutputListener: dist/command/processes.d.ts#ProcessOutputListener
 ProcessRegistry: dist/command/processes.d.ts#ProcessRegistry
+type ProgramError: dist/command/exec.d.ts#ProgramError
 type ProgramSpawnOptions: dist/command/spawn.d.ts#ProgramSpawnOptions
 type SpawnOptions: dist/command/spawn.d.ts#SpawnOptions
 type StartProcessOptions: dist/command/processes.d.ts#StartProcessOptions
 type StopResult: dist/command/processes.d.ts#StopResult
 type StreamCommandOptions: dist/command/stream.d.ts#StreamCommandOptions
+execProgram: dist/command/exec.d.ts#execProgram
+execProgramSync: dist/command/exec.d.ts#execProgramSync
 killTree: dist/command/tree-kill.d.ts#killTree
 processes: dist/command/processes.d.ts#processes
+programError: dist/command/exec.d.ts#programError
 runCommand: dist/command/run.d.ts#runCommand
 spawnProgram: dist/command/spawn.d.ts#spawnProgram
 spawnProgramSync: dist/command/spawn.d.ts#spawnProgramSync
@@ -263,6 +279,48 @@ export interface CliToolOptions {
 
 ### dist/cli/tool.d.ts#defineCliTool
 export declare function defineCliTool(options: CliToolOptions): CliTool;
+
+### dist/command/exec.d.ts#EXEC_MAX_BUFFER
+export declare const EXEC_MAX_BUFFER: number;
+
+### dist/command/exec.d.ts#ExecProgramError
+export interface ExecProgramError extends Error {
+    code?: number | string | null;
+    signal?: NodeJS.Signals | null;
+    killed?: boolean;
+    cmd?: string;
+    stdout: string;
+    stderr: string;
+}
+
+### dist/command/exec.d.ts#ExecProgramOptions
+export interface ExecProgramOptions extends Omit<NodeSpawnOptions, "shell" | "stdio" | "timeout" | "killSignal"> {
+    readonly input?: string | Buffer | undefined;
+    readonly timeout?: number | undefined;
+    readonly killSignal?: NodeJS.Signals | number | undefined;
+    readonly maxBuffer?: number | undefined;
+    readonly encoding?: BufferEncoding | undefined;
+}
+
+### dist/command/exec.d.ts#ExecProgramSyncOptions
+export type ExecProgramSyncOptions = Omit<ExecFileSyncOptions, "shell">;
+
+### dist/command/exec.d.ts#ProgramError
+export type ProgramError = Error & Partial<SpawnSyncReturns<string | Buffer>>;
+
+### dist/command/exec.d.ts#execProgram
+export declare function execProgram(command: string, args: readonly string[], options?: ExecProgramOptions): Promise<{
+    stdout: string;
+    stderr: string;
+}>;
+
+### dist/command/exec.d.ts#execProgramSync
+export declare function execProgramSync(command: string, args: readonly string[], options: Omit<ExecFileSyncOptionsWithStringEncoding, "shell">): string;
+export declare function execProgramSync(command: string, args: readonly string[], options?: Omit<ExecFileSyncOptionsWithBufferEncoding, "shell">): Buffer;
+export declare function execProgramSync(command: string, args: readonly string[], options?: ExecProgramSyncOptions): string | Buffer;
+
+### dist/command/exec.d.ts#programError
+export declare function programError(result: SpawnSyncReturns<string | Buffer>, words: readonly string[]): ProgramError | undefined;
 
 ### dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
 export declare const DEFAULT_MAX_OUTPUT_BYTES: number;

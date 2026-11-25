@@ -28,3 +28,13 @@ export { killTree } from "./tree-kill.js";
 export type { SpawnOptions } from "./spawn.js";
 export { spawnProgram, spawnProgramSync, type ProgramSpawnOptions } from "./spawn.js";
 export { DEFAULT_MAX_OUTPUT_BYTES } from "./output.js";
+export {
+  execProgram,
+  execProgramSync,
+  programError,
+  EXEC_MAX_BUFFER,
+  type ExecProgramOptions,
+  type ExecProgramError,
+  type ExecProgramSyncOptions,
+  type ProgramError,
+} from "./exec.js";

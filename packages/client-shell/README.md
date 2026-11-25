@@ -53,6 +53,8 @@ The wrapper packages start their programs with the helpers of `@procedures/shell
 | `killTree(child)` | It kills a child process and all the processes that it started. |
 | `spawnProgram(command, args, options)` | It starts a program that the caller keeps, for example a detached process with files as its standard input and output. It takes the options of `spawn` of Node, without `shell`, and it gives the child. |
 | `spawnProgramSync(command, args, options)` | It starts a program and waits for its end, as `spawnSync` of Node does. |
+| `execProgramSync(command, args, options)` | It starts a program, waits for its end and gives its standard output, as `execFileSync` of Node does. It throws when the program fails, with the fields `status`, `signal`, `stdout` and `stderr`. |
+| `execProgram(command, args, options)` | It starts a program and gives a promise of its standard output and standard error, as the promise form of `execFile` of Node does. The promise fails when the program fails, passes its `timeout` or writes more than `maxBuffer`. |
 
 The rules of the helpers:
 
