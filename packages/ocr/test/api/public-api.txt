@@ -38,6 +38,7 @@ OcrToolMissingError: dist/programs.d.ts#OcrToolMissingError
 OcrTurn: dist/text.d.ts#OcrTurn
 OcrUnit: dist/text.d.ts#OcrUnit
 OcrWord: dist/text.d.ts#OcrWord
+OtherProgram: dist/programs.d.ts#OtherProgram
 PDFTOPPM: dist/programs.d.ts#PDFTOPPM
 PDFTOTEXT: dist/programs.d.ts#PDFTOTEXT
 ProgramEnv: dist/programs.d.ts#ProgramEnv
@@ -45,6 +46,7 @@ ProgramSpec: dist/programs.d.ts#ProgramSpec
 type Rect: @mark1russell7/layout-contract#Rect (external)
 TESSERACT: dist/programs.d.ts#TESSERACT
 TESSERACT_TSV_COLUMNS: dist/tsv.d.ts#TESSERACT_TSV_COLUMNS
+XPDF: dist/programs.d.ts#XPDF
 createOcrModule: dist/module.d.ts#createOcrModule
 createOcrProcedures: dist/module.d.ts#createOcrProcedures
 createOcrRunner: dist/run.d.ts#createOcrRunner
@@ -213,8 +215,15 @@ export declare class OcrToolMissingError extends Error {
     readonly code: "OCR_TOOL_MISSING";
     readonly tool: string;
     readonly searched: readonly string[];
+    readonly other: string | undefined;
     readonly name: string;
-    constructor(spec: ProgramSpec, searched: readonly string[], cause?: string);
+    constructor(spec: ProgramSpec, searched: readonly string[], cause?: string, other?: string);
+}
+
+### dist/programs.d.ts#OtherProgram
+export interface OtherProgram {
+    readonly name: string;
+    readonly matches: (output: string) => boolean;
 }
 
 ### dist/programs.d.ts#PDFTOPPM
@@ -233,10 +242,14 @@ export interface ProgramSpec {
     readonly folderEnv?: readonly string[] | undefined;
     readonly installed: (platform: NodeJS.Platform, env: ProgramEnv) => readonly string[];
     readonly install: string;
+    readonly others?: readonly OtherProgram[] | undefined;
 }
 
 ### dist/programs.d.ts#TESSERACT
 export declare const TESSERACT: ProgramSpec;
+
+### dist/programs.d.ts#XPDF
+export declare const XPDF: OtherProgram;
 
 ### dist/programs.d.ts#findProgram
 export declare function findProgram(spec: ProgramSpec, options?: FindProgramOptions & {

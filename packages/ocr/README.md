@@ -117,6 +117,8 @@ The search examines these paths, in this order:
 
 When the search finds no program, the call fails with an `OcrToolMissingError`. The error has the name of the program (`tool`), the paths that the search examined (`searched`) and the code `OCR_TOOL_MISSING`. A program that does not start gives the same error.
 
+Xpdf has programs with the names `pdftotext` and `pdftoppm`, but not the options of Poppler. For example, Git for Windows puts the `pdftotext` of Xpdf on the `PATH`. When a run fails and its output comes from Xpdf, the call fails with an `OcrToolMissingError` with `other: "Xpdf"`. The error tells you to install Poppler or to set `POPPLER_PATH`. The field `others` of a `ProgramSpec` lists these different programs with the same name.
+
 ## The parsers
 
 The parsers start no process and read no file. The root and the entry `@procedures/ocr/parse` export them. A browser can also load the entry `./parse`.

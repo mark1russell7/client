@@ -10,6 +10,14 @@ import { posix, win32 } from "node:path";
 /** The environment of the search. */
 export type ProgramEnv = Readonly<Record<string, string | undefined>>;
 
+/** A different program with the same name, for example the `pdftotext` of Xpdf. */
+export interface OtherProgram {
+  /** The name of the other program, for the error, for example `Xpdf`. */
+  readonly name: string;
+  /** This function gives `true` when the output of a failed run comes from the other program. */
+  readonly matches: (output: string) => boolean;
+}
+
 /** The description of a program for the search. */
 export interface ProgramSpec {
   /** The name of the program, without `.exe`, for example `tesseract`. */
@@ -22,6 +30,11 @@ export interface ProgramSpec {
   readonly installed: (platform: NodeJS.Platform, env: ProgramEnv) => readonly string[];
   /** The text that tells how to install the program, for the error. */
   readonly install: string;
+  /**
+   * The different programs with the same name. When a run fails and its output comes from one of
+   * them, the runner throws an `OcrToolMissingError`, not the error of the run.
+   */
+  readonly others?: readonly OtherProgram[] | undefined;
 }
 
 /** The options of the search. Each one has a default from the host. */
@@ -58,6 +71,16 @@ export const TESSERACT: ProgramSpec = {
   install: "the package tesseract-ocr on Linux, brew install tesseract on macOS, or the Tesseract installer on Windows",
 };
 
+/**
+ * The programs of Xpdf have the names of the programs of Poppler, but not their options: for
+ * example, the `pdftotext` of Xpdf has no `-bbox-layout`. Git for Windows puts Xpdf on the `PATH`.
+ * The usage text of Xpdf names Glyph & Cog. The usage text of Poppler names Glyph & Cog and Poppler.
+ */
+export const XPDF: OtherProgram = {
+  name: "Xpdf",
+  matches: (output) => /Glyph & Cog/.test(output) && !/poppler/i.test(output),
+};
+
 function poppler(name: string, env: string): ProgramSpec {
   return {
     name,
@@ -68,6 +91,7 @@ function poppler(name: string, env: string): ProgramSpec {
       return platform === "darwin" ? HOMEBREW_FOLDERS.map((folder) => posix.join(folder, name)) : [];
     },
     install: "the package poppler-utils on Linux, brew install poppler on macOS, or a Poppler build on Windows",
+    others: [XPDF],
   };
 }
 
@@ -88,14 +112,26 @@ export class OcrToolMissingError extends Error {
   readonly tool: string;
   /** The paths that the search examined, in order. */
   readonly searched: readonly string[];
+  /** The name of the different program that the search found, for example `Xpdf`, or `undefined`. */
+  readonly other: string | undefined;
 
   override readonly name: string = "OcrToolMissingError";
-  constructor(spec: ProgramSpec, searched: readonly string[], cause?: string) {
+  /**
+   * The `cause` is the error of a start that failed. The `other` is the name of a different
+   * program with the same name at `searched[0]`, for example `Xpdf`.
+   */
+  constructor(spec: ProgramSpec, searched: readonly string[], cause?: string, other?: string) {
     const variables = [...spec.env, ...(spec.folderEnv ?? [])].join(" or ");
-    const reason = cause === undefined ? `The search examined ${searched.length} paths.` : `It did not start: ${cause}.`;
-    super(`The program ${spec.name} is not on this host. ${reason} Install ${spec.install}, or set ${variables}.`);
+    const fix = `Install ${spec.install}, or set ${variables}.`;
+    if (other !== undefined) {
+      super(`The program ${spec.name} at ${searched[0] ?? "the path of the search"} is the program of ${other}, and this package cannot use it. ${fix}`);
+    } else {
+      const reason = cause === undefined ? `The search examined ${searched.length} paths.` : `It did not start: ${cause}.`;
+      super(`The program ${spec.name} is not on this host. ${reason} ${fix}`);
+    }
     this.tool = spec.name;
     this.searched = searched;
+    this.other = other;
   }
 }
 

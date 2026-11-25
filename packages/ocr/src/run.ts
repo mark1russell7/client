@@ -63,6 +63,8 @@ export function createOcrRunner(options: OcrHostOptions = {}): OcrRunner {
       const result = await tool.call(args, { timeout }, ctx);
       if (notFound(result)) throw new OcrToolMissingError(spec, [input.command], result.stderr.trim());
       if (result.exitCode !== 0) {
+        const other = spec.others?.find((program) => program.matches(`${result.stderr}\n${result.stdout}`));
+        if (other !== undefined) throw new OcrToolMissingError(spec, [input.command], undefined, other.name);
         const text = result.stderr.trim() || result.stdout.trim();
         throw new CliToolError(`${spec.name} failed (exit code ${result.exitCode}): ${text}`.trim(), result.exitCode, result.stderr);
       }
