@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 612 across 59 namespaces. Loaded 55 package register(s).
+**Total procedures:** 625 across 59 namespaces. Loaded 55 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 52 procedure(s)
+- [`geo.*`](#geo) — 65 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`handle.*`](#handle) — 2 procedure(s)
@@ -303,6 +303,7 @@
 | Procedure | Description |
 |-----------|-------------|
 | `geo.arcgisFeatures` | Give the features of an ArcGIS layer in a box as GeoJSON, for example the evacuation zones of an official map service |
+| `geo.areaSquareMeters` | This function gives the area of a Polygon or a MultiPolygon on an ellipsoid, in square metres. An edge is a straight line in longitude and latitude, as RFC 7946 tells. The direction of a ring does not change the result. |
 | `geo.bboxCenter` | This function gives the middle of a box. Its latitude is the middle of the latitudes of the box. Its longitude is the middle of the arc of longitudes from the west to the east. For a box that crosses the antimeridian, the middle is on the arc across the antimeridian. |
 | `geo.bboxContains` | This function gives `true` when the closed box has the point. A box that reaches a pole has the pole for each longitude. |
 | `geo.bboxIntersects` | This function gives `true` when the two closed boxes have a common point. Two boxes that touch on an edge have a common point. Two boxes that reach the same pole have the pole. |
@@ -313,6 +314,7 @@
 | `geo.centralAngleRadians` | This function gives the angle between two points at the center of the sphere, in radians from 0 to pi. It uses the haversine formula. The result is the same when the two points change places. |
 | `geo.circleKm` | This function gives a circle on the Earth as a polygon. The radius is a great-circle distance in kilometres. The module documentation gives the rules for the antimeridian and the poles. |
 | `geo.circleMeters` | This function gives a circle on the Earth as a polygon. The radius is a great-circle distance in metres. The module documentation gives the rules for the antimeridian and the poles. |
+| `geo.commonAreaSquareMeters` | This function gives the area of the part that all the Polygons and MultiPolygons have in common, on an ellipsoid, in square metres. An edge is a straight line in longitude and latitude, as RFC 7946 tells. The polygons can cross the antimeridian: a polygon moved by 360 degrees is the same area of the Earth. For one polygon, the result is its area. |
 | `geo.decodeGeohash` | This function gives the cell of a geohash: its edges and its center. Upper case letters are correct. Each character must be an ASCII digit or an ASCII letter. |
 | `geo.densify` | This function gives a copy of a geometry with more positions on its edges. It divides each edge into equal parts, so that no part is longer than `maxStep` degrees of longitude or of latitude. Use it before a drawing on a globe. |
 | `geo.destinationKm` | This function gives the point at a distance from a start point, along the great circle with an initial bearing. The longitude of the result is normalized. A negative distance goes in the opposite direction. |
@@ -339,21 +341,32 @@
 | `geo.intermediatePoint` | This function gives the point at a part of the way along the great circle from `from` to `to`. A part of 0 gives the start, 0.5 gives the middle, and 1 gives the end. The longitude of the result is normalized. |
 | `geo.joinLines` | This function joins lines with a common end into longer lines, for example the ways of one street. Each input line goes into one result line, forward or reversed. |
 | `geo.latLon` | This function gives a point with a normalized longitude. |
+| `geo.lengthNearLines` | This function gives the length of the parts of a line that are within a distance of other lines. For example, the length of the edge of a parcel along a road (its frontage), or the length of a path along a river. |
 | `geo.locatePoint` | This function gives the location of a point against a Polygon or a MultiPolygon: `inside`, `boundary` or `outside`. The rules are in the description of this module. A point on the boundary of one part and inside another part is `inside`. A closed polygon contains the point when the result is not `outside`. |
+| `geo.nearestNode` | This function gives the node of a road graph that is nearest to a point, with the distance from `distanceMeters`. Two nodes at the same distance give the first in the order of `graph.nodes`. |
 | `geo.nearestOnLine` | This function gives the nearest point of a line to a point: the distance, the distance along the line, and the side. For many points on one line, use `lineReference`. Its rules apply. |
 | `geo.normalizeLon` | This function gives the longitude in the range from -180 to less than 180. A longitude of 180 becomes -180, and -0 becomes 0. The result has no rounding: it is the longitude plus a multiple of 360. So the function does not change a longitude that is already in the range, other than -0. |
 | `geo.osmFeatures` | Give the features of OpenStreetMap in a box as GeoJSON (the Overpass API), for example the shelters or the roads of a town |
+| `geo.overlapAreaSquareMeters` | This function gives the area of the overlap of two Polygons or MultiPolygons on an ellipsoid, in square metres. It is `commonAreaSquareMeters([a, b], ellipsoid)`. |
 | `geo.pointAlongLine` | This function gives the point at a distance along a line, moved by an offset to the left or to the right. For many points on one line, use `lineReference`. Its rules apply. |
 | `geo.polygonIntersectsBBox` | This function gives `true` when a closed polygon and a closed box have a common point. A box that crosses the antimeridian is two rectangles, one on each side. |
 | `geo.polygonsIntersect` | This function gives `true` when two closed polygons have a common point. Polygons that touch at one point intersect. A polygon in a hole of the other polygon does not intersect it, unless they touch. The rules are in the description of this module. The result is the same when `a` and `b` change places. |
 | `geo.rewind` | This function gives a copy of the polygon that follows the right-hand rule of RFC 7946. It reverses each clockwise exterior ring and each counterclockwise hole. It does not change a degenerate ring. The copy keeps the other members of the object. |
 | `geo.ringWinding` | This function gives the winding of a ring in the plane of longitude and latitude: the sign of its exact signed area. The sum uses exact dyadic numbers, so a rounding error cannot change the result. For a ring that crosses itself, the result is the sign of the sum of the signed areas of its loops. |
+| `geo.roadGraph` | This function makes the road graph of a travel mode from GeoJSON lines, for example the ways of OpenStreetMap. |
 | `geo.route` | Give the time and the distance of a drive between two points (OSRM) |
+| `geo.routeLine` | This function gives the GeoJSON line of a route, from the lines of its edges, and its length. |
+| `geo.routeSteps` | This function gives the steps of a route for a route on paper: a leg for each road, with its turn, and the arrival. |
+| `geo.simplifyLines` | This function simplifies lines, for example the roads of a map at a small scale, with the method of Douglas and Peucker. It gives one line for each line of the input, in the same direction. Each position of the result is a position of the input. |
 | `geo.simplifyRegions` | This function simplifies regions that share borders, for example the counties of a state, with the method of Douglas and Peucker. It gives one region for each region of the input, with the same type. |
 | `geo.soilAtPoint` | Give the soil at a point from USDA Soil Data Access (SSURGO): the major components of the map unit, with the septic rating, the slope, the drainage and the hydric rating |
+| `geo.snapToRoad` | This function connects a point to a road graph. It gives the nearest node, or a new node at the nearest point of an edge. |
+| `geo.sunDay` | This function gives the sunrise, the solar noon and the sunset at a point on a date, or a polar day or night. |
+| `geo.sunPosition` | This function gives the place of the sun at an instant, with the low-precision formulas of The Astronomical Almanac. |
 | `geo.toGeoJsonBBox` | This function gives the GeoJSON form `[west, south, east, north]` of a box. |
 | `geo.toPosition` | This function gives the GeoJSON position `[lon, lat]` of a point. |
 | `geo.toUnitVector` | This function gives the unit vector of a point, from the center of a sphere to the point. A drawing in 3D multiplies the vector by its radius. |
+| `geo.wayAccess` | This function gives the directions of a way for a travel mode, from the tags of the way. |
 
 ## gh
 
