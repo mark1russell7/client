@@ -21,6 +21,9 @@
     "release-train:update": "node scripts/release-train-update.ts",
     "release:bootstrap": "node scripts/npm-bootstrap.ts"
   },
+  "sitePages": {
+    "bareErrors": "fail"
+  },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@babel/parser": "^8.0.7",
