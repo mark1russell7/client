@@ -44,7 +44,7 @@ The workflow `.github/workflows/harness.yml` starts the cells on this subject. I
 To start the workflow by hand, use this command. `^WS ` with a space gives only the WS cells:
 
 ```sh
-gh workflow run harness.yml -R mark1russell7/client -f only='^WS ' -f shards=4
+gh workflow run harness.yml -R mark1russell7/client -f only='^WS ' -f shards=3
 ```
 
 With the input `systems`, the workflow uses another commit of `systems`, for example a change of the harness before it merges. To change the default commit, change `SYSTEMS_REF` in the workflow.
