@@ -1,5 +1,15 @@
 # @procedures/gh
 
+## 0.68.10
+
+### Patch Changes
+
+- Updated dependencies [a47f3df]
+- Updated dependencies [c2899fe]
+  - @procedures/http@0.68.10
+  - @procedures/shell@0.68.10
+  - @procedures/client@0.68.10
+
 ## 0.68.9
 
 ### Patch Changes

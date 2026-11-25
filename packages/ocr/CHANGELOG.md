@@ -1,5 +1,15 @@
 # @procedures/ocr
 
+## 0.68.10
+
+### Patch Changes
+
+- ee0504e: The new pure function `tableOfText` gives the rows and the columns of a table from the boxes of its words. Each row has one cell for each column, with its text, its confidence and its box. A right-aligned column of numbers stays one column.
+- 4b926ae: When `pdftotext` or `pdftoppm` fails and its output comes from Xpdf, not from Poppler, the call fails with an `OcrToolMissingError` with `other: "Xpdf"`. The error tells you to install Poppler or to set `POPPLER_PATH`. Before, the call failed with the usage text of Xpdf. The new field `others` of a `ProgramSpec` lists the different programs with the same name, and the new export `XPDF` describes Xpdf.
+- Updated dependencies [c2899fe]
+  - @procedures/shell@0.68.10
+  - @procedures/client@0.68.10
+
 ## 0.68.9
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @procedures/generators
 
+## 0.68.10
+
+### Patch Changes
+
+- @procedures/client@0.68.10
+  - @procedures/compiler@0.68.10
+
 ## 0.68.9
 
 ### Patch Changes

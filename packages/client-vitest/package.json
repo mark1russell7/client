@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/vitest",
-  "version": "0.68.9",
+  "version": "0.68.10",
   "description": "Vitest as procedures: run the tests with results and coverage, watch, and stop the managed watch processes.",
   "keywords": [
     "vitest",
