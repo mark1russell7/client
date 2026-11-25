@@ -39,7 +39,9 @@ describe("the generated procedures of @procedures/geo", () => {
   it("has a procedure with no effect for each other function of the home", () => {
     // The count comes from the home, not from a pinned number: each function of @mark1russell7/geo is a generated
     // procedure or an exemption, so a new function of the home needs no edit of this test (client#766 pinned 45 of 58).
-    const functions = Object.keys(home).filter((name) => typeof (home as Record<string, unknown>)[name] === "function");
+    // A class (for example GeoError) is a function to typeof, but it is no procedure and no exemption.
+    const isFunction = (value: unknown): boolean => typeof value === "function" && !/^class\b/.test(Function.prototype.toString.call(value));
+    const functions = Object.keys(home).filter((name) => isFunction((home as Record<string, unknown>)[name]));
     const covered = [...geoManifest.procedures.map((procedure) => procedure.name), ...geoManifest.exempt.map((exemption) => exemption.name)];
     expect([...covered].sort()).toEqual([...functions].sort());
     expect(geoHomeProcedures).toHaveLength(geoManifest.procedures.length);
