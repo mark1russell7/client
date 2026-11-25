@@ -71,6 +71,24 @@ const scan = await outputValue(await invokePath(["ocr", "page"], { file: "auctio
 
 The function `turnText(text, turn)` of the parsers does step 3 for a text from another source.
 
+## A table
+
+OCR gives words and lines, not cells. The pure function `tableOfText` gives the cells of a table from the boxes of its words:
+
+1. Two words are in one row when the vertical centers of their boxes are near.
+2. In a row, a wide gap between two words starts a new cell.
+3. A column starts at an x position where many rows start a cell. A right-aligned column of numbers has starts that are far apart. Its cells end at the same x, so it stays one column.
+4. Each word goes to the column that holds the center of its box.
+
+```ts
+import { tableOfText } from "@procedures/ocr/parse";
+
+const table = tableOfText(scan, { minShare: 0.25 });
+const prices = table.rows.map((row) => row.cells[3]?.text ?? null);
+```
+
+Each row has one cell for each column, or `null` when the row has no word in that column. Each cell has its `text`, its `confidence`, its `box` and its `words`. The tolerances are shares of the median height of the words, so the same options work for pixels and for points. Give the words of one table only: a title above the table becomes a row too.
+
 ## The result
 
 Each result has `unit`, `width`, `height`, `text`, `confidence` and `lines`. Each line has `text`, `confidence`, `box` and `words`. Each word has `text`, `confidence` and `box`.
@@ -107,6 +125,7 @@ The parsers start no process and read no file. The root and the entry `@procedur
 - `parsePdftotextBbox(xhtml)` reads the output of `pdftotext -bbox-layout` for one page.
 - `parseTesseractOsd(output)` reads the orientation output of tesseract (`tesseract <image> stdout --psm 0`).
 - `turnText(text, turn)` turns each box, the width and the height by 0, 90, 180 or 270 degrees in the clock direction.
+- `tableOfText(text, options)` gives the rows and the columns of a table from the boxes of its words. Refer to [A table](#a-table).
 - `scaleText(text, factor, unit)` changes the unit of the boxes. For example, the factor `72 / 300` changes the pixels of an image at 300 dots per inch to PDF points.
 
 ## Other engines
