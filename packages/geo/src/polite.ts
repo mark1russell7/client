@@ -34,7 +34,7 @@ export interface GeoFetchResponse {
  */
 export type GeoFetch = (
   url: string,
-  init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "manual"; method?: "POST" | undefined; body?: string | undefined }
+  init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "manual"; method?: "POST"; body?: string }
 ) => Promise<GeoFetchResponse>;
 
 /** The User-Agent of the transport. Each exchange of this package sends its own User-Agent, from the input. */
