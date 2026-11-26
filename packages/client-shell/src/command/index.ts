@@ -12,6 +12,7 @@
 
 export { runCommand, type CommandOptions, type CommandResult } from "./run.js";
 export { streamCommand, type StreamCommandOptions, type CommandStreamItem } from "./stream.js";
+export { createLineSplitter, DEFAULT_MAX_LINE_LENGTH, type LineSplitter, type LineSplitterOptions } from "./lines.js";
 export {
   ProcessRegistry,
   processes,
