@@ -12,7 +12,10 @@ ImapConnection: dist/imap.d.ts#ImapConnection
 MAIL_PASSWORD_ENV: dist/procedures.d.ts#MAIL_PASSWORD_ENV
 MailAddress: dist/mime.d.ts#MailAddress
 MailHeader: dist/imap.d.ts#MailHeader
+MailMessage: dist/imap.d.ts#MailMessage
+MailMessages: dist/imap.d.ts#MailMessages
 ReadHeadersOptions: dist/imap.d.ts#ReadHeadersOptions
+ReadMessagesOptions: dist/imap.d.ts#ReadMessagesOptions
 decodeWords: dist/mime.d.ts#decodeWords
 htmlText: dist/mime.d.ts#htmlText
 mailHeadersProcedure: dist/procedures.d.ts#mailHeadersProcedure
@@ -24,6 +27,7 @@ messageText: dist/mime.d.ts#messageText
 parseAddresses: dist/mime.d.ts#parseAddresses
 parseMessage: dist/procedures.d.ts#parseMessage
 readHeaders: dist/imap.d.ts#readHeaders
+readMessages: dist/imap.d.ts#readMessages
 registerMailProcedures: dist/module.d.ts#registerMailProcedures
 setImapClientFactory: dist/procedures.d.ts#setImapClientFactory
 
@@ -53,14 +57,23 @@ export interface ImapClientLike {
     }): Promise<{
         release(): void;
     }>;
+    readonly mailbox?: {
+        uidValidity?: bigint | number | undefined;
+    } | false | undefined;
     fetch(range: {
         since: Date;
-    }, query: {
-        envelope: true;
-        flags: true;
+    } | string, query: {
+        envelope?: true;
+        flags?: true;
         uid: true;
+        size?: true;
+        source?: true;
+    }, options?: {
+        uid?: boolean;
     }): AsyncIterable<{
         uid: number;
+        size?: number | undefined;
+        source?: Uint8Array | undefined;
         flags?: Set<string> | undefined;
         envelope?: {
             subject?: string | undefined;
@@ -96,6 +109,18 @@ export interface MailHeader {
     readonly seen: boolean;
 }
 
+### dist/imap.d.ts#MailMessage
+export interface MailMessage extends MailHeader {
+    readonly size: number;
+    readonly source?: Uint8Array | undefined;
+}
+
+### dist/imap.d.ts#MailMessages
+export interface MailMessages {
+    readonly uidValidity?: string | undefined;
+    readonly messages: MailMessage[];
+}
+
 ### dist/imap.d.ts#ReadHeadersOptions
 export interface ReadHeadersOptions {
     readonly mailbox: string;
@@ -106,8 +131,17 @@ export interface ReadHeadersOptions {
     readonly clientFactory?: ImapClientFactory | undefined;
 }
 
+### dist/imap.d.ts#ReadMessagesOptions
+export interface ReadMessagesOptions extends ReadHeadersOptions {
+    readonly maxBytes: number;
+    readonly afterUid?: number | undefined;
+}
+
 ### dist/imap.d.ts#readHeaders
 export declare function readHeaders(connection: ImapConnection, options: ReadHeadersOptions): Promise<MailHeader[]>;
+
+### dist/imap.d.ts#readMessages
+export declare function readMessages(connection: ImapConnection, options: ReadMessagesOptions): Promise<MailMessages>;
 
 ### dist/mime.d.ts#MailAddress
 export interface MailAddress {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { decodeWords, htmlText, messageHeaders, messageText, parseAddresses } from "./mime.js";
-import { readHeaders, type ImapClientLike } from "./imap.js";
+import { readHeaders, readMessages, type ImapClientLike } from "./imap.js";
 import { mailProcedures, setImapClientFactory } from "./procedures.js";
 
 /** Made-up messages. */
@@ -70,9 +70,17 @@ function fakeClient(log: string[], options: { hang?: boolean } = {}): ImapClient
       log.push(`lock ${mailbox} readOnly=${String(lockOptions?.readOnly)}`);
       return { release: () => void log.push("release") };
     },
-    async *fetch() {
-      yield { uid: 7, flags: new Set(["\\Seen"]), envelope: { subject: "Old", date: new Date("2026-10-01T10:00:00Z"), from: [{ address: "a@example.org" }] } };
-      yield { uid: 9, flags: new Set<string>(), envelope: { subject: "New", from: [{ name: "Bob", address: "b@example.org" }] } };
+    mailbox: { uidValidity: 42n },
+    async *fetch(range, query, fetchOptions) {
+      if (typeof range === "string") {
+        log.push(`fetch source ${range} uid=${String(fetchOptions?.uid)}`);
+        for (const uid of range.split(",").map(Number)) yield { uid, source: new TextEncoder().encode(uid === 9 ? plain : "x") };
+        return;
+      }
+      const size = query.size ? { size: 50 } : {};
+      yield { uid: 7, ...size, flags: new Set(["\\Seen"]), envelope: { subject: "Old", date: new Date("2026-10-01T10:00:00Z"), from: [{ address: "a@example.org" }] } };
+      yield { uid: 9, ...size, flags: new Set<string>(), envelope: { subject: "New", from: [{ name: "Bob", address: "b@example.org" }] } };
+      if (query.size) yield { uid: 11, size: 5_000_000, flags: new Set<string>(), envelope: { subject: "Big" } };
     },
   };
 }
@@ -97,6 +105,39 @@ describe("readHeaders", () => {
     // The fake client does not end connect() on close(), as a real one does: race it
     await expect(Promise.race([call, new Promise((resolve) => setTimeout(() => resolve("pending"), 100))])).resolves.toBe("pending");
     expect(log).toContain("close");
+  });
+});
+
+describe("readMessages", () => {
+  const connection = { host: "imap.example.org", port: 993, secure: true, user: "u", password: "p" };
+
+  it("fetches the whole messages up to maxBytes read only, the newest first, after the cursor", async () => {
+    const log: string[] = [];
+    const result = await readMessages(connection, {
+      mailbox: "Alerts",
+      since: new Date(0),
+      limit: 10,
+      maxBytes: 1_000_000,
+      afterUid: 7,
+      timeoutMs: 1000,
+      clientFactory: async () => fakeClient(log),
+    });
+    expect(result.uidValidity).toBe("42");
+    expect(result.messages.map((m) => [m.uid, m.size, m.source !== undefined])).toEqual([
+      [11, 5_000_000, false],
+      [9, 50, true],
+    ]);
+    expect(messageText(result.messages[1]!.source!)).toBe("Line one\nLine two");
+    // Only the message under the cap is fetched, by UID, in the read-only session
+    expect(log).toEqual(["connect", "lock Alerts readOnly=true", "fetch source 9 uid=true", "release", "logout"]);
+  });
+
+  it("refuses a cap that is not a positive number, before it connects", async () => {
+    const log: string[] = [];
+    await expect(
+      readMessages(connection, { mailbox: "INBOX", since: new Date(0), limit: 1, maxBytes: 0, timeoutMs: 1000, clientFactory: async () => fakeClient(log) })
+    ).rejects.toThrow(/maxBytes/);
+    expect(log).toEqual([]);
   });
 });
 

@@ -1,6 +1,6 @@
 /**
- * The headers of the recent messages of an IMAP mailbox. It opens the mailbox read only (EXAMINE)
- * and fetches the envelope and the flags of each message, so it changes no flag: a message stays
+ * The headers and the whole messages of the recent messages of an IMAP mailbox. It opens the
+ * mailbox read only (EXAMINE) and fetches with BODY.PEEK, so it changes no flag: a message stays
  * unread.
  */
 
@@ -12,11 +12,16 @@ export interface ImapClientLike {
   logout(): Promise<void>;
   close(): void;
   getMailboxLock(mailbox: string, options?: { readOnly?: boolean }): Promise<{ release(): void }>;
+  /** The open mailbox, with its UIDVALIDITY */
+  readonly mailbox?: { uidValidity?: bigint | number | undefined } | false | undefined;
   fetch(
-    range: { since: Date },
-    query: { envelope: true; flags: true; uid: true }
+    range: { since: Date } | string,
+    query: { envelope?: true; flags?: true; uid: true; size?: true; source?: true },
+    options?: { uid?: boolean }
   ): AsyncIterable<{
     uid: number;
+    size?: number | undefined;
+    source?: Uint8Array | undefined;
     flags?: Set<string> | undefined;
     envelope?:
       | {
@@ -76,11 +81,38 @@ export interface ReadHeadersOptions {
   readonly clientFactory?: ImapClientFactory | undefined;
 }
 
+const toHeader = (message: {
+  uid: number;
+  flags?: Set<string> | undefined;
+  envelope?:
+    | {
+        subject?: string | undefined;
+        date?: Date | undefined;
+        from?: Array<{ name?: string | undefined; address?: string | undefined }> | undefined;
+        to?: Array<{ name?: string | undefined; address?: string | undefined }> | undefined;
+      }
+    | undefined;
+}): MailHeader => {
+  const envelope = message.envelope;
+  return {
+    uid: message.uid,
+    subject: envelope?.subject ?? "",
+    from: addresses(envelope?.from),
+    to: addresses(envelope?.to),
+    ...(envelope?.date ? { date: envelope.date.toISOString() } : {}),
+    seen: message.flags?.has("\\Seen") ?? false,
+  };
+};
+
 /**
- * This function gives the headers of the messages of a mailbox since a date, the newest first, at
- * most `limit`. A time limit or an abort closes the connection.
+ * One session: it connects, opens the mailbox read only, runs `work` and logs out. A time limit or
+ * an abort closes the connection.
  */
-export async function readHeaders(connection: ImapConnection, options: ReadHeadersOptions): Promise<MailHeader[]> {
+async function withMailbox<T>(
+  connection: ImapConnection,
+  options: ReadHeadersOptions,
+  work: (client: ImapClientLike) => Promise<T>
+): Promise<T> {
   const client = await (options.clientFactory ?? imapflowClient)(connection);
   let stopped: string | undefined;
   let loggedOut = false;
@@ -95,25 +127,15 @@ export async function readHeaders(connection: ImapConnection, options: ReadHeade
     if (options.signal?.aborted) throw new Error("the call was aborted");
     await client.connect();
     const lock = await client.getMailboxLock(options.mailbox, { readOnly: true });
-    const headers: MailHeader[] = [];
+    let result: T;
     try {
-      for await (const message of client.fetch({ since: options.since }, { envelope: true, flags: true, uid: true })) {
-        const envelope = message.envelope;
-        headers.push({
-          uid: message.uid,
-          subject: envelope?.subject ?? "",
-          from: addresses(envelope?.from),
-          to: addresses(envelope?.to),
-          ...(envelope?.date ? { date: envelope.date.toISOString() } : {}),
-          seen: message.flags?.has("\\Seen") ?? false,
-        });
-      }
+      result = await work(client);
     } finally {
       lock.release();
     }
     await client.logout();
     loggedOut = true;
-    return headers.sort((a, b) => b.uid - a.uid).slice(0, options.limit);
+    return result;
   } catch (error) {
     if (stopped !== undefined) throw new Error(`The IMAP server did not finish: ${stopped}`);
     throw error;
@@ -123,4 +145,74 @@ export async function readHeaders(connection: ImapConnection, options: ReadHeade
     // An error leaves the connection open: close it
     if (!loggedOut && stopped === undefined) client.close();
   }
+}
+
+/**
+ * This function gives the headers of the messages of a mailbox since a date, the newest first, at
+ * most `limit`. A time limit or an abort closes the connection.
+ */
+export async function readHeaders(connection: ImapConnection, options: ReadHeadersOptions): Promise<MailHeader[]> {
+  return withMailbox(connection, options, async (client) => {
+    const headers: MailHeader[] = [];
+    for await (const message of client.fetch({ since: options.since }, { envelope: true, flags: true, uid: true })) headers.push(toHeader(message));
+    return headers.sort((a, b) => b.uid - a.uid).slice(0, options.limit);
+  });
+}
+
+/** One whole message, with its headers. */
+export interface MailMessage extends MailHeader {
+  /** The size of the message in bytes, as the server gives it */
+  readonly size: number;
+  /** The whole message (RFC 5322). It is absent when the message is larger than `maxBytes`. */
+  readonly source?: Uint8Array | undefined;
+}
+
+export interface ReadMessagesOptions extends ReadHeadersOptions {
+  /** The largest message to fetch, in bytes. A larger message comes with its headers and no source. */
+  readonly maxBytes: number;
+  /** Give only the messages with a UID above this one (the cursor of the last read) */
+  readonly afterUid?: number | undefined;
+}
+
+export interface MailMessages {
+  /**
+   * The UIDVALIDITY of the mailbox, as a decimal string. When it changes, the UIDs of the mailbox
+   * changed, and a cursor (`afterUid`) of an earlier read is not valid.
+   */
+  readonly uidValidity?: string | undefined;
+  /** The newest first, at most `limit` */
+  readonly messages: MailMessage[];
+}
+
+/**
+ * This function gives the whole messages of a mailbox since a date, the newest first, at most
+ * `limit`. It reads the sizes first, then fetches with BODY.PEEK only the messages up to
+ * `maxBytes`, so a message stays unread. A time limit or an abort closes the connection.
+ */
+export async function readMessages(connection: ImapConnection, options: ReadMessagesOptions): Promise<MailMessages> {
+  if (!(options.maxBytes > 0)) throw new Error("maxBytes must be a positive number of bytes");
+  return withMailbox(connection, options, async (client) => {
+    const found: Array<{ header: MailHeader; size: number }> = [];
+    for await (const message of client.fetch({ since: options.since }, { envelope: true, flags: true, uid: true, size: true })) {
+      if (options.afterUid !== undefined && message.uid <= options.afterUid) continue;
+      found.push({ header: toHeader(message), size: message.size ?? 0 });
+    }
+    const chosen = found.sort((a, b) => b.header.uid - a.header.uid).slice(0, options.limit);
+    const wanted = chosen.filter((entry) => entry.size <= options.maxBytes).map((entry) => entry.header.uid);
+    const sources = new Map<number, Uint8Array>();
+    if (wanted.length > 0) {
+      for await (const message of client.fetch(wanted.join(","), { uid: true, source: true }, { uid: true })) {
+        if (message.source !== undefined && message.source.byteLength <= options.maxBytes) sources.set(message.uid, message.source);
+      }
+    }
+    const box = client.mailbox;
+    const uidValidity = box && box.uidValidity !== undefined ? String(box.uidValidity) : undefined;
+    return {
+      ...(uidValidity !== undefined ? { uidValidity } : {}),
+      messages: chosen.map(({ header, size }) => {
+        const source = sources.get(header.uid);
+        return { ...header, size, ...(source !== undefined ? { source } : {}) };
+      }),
+    };
+  });
 }
