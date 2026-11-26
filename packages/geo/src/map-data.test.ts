@@ -105,6 +105,31 @@ describe("geoSend", () => {
     }
     expect(urls).toHaveLength(0);
   });
+
+  it("gives the bytes of the body for an exchange that reads bytes", async () => {
+    const image = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]);
+    let textReads = 0;
+    const fetch: GeoFetch = async () => ({
+      ok: true,
+      status: 200,
+      headers: { "content-type": "image/png" },
+      json: async () => ({}),
+      text: async () => {
+        textReads += 1;
+        return "";
+      },
+      arrayBuffer: async () => image.slice().buffer,
+    });
+    const reply = await geoSend({ fetch, pace: testPace() }, { source: "Tile server", what: "a test", exchange: { ...exchange, read: "bytes" }, timeoutMs: 1000 });
+    expect(reply.status).toBe(200);
+    expect(reply.bytes).toEqual(image);
+    expect(textReads).toBe(0);
+  });
+
+  it("refuses an exchange that reads bytes when the fetch gives no arrayBuffer()", async () => {
+    const { fetch } = scriptedFetch([{ body: "an image" }]);
+    await expect(geoSend({ fetch, pace: testPace() }, { source: "Tile server", what: "a test", exchange: { ...exchange, read: "bytes" }, timeoutMs: 1000 })).rejects.toThrow(/arrayBuffer/);
+  });
 });
 
 describe("geo.arcgisFeatures", () => {

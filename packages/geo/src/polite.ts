@@ -22,12 +22,14 @@ export interface GeoFetchResponse {
   json(): Promise<unknown>;
   /** The map data procedures read the body as text. */
   text?(): Promise<string>;
+  /** A request of `geoSend` with `read: "bytes"` reads the body with this member, for example an image. */
+  arrayBuffer?(): Promise<ArrayBuffer>;
 }
 
 /**
  * The `fetch` of the module. The global `fetch` and `createHostFetch()` of `@procedures/http` have
- * each member. A `FetchJson` is sufficient for `geo.geocode` and `geo.route`. The map data
- * procedures also need `text()` and the headers.
+ * each member, but `createHostFetch()` has no `arrayBuffer()`. A `FetchJson` is sufficient for
+ * `geo.geocode` and `geo.route`. The map data procedures also need `text()` and the headers.
  *
  * Only `geo.soilAtPoint` sends a `POST` with a body: a query that only reads. `createHostFetch()`
  * sends it only to a host of its option `readOnlyPost`.
@@ -56,7 +58,8 @@ function eachHeader(headers: GeoFetchHeaders | undefined, callback: (value: stri
  * This function gives a `FetchLike` of `polite-crawler/api` over the `fetch` of the module. It
  * sends GET requests. With `readOnlyPost`, it also sends a POST with its body: the caller tells that
  * the POST only reads, for example the query of `geo.soilAtPoint`. A fetch with a host policy keeps
- * its policy, and its own rules for redirects.
+ * its policy, and its own rules for redirects. The response gives `arrayBuffer()` when the response
+ * of the fetch has it, so an exchange with `read: "bytes"` gets the bytes of the body.
  *
  * @param readOnlyPost - True when each POST of the transport only reads. The default is false: no POST.
  */
@@ -74,11 +77,14 @@ export function fetchLikeOf(fetch: GeoFetch, readOnlyPost = false): FetchLike {
     });
     const text = response.text;
     if (typeof text !== "function") throw new ApiError("The fetch of the module gives no text(): give the global fetch or createHostFetch() of @procedures/http");
+    const arrayBuffer = response.arrayBuffer;
     return {
       status: response.status,
       statusText: response.statusText ?? "",
       headers: { forEach: (callback) => eachHeader(response.headers, callback) },
       text: () => text.call(response),
+      // send() of polite-crawler reads the bytes with arrayBuffer(), and gives an ApiError when the response has no arrayBuffer()
+      ...(typeof arrayBuffer === "function" ? { arrayBuffer: () => arrayBuffer.call(response) } : {}),
     };
   };
 }
