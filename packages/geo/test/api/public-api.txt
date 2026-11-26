@@ -584,6 +584,7 @@ export interface GeoFetchResponse {
     readonly headers?: GeoFetchHeaders | undefined;
     json(): Promise<unknown>;
     text?(): Promise<string>;
+    arrayBuffer?(): Promise<ArrayBuffer>;
 }
 
 ### dist/polite.d.ts#GeoRequest
