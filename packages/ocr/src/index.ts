@@ -7,4 +7,4 @@ export * from "./parse.js";
 export * from "./engine.js";
 export * from "./programs.js";
 export { createOcrRunner, DEFAULT_TIMEOUT_MS, type OcrHostOptions, type OcrRunner } from "./run.js";
-export { DEFAULT_DPI, ocrImage, ocrPage, pdftoppmArgs, pdftotextArgs } from "./procedures/ocr/index.js";
+export { DEFAULT_DPI, ocrImage, ocrPage, ocrPageCount, pdfinfoArgs, pdftoppmArgs, pdftotextArgs } from "./procedures/ocr/index.js";

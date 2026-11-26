@@ -9,6 +9,7 @@ describe("registration", () => {
     root.registerOcrProcedures(registry);
     expect(registry.get(["ocr", "page"])).toBeDefined();
     expect(registry.get(["ocr", "image"])).toBeDefined();
+    expect(registry.get(["ocr", "pageCount"])).toBeDefined();
     await import("./register.js");
     expect(PROCEDURE_REGISTRY.get(["ocr", "page"])).toBeDefined();
     expect(PROCEDURE_REGISTRY.get(["ocr", "image"])).toBeDefined();

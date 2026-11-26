@@ -8,3 +8,4 @@ export * from "./tsv.js";
 export * from "./bbox.js";
 export * from "./osd.js";
 export * from "./table.js";
+export * from "./pdfinfo.js";

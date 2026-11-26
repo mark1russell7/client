@@ -107,6 +107,31 @@ export const OcrPageOutputSchema: z.ZodType<OcrPageOutput> = z.object({
 });
 
 // =============================================================================
+// ocr.pageCount: the number of pages of a PDF file
+// =============================================================================
+
+/** The input of `ocr.pageCount`. */
+export interface OcrPageCountInput {
+  file: string;
+  timeout?: number | undefined;
+}
+
+export const OcrPageCountInputSchema: z.ZodType<OcrPageCountInput> = z.object({
+  file: z.string().min(1).describe("The path of the PDF file"),
+  timeout: engineFields.timeout,
+});
+
+/** The output of `ocr.pageCount`. */
+export interface OcrPageCountOutput {
+  /** The number of pages of the file. The pages of `ocr.page` are the numbers from 1 to this number. */
+  readonly pages: number;
+}
+
+export const OcrPageCountOutputSchema: z.ZodType<OcrPageCountOutput> = z.object({
+  pages: z.number().int().min(0).describe("The number of pages of the file. The pages of ocr.page are the numbers from 1 to this number"),
+});
+
+// =============================================================================
 // ocr.image: the text of an image
 // =============================================================================
 
