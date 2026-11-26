@@ -14,6 +14,12 @@ AddressPoint: dist/address.d.ts#AddressPoint
 ArcgisFeature: dist/features.d.ts#ArcgisFeature
 ArcgisPage: dist/features.d.ts#ArcgisPage
 ArcgisQuery: dist/features.d.ts#ArcgisQuery
+CENSUS_BENCHMARK: dist/census.d.ts#CENSUS_BENCHMARK
+CENSUS_GEOCODER_ATTRIBUTION: dist/census.d.ts#CENSUS_GEOCODER_ATTRIBUTION
+CENSUS_GEOCODER_HOST: dist/census.d.ts#CENSUS_GEOCODER_HOST
+CENSUS_GEOCODER_URL: dist/census.d.ts#CENSUS_GEOCODER_URL
+CensusAddress: dist/census.d.ts#CensusAddress
+CensusMatch: dist/census.d.ts#CensusMatch
 DEFAULT_ATTEMPTS: dist/polite.d.ts#DEFAULT_ATTEMPTS
 DEFAULT_GEOHASH_PRECISION: dist/geohash.d.ts#DEFAULT_GEOHASH_PRECISION
 EARTH_RADIUS_KM: dist/distance.d.ts#EARTH_RADIUS_KM
@@ -23,6 +29,10 @@ FIRST_ZCTA_GAZETTEER_YEAR: dist/zcta.d.ts#FIRST_ZCTA_GAZETTEER_YEAR
 FetchJson: dist/geo.d.ts#FetchJson
 FitZoomOptions: dist/mercator.d.ts#FitZoomOptions
 GEOHASH_ALPHABET: dist/geohash.d.ts#GEOHASH_ALPHABET
+GeoAddressPointInput: dist/types.d.ts#GeoAddressPointInput
+GeoAddressPointInputSchema: dist/types.d.ts#GeoAddressPointInputSchema
+GeoAddressPointOutput: dist/types.d.ts#GeoAddressPointOutput
+GeoAddressPointOutputSchema: dist/types.d.ts#GeoAddressPointOutputSchema
 GeoArcgisFeaturesInput: dist/types.d.ts#GeoArcgisFeaturesInput
 GeoArcgisFeaturesInputSchema: dist/types.d.ts#GeoArcgisFeaturesInputSchema
 GeoArcgisFeaturesOutput: dist/types.d.ts#GeoArcgisFeaturesOutput
@@ -97,12 +107,15 @@ answerJson: dist/polite.d.ts#answerJson
 arcgisExchange: dist/features.d.ts#arcgisExchange
 arcgisPage: dist/features.d.ts#arcgisPage
 bboxParts: dist/features.d.ts#bboxParts
+censusAddressExchange: dist/census.d.ts#censusAddressExchange
+censusMatches: dist/census.d.ts#censusMatches
 createGeoModule: dist/module.d.ts#createGeoModule
 createGeoProcedures: dist/procedures.d.ts#createGeoProcedures
 decodeGeohash: dist/geohash.d.ts#decodeGeohash
 drivingRoute: dist/geo.d.ts#drivingRoute
 fetchLikeOf: dist/polite.d.ts#fetchLikeOf
 fitZoom: dist/mercator.d.ts#fitZoom
+geoAddressPointProcedure: dist/procedures.d.ts#geoAddressPointProcedure
 geoArcgisFeaturesProcedure: dist/procedures.d.ts#geoArcgisFeaturesProcedure
 geoDistanceProcedure: dist/procedures.d.ts#geoDistanceProcedure
 geoGeocodeProcedure: dist/procedures.d.ts#geoGeocodeProcedure
@@ -268,6 +281,41 @@ export declare function parseStreetAddress(text: string, options?: ParseStreetAd
 
 ### dist/address.d.ts#townBox
 export declare function townBox(boundaries: readonly MapFeature[], town: TownQuery): BBox | undefined;
+
+### dist/census.d.ts#CENSUS_BENCHMARK
+export declare const CENSUS_BENCHMARK = "Public_AR_Current";
+
+### dist/census.d.ts#CENSUS_GEOCODER_ATTRIBUTION
+export declare const CENSUS_GEOCODER_ATTRIBUTION = "U.S. Census Bureau, Census Geocoder (TIGER/Line address ranges).";
+
+### dist/census.d.ts#CENSUS_GEOCODER_HOST
+export declare const CENSUS_GEOCODER_HOST = "geocoding.geo.census.gov";
+
+### dist/census.d.ts#CENSUS_GEOCODER_URL
+export declare const CENSUS_GEOCODER_URL = "https://geocoding.geo.census.gov/geocoder/locations/address";
+
+### dist/census.d.ts#CensusAddress
+export interface CensusAddress {
+    readonly street: string;
+    readonly city?: string | undefined;
+    readonly state?: string | undefined;
+    readonly zip?: string | undefined;
+}
+
+### dist/census.d.ts#CensusMatch
+export interface CensusMatch {
+    readonly lat: number;
+    readonly lon: number;
+    readonly matchedAddress: string;
+    readonly side: "L" | "R" | null;
+    readonly tigerLineId: string | null;
+}
+
+### dist/census.d.ts#censusAddressExchange
+export declare function censusAddressExchange(address: CensusAddress, userAgent: string, benchmark?: string, baseUrl?: string): Exchange;
+
+### dist/census.d.ts#censusMatches
+export declare function censusMatches(answer: unknown): CensusMatch[];
 
 ### dist/distance.d.ts#EARTH_RADIUS_KM
 export declare const EARTH_RADIUS_KM = 6371;
@@ -631,6 +679,9 @@ export interface GeoProceduresOptions {
 ### dist/procedures.d.ts#createGeoProcedures
 export declare function createGeoProcedures(options?: GeoProceduresOptions): AnyProcedure[];
 
+### dist/procedures.d.ts#geoAddressPointProcedure
+export declare const geoAddressPointProcedure: AnyProcedure;
+
 ### dist/procedures.d.ts#geoArcgisFeaturesProcedure
 export declare const geoArcgisFeaturesProcedure: AnyProcedure;
 
@@ -735,6 +786,28 @@ export declare function isTile(tile: Tile, maxZoom?: number): boolean;
 
 ### dist/tiles.d.ts#tileUrl
 export declare function tileUrl(template: string, tile: Tile): string;
+
+### dist/types.d.ts#GeoAddressPointInput
+export interface GeoAddressPointInput {
+    street: string;
+    city?: string | undefined;
+    state?: string | undefined;
+    zip?: string | undefined;
+    userAgent: string;
+    timeoutMs?: number | undefined;
+}
+
+### dist/types.d.ts#GeoAddressPointInputSchema
+export declare const GeoAddressPointInputSchema: z.ZodType<GeoAddressPointInput>;
+
+### dist/types.d.ts#GeoAddressPointOutput
+export interface GeoAddressPointOutput {
+    matches: CensusMatch[];
+    attribution: string;
+}
+
+### dist/types.d.ts#GeoAddressPointOutputSchema
+export declare const GeoAddressPointOutputSchema: z.ZodType<GeoAddressPointOutput>;
 
 ### dist/types.d.ts#GeoArcgisFeaturesInput
 export interface GeoArcgisFeaturesInput {

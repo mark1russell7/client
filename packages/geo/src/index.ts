@@ -5,6 +5,7 @@ export * from "./geo.js";
 export * from "./features.js";
 export * from "./image.js";
 export * from "./soil.js";
+export * from "./census.js";
 export * from "./polite.js";
 export * from "./distance.js";
 export * from "./geohash.js";

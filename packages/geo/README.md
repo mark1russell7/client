@@ -21,6 +21,7 @@ A host registers the procedures with `createRegistry(geoModule)`, or with `impor
 | `geo.osmFeatures` | reads `network` | Gives the features of OpenStreetMap in a box, as GeoJSON. |
 | `geo.arcgisFeatures` | reads `network` | Gives the features of an ArcGIS layer in a box, as GeoJSON. |
 | `geo.soilAtPoint` | reads `network` | Gives the soil at a point, from USDA Soil Data Access (SSURGO): the septic rating, the slope, the drainage and the hydric rating of each major component. |
+| `geo.addressPoint` | reads `network` | Gives the point of a street address of the United States on its address range, from the Census Geocoder. The point is on the street line, near the road, not in the lot. |
 | `geo.distance` | none | Gives the great-circle distance between two points, in kilometres. It is deprecated: use `geo.distanceKm`. |
 | `geo.geohash` | none | Gives the geohash of a point and the cell of that geohash. |
 | 45 generated procedures | none | Each one calls one function of `@mark1russell7/geo`, for example `geo.distanceKm`, `geo.destinationKm` and `geo.bboxOfPoints`. |
@@ -74,7 +75,7 @@ node scripts/wraps.ts generate --package geo
 
 The command writes `src/manifest.ts`. It also raises the ratchet of the library in `wraps.coverage.json`. CI starts `node scripts/wraps.ts check`. The check fails when the manifest is not current, or when the share of the functions with a procedure falls.
 
-The wrap is pure: its `wrap.json` has `"pure": true`. So the check also examines the effects of the generated procedures, the browser entries and the program `point-at-the-median-distance` of `wraps.programs.json`. The hand-written procedures `geo.geocode`, `geo.route`, `geo.osmFeatures`, `geo.arcgisFeatures` and `geo.soilAtPoint` read the network. They are not in the manifest, so the gate does not examine them.
+The wrap is pure: its `wrap.json` has `"pure": true`. So the check also examines the effects of the generated procedures, the browser entries and the program `point-at-the-median-distance` of `wraps.programs.json`. The hand-written procedures `geo.geocode`, `geo.route`, `geo.osmFeatures`, `geo.arcgisFeatures`, `geo.soilAtPoint` and `geo.addressPoint` read the network. They are not in the manifest, so the gate does not examine them.
 
 ## Distance and geohash
 
@@ -146,6 +147,17 @@ const soil = await client.exec(["geo", "soilAtPoint"], { lat: 44.9, lon: -69.2, 
 ```ts
 createGeoModule({ fetch: createHostFetch({ readOnlyPost: ["sdmdataaccess.sc.egov.usda.gov"] }) });
 ```
+
+`geo.addressPoint` asks the Census Geocoder for the point of a street address of the United States:
+
+```ts
+const found = await client.exec(["geo", "addressPoint"], { street: "12 Main St", city: "Sometown", state: "VT", userAgent: "my-app/1.0 (me@example.org)" });
+// found.matches[0]: { lat, lon, matchedAddress, side, tigerLineId }, found.attribution: the citation of the geocoder
+```
+
+- The geocoder finds the address range of the street line that holds the number, and gives a point on that range. So the point is near the road, not in the lot.
+- An empty list of matches tells that no range holds the address. The input needs the city or the ZIP code.
+- The request is one GET, at the pace of the host. The address goes to the Census Bureau: send only an address that you can share.
 
 - An empty list of components tells that the survey has no map unit at the point.
 - SSURGO is a work of the US government, in the public domain. The output has its citation in `attribution`.

@@ -15,6 +15,7 @@
  * - `ics.fetch` fetches any URL, so a tool call can carry data out in the URL.
  * - `geo.arcgisFeatures` reads a layer of any host, for the same reason. `geo.osmFeatures` can give
  *   megabytes of features for one box, which is too large for a tool result.
+ * - `geo.addressPoint` reads the Census Geocoder for scripts. `geo.geocode` already gives the point of an address to a tool call.
  * - `mail.headers` reads a private mailbox.
  * - The other generated procedures of `geo` (`geoManifest`). Each one is pure, but each tool costs
  *   approximately 386 tokens in the tool list of each session. The tool search of the direction 40 decides them.
@@ -84,6 +85,7 @@ export const mcpExclude: readonly string[] = [
   "mail.headers",
   "geo.arcgisFeatures",
   "geo.osmFeatures",
+  "geo.addressPoint",
   ...geoManifest.procedures.map((procedure) => pathToKey(procedure.path)).filter((key) => !geoGeneratedTools.has(key)),
 ];
 
