@@ -1,6 +1,6 @@
 # The procedures subject of the harness
 
-This folder is the procedures subject of the harness of [`systems`](https://github.com/mark1russell7/systems) (item CLI-33, decision D16). The WS and WST cells of the harness run the WebSocket client and the procedures server of `@procedures/client` under real network faults. This repository owns the image of that subject, so the cells examine the client of each commit.
+This folder is the procedures subject of the harness of [`systems`](https://github.com/metrograph-labs/systems) (item CLI-33, decision D16). The WS and WST cells of the harness run the WebSocket client and the procedures server of `@procedures/client` under real network faults. This repository owns the image of that subject, so the cells examine the client of each commit.
 
 ## The files
 

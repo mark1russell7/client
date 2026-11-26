@@ -1,10 +1,10 @@
-// The manifest of @mark1russell7/optional 1.5.0, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
+// The manifest of @mark1russell7/optional 1.5.1, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
 import type { ExportsManifest } from "@procedures/compiler";
 
 export const manifest: ExportsManifest = {
   "format": "procedures-exports/1",
   "package": "@mark1russell7/optional",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "entry": ".",
   "namespace": [
     "optional"
