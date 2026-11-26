@@ -1,5 +1,13 @@
 # @procedures/geo
 
+## 0.68.13
+
+### Patch Changes
+
+- 3974b4a: An automated dependency update changes the shipped files, so this PATCH ships them.
+- @procedures/client@0.68.13
+  - @procedures/compiler@0.68.13
+
 ## 0.68.12
 
 ### Patch Changes
