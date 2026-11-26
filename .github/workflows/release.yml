@@ -331,7 +331,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: mark1russell7/template
-          ref: 8855485a0255104373c0a34ee8da7c3b6a53c17e # main
+          ref: 8ad943ea22c2a65479b648664765028cf981da78 # main
           path: .release-template
           sparse-checkout: scripts/release
           persist-credentials: false
