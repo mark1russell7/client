@@ -1,5 +1,15 @@
 # @procedures/mcp-dev-tools
 
+## 0.68.11
+
+### Patch Changes
+
+- @procedures/bundle-mcp@0.68.11
+  - @procedures/client@0.68.11
+  - @procedures/fs@0.68.11
+  - @procedures/mcp-server@0.68.11
+  - @procedures/compiler@0.68.11
+
 ## 0.68.10
 
 ### Patch Changes

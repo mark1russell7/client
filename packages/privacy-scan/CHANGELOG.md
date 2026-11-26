@@ -1,5 +1,11 @@
 # @procedures/privacy-scan
 
+## 0.68.11
+
+### Patch Changes
+
+- @procedures/client@0.68.11
+
 ## 0.68.10
 
 ### Patch Changes
