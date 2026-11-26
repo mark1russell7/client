@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 628 across 59 namespaces. Loaded 55 package register(s).
+**Total procedures:** 629 across 59 namespaces. Loaded 55 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 67 procedure(s)
+- [`geo.*`](#geo) — 68 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`handle.*`](#handle) — 2 procedure(s)
@@ -302,6 +302,7 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `geo.addressPoint` | Find the point of a street address of the United States on its address range (the Census Geocoder). The point is on the street line, near the road, not in the lot |
 | `geo.arcgisFeatures` | Give the features of an ArcGIS layer in a box as GeoJSON, for example the evacuation zones of an official map service |
 | `geo.areaSquareMeters` | This function gives the area of a Polygon or a MultiPolygon on an ellipsoid, in square metres. An edge is a straight line in longitude and latitude, as RFC 7946 tells. The direction of a ring does not change the result. |
 | `geo.bboxCenter` | This function gives the middle of a box. Its latitude is the middle of the latitudes of the box. Its longitude is the middle of the arc of longitudes from the west to the east. For a box that crosses the antimeridian, the middle is on the arc across the antimeridian. |
