@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.ts` after `pnpm build`.
 
-**Packages:** 68. **Procedures:** 625. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 68. **Procedures:** 626. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -62,7 +62,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
 | `@procedures/notify` | `packages/notify` | Push notifications through ntfy (the public server or your own) and Pushover, with emergency messages that repeat until acknowledged, and Twilio texts and voice calls. | `notify.*` (6) | `@mark1russell7/text` *(general)*, `client` |
 | `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. The entry ./measures reads the use of a package: npm downloads, deps.dev dependents and jsDelivr hits. | `npm.*` (7) | `client`, `json`, `shell` |
-| `@procedures/ocr` | `packages/ocr` | The text of a PDF page or an image, with the text, the confidence and the box of each line and word: the text layer of the page first (pdftotext), then OCR with a local engine (tesseract). | `ocr.*` (2) | `@mark1russell7/layout-contract` *(general)*, `@mark1russell7/rigor-statistics` *(general)*, `client`, `shell` |
+| `@procedures/ocr` | `packages/ocr` | The text of a PDF page or an image, with the text, the confidence and the box of each line and word: the text layer of the page first (pdftotext), then OCR with a local engine (tesseract). | `ocr.*` (3) | `@mark1russell7/layout-contract` *(general)*, `@mark1russell7/rigor-statistics` *(general)*, `client`, `shell` |
 | `@procedures/optional` | `packages/optional` | The functions of @mark1russell7/optional as procedures, made from its types: optional values and results as typed calls, MCP tools and CLI commands. | `optional.*` (20) | `@mark1russell7/optional` *(general)*, `client`, `compiler` |
 | `@procedures/pdf` | `packages/pdf` | HTML to PDF with a headless Chromium browser that is already installed (Edge, Chrome or Chromium), as the procedure pdf.render. The render is in @procedures/browser. | `pdf.*` (1) | `browser`, `client` |
 | `@procedures/predicates` | `packages/predicates` | The functions of @mark1russell7/predicates as procedures, made from its types: robust orientation, in-circle and segment tests as typed calls, MCP tools and CLI commands. | `predicates.*` (13) | `@mark1russell7/predicates` *(general)*, `client`, `compiler` |

@@ -9,17 +9,18 @@ import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { createRegistry, invokePath, outputValue, type ProcedureModule } from "@procedures/client";
 import { fakeShell, type FakeShellInput, type FakeShellResult } from "@procedures/shell/testing";
-import { createOcrModule, ocrModule, ocrProcedures, type OcrEngine, type OcrHostOptions, type OcrImageOutput, type OcrPageOutput, tesseractEngine } from "./index.js";
+import { createOcrModule, ocrModule, ocrProcedures, type OcrEngine, type OcrHostOptions, type OcrImageOutput, type OcrPageCountOutput, type OcrPageOutput, tesseractEngine } from "./index.js";
 
 const fixture = (name: string): string => readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), "utf8");
 const TSV = fixture("tesseract.tsv");
 const BBOX = fixture("bbox-layout.html");
 const BBOX_EMPTY = fixture("bbox-empty.html");
+const PDFINFO = fixture("pdfinfo.txt");
 
 const temp = mkdtempSync(join(tmpdir(), "ocr-test-"));
 afterAll(() => rmSync(temp, { recursive: true, force: true }));
 
-const EXECUTABLES = { tesseract: "/opt/tesseract", pdftotext: "/opt/pdftotext", pdftoppm: "/opt/pdftoppm" };
+const EXECUTABLES = { tesseract: "/opt/tesseract", pdftotext: "/opt/pdftotext", pdftoppm: "/opt/pdftoppm", pdfinfo: "/opt/pdfinfo" };
 const HOST: OcrHostOptions = { executables: EXECUTABLES, tempFolder: temp };
 
 /** A fake host: pdftotext gives `layer`, pdftoppm writes the image, tesseract gives the TSV. */
@@ -137,6 +138,45 @@ describe("ocr.page", () => {
   });
 });
 
+describe("ocr.pageCount", () => {
+  it("gives the number of pages from pdfinfo, with the absolute path of the file", async () => {
+    const shell = fakeShell({ stdout: PDFINFO });
+    const output = await call<OcrPageCountOutput>(createOcrModule(HOST), shell, ["ocr", "pageCount"], { file: "report.pdf" });
+    expect(output).toEqual({ pages: 12 });
+    expect(shell.calls).toHaveLength(1);
+    expect(shell.calls[0]).toMatchObject({ command: "/opt/pdfinfo", args: [resolve("report.pdf")], timeout: 120_000 });
+  });
+
+  it("uses the time limit of the input", async () => {
+    const shell = fakeShell({ stdout: "Pages:           1\n" });
+    expect(await call<OcrPageCountOutput>(createOcrModule(HOST), shell, ["ocr", "pageCount"], { file: "a.pdf", timeout: 5000 })).toEqual({ pages: 1 });
+    expect(shell.calls[0]!.timeout).toBe(5000);
+  });
+
+  it("throws the error of pdfinfo for a file that is not a PDF file", async () => {
+    const shell = fakeShell({ exitCode: 1, stderr: "Syntax Warning: May not be a PDF file (continuing anyway)\nSyntax Error: Couldn't find trailer dictionary\n" });
+    await expect(call(createOcrModule(HOST), shell, ["ocr", "pageCount"], { file: "notes.txt" })).rejects.toThrow(/^pdfinfo failed \(exit code 1\): Syntax Warning: May not be a PDF file/);
+  });
+
+  it("throws when the output of pdfinfo has no number of pages", async () => {
+    const shell = fakeShell({ stdout: "Title:           A sample report\n" });
+    await expect(call(createOcrModule(HOST), shell, ["ocr", "pageCount"], { file: "report.pdf" })).rejects.toThrow("The output of pdfinfo has no Pages line with a whole number");
+  });
+
+  it("throws a typed error when the search finds no pdfinfo, and starts nothing", async () => {
+    const shell = fakeShell();
+    const module = createOcrModule({ env: {}, platform: "linux", exists: () => false });
+    await expect(call(module, shell, ["ocr", "pageCount"], { file: "report.pdf" })).rejects.toMatchObject({ code: "OCR_TOOL_MISSING", tool: "pdfinfo" });
+    expect(shell.calls).toHaveLength(0);
+  });
+
+  it("refuses an input with no file", async () => {
+    const shell = fakeShell();
+    await expect(call(createOcrModule(HOST), shell, ["ocr", "pageCount"], { file: "" })).rejects.toThrow();
+    expect(shell.calls).toHaveLength(0);
+  });
+});
+
 describe("ocr.page with the defaults of the host", () => {
   it("makes its temporary folder in the temporary folder of the system, and uses each program again", async () => {
     const shell = fakeShell(fakeHost(BBOX_EMPTY));
@@ -197,6 +237,7 @@ describe("the module", () => {
     const meta = Object.fromEntries(ocrProcedures.map((procedure) => [procedure.path.join("."), procedure.metadata]));
     expect(meta["ocr.page"]).toMatchObject({ effects: { reads: ["fs", "process"], writes: ["fs", "process"] }, calls: ["shell.run"], fsRoot: { paths: ["file"] } });
     expect(meta["ocr.image"]).toMatchObject({ effects: { reads: ["fs", "process"], writes: ["process"] }, calls: ["shell.run"], fsRoot: { paths: ["file"] } });
+    expect(meta["ocr.pageCount"]).toMatchObject({ effects: { reads: ["fs", "process"], writes: ["process"] }, calls: ["shell.run"], fsRoot: { paths: ["file"] } });
   });
 
   it("gives the default module without options, and requires the shell module", () => {

@@ -1,6 +1,6 @@
 /**
  * The search for the programs of this package on the host: `tesseract` (the OCR engine), and
- * `pdftotext` and `pdftoppm` of Poppler. The package does not download a program. When the search
+ * `pdftotext`, `pdftoppm` and `pdfinfo` of Poppler. The package does not download a program. When the search
  * finds no program, `requireProgram` throws an `OcrToolMissingError`.
  */
 
@@ -101,8 +101,11 @@ export const PDFTOTEXT: ProgramSpec = poppler("pdftotext", "PDFTOTEXT_EXE");
 /** The program of Poppler that makes an image of a PDF page. */
 export const PDFTOPPM: ProgramSpec = poppler("pdftoppm", "PDFTOPPM_EXE");
 
+/** The program of Poppler that gives the fields of a PDF file, for example its number of pages. */
+export const PDFINFO: ProgramSpec = poppler("pdfinfo", "PDFINFO_EXE");
+
 /** The programs of this package. */
-export const OCR_PROGRAMS: readonly ProgramSpec[] = [TESSERACT, PDFTOTEXT, PDFTOPPM];
+export const OCR_PROGRAMS: readonly ProgramSpec[] = [TESSERACT, PDFTOTEXT, PDFTOPPM, PDFINFO];
 
 /** The error when a program of this package is not on the host. */
 export class OcrToolMissingError extends Error {

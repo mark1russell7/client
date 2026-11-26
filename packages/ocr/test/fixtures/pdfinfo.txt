@@ -1,0 +1,20 @@
+Title:           A sample report
+Author:          Example Author
+Creator:         Example Writer
+Producer:        Example PDF Library 1.0
+CreationDate:    Mon Jan  1 00:00:00 2024 UTC
+ModDate:         Mon Jan  1 00:00:00 2024 UTC
+Custom Metadata: no
+Metadata Stream: no
+Tagged:          no
+UserProperties:  no
+Suspects:        no
+Form:            none
+JavaScript:      no
+Pages:           12
+Encrypted:       no
+Page size:       612 x 792 pts (letter)
+Page rot:        0
+File size:       48213 bytes
+Optimized:       no
+PDF version:     1.7

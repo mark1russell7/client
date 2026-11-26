@@ -56,7 +56,7 @@ describe("findProgram", () => {
   });
 
   it("knows the three programs of the package", () => {
-    expect(OCR_PROGRAMS.map((spec) => spec.name)).toEqual(["tesseract", "pdftotext", "pdftoppm"]);
+    expect(OCR_PROGRAMS.map((spec) => spec.name)).toEqual(["tesseract", "pdftotext", "pdftoppm", "pdfinfo"]);
   });
 });
 

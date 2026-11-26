@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 625 across 59 namespaces. Loaded 55 package register(s).
+**Total procedures:** 626 across 59 namespaces. Loaded 55 package register(s).
 
 ## Namespaces
 
@@ -41,7 +41,7 @@
 - [`node.*`](#node) — 5 procedure(s)
 - [`notify.*`](#notify) — 6 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
-- [`ocr.*`](#ocr) — 2 procedure(s)
+- [`ocr.*`](#ocr) — 3 procedure(s)
 - [`optional.*`](#optional) — 20 procedure(s)
 - [`pdf.*`](#pdf) — 1 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
@@ -593,6 +593,7 @@
 |-----------|-------------|
 | `ocr.image` | Read the text of an image with a local OCR engine (tesseract), with the confidence and the box of each line and word |
 | `ocr.page` | Give the text of a PDF page with the box of each line and word: the text layer first, then OCR for a page with no text layer |
+| `ocr.pageCount` | Give the number of pages of a PDF file (pdfinfo), so a caller can read each page with ocr.page |
 
 ## optional
 

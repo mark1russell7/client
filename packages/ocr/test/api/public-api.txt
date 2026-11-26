@@ -23,6 +23,10 @@ OcrImageOutputSchema: dist/types.d.ts#OcrImageOutputSchema
 OcrLine: dist/text.d.ts#OcrLine
 OcrOrientation: dist/osd.d.ts#OcrOrientation
 OcrOrientationStep: dist/engine.d.ts#OcrOrientationStep
+OcrPageCountInput: dist/types.d.ts#OcrPageCountInput
+OcrPageCountInputSchema: dist/types.d.ts#OcrPageCountInputSchema
+OcrPageCountOutput: dist/types.d.ts#OcrPageCountOutput
+OcrPageCountOutputSchema: dist/types.d.ts#OcrPageCountOutputSchema
 OcrPageInput: dist/types.d.ts#OcrPageInput
 OcrPageInputSchema: dist/types.d.ts#OcrPageInputSchema
 OcrPageMode: dist/types.d.ts#OcrPageMode
@@ -39,6 +43,7 @@ OcrTurn: dist/text.d.ts#OcrTurn
 OcrUnit: dist/text.d.ts#OcrUnit
 OcrWord: dist/text.d.ts#OcrWord
 OtherProgram: dist/programs.d.ts#OtherProgram
+PDFINFO: dist/programs.d.ts#PDFINFO
 PDFTOPPM: dist/programs.d.ts#PDFTOPPM
 PDFTOTEXT: dist/programs.d.ts#PDFTOTEXT
 ProgramEnv: dist/programs.d.ts#ProgramEnv
@@ -58,10 +63,13 @@ meanConfidence: dist/text.d.ts#meanConfidence
 ocrImage: dist/procedures/ocr/image.d.ts#ocrImage
 ocrModule: dist/module.d.ts#ocrModule
 ocrPage: dist/procedures/ocr/page.d.ts#ocrPage
+ocrPageCount: dist/procedures/ocr/pageCount.d.ts#ocrPageCount
 ocrProcedures: dist/module.d.ts#ocrProcedures
+parsePdfinfoPages: dist/pdfinfo.d.ts#parsePdfinfoPages
 parsePdftotextBbox: dist/bbox.d.ts#parsePdftotextBbox
 parseTesseractOsd: dist/osd.d.ts#parseTesseractOsd
 parseTesseractTsv: dist/tsv.d.ts#parseTesseractTsv
+pdfinfoArgs: dist/procedures/ocr/pageCount.d.ts#pdfinfoArgs
 pdftoppmArgs: dist/procedures/ocr/page.d.ts#pdftoppmArgs
 pdftotextArgs: dist/procedures/ocr/page.d.ts#pdftotextArgs
 programCandidates: dist/programs.d.ts#programCandidates
@@ -111,6 +119,7 @@ decodeXmlText: dist/bbox.d.ts#decodeXmlText
 makeLine: dist/text.d.ts#makeLine
 makeText: dist/text.d.ts#makeText
 meanConfidence: dist/text.d.ts#meanConfidence
+parsePdfinfoPages: dist/pdfinfo.d.ts#parsePdfinfoPages
 parsePdftotextBbox: dist/bbox.d.ts#parsePdftotextBbox
 parseTesseractOsd: dist/osd.d.ts#parseTesseractOsd
 parseTesseractTsv: dist/tsv.d.ts#parseTesseractTsv
@@ -185,6 +194,9 @@ export interface OcrOrientation {
 ### dist/osd.d.ts#parseTesseractOsd
 export declare function parseTesseractOsd(output: string): OcrOrientation;
 
+### dist/pdfinfo.d.ts#parsePdfinfoPages
+export declare function parsePdfinfoPages(output: string): number;
+
 ### dist/procedures/ocr/image.d.ts#ocrImage
 export declare function ocrImage(input: OcrImageInput, ctx: Pick<ProcedureContext, "client">, runner?: OcrRunner): Promise<OcrImageOutput>;
 
@@ -199,6 +211,12 @@ export declare function pdftoppmArgs(file: string, page: number, dpi: number, pr
 
 ### dist/procedures/ocr/page.d.ts#pdftotextArgs
 export declare function pdftotextArgs(file: string, page: number): string[];
+
+### dist/procedures/ocr/pageCount.d.ts#ocrPageCount
+export declare function ocrPageCount(input: OcrPageCountInput, ctx: Pick<ProcedureContext, "client">, runner?: OcrRunner): Promise<OcrPageCountOutput>;
+
+### dist/procedures/ocr/pageCount.d.ts#pdfinfoArgs
+export declare function pdfinfoArgs(file: string): string[];
 
 ### dist/programs.d.ts#FindProgramOptions
 export interface FindProgramOptions {
@@ -225,6 +243,9 @@ export interface OtherProgram {
     readonly name: string;
     readonly matches: (output: string) => boolean;
 }
+
+### dist/programs.d.ts#PDFINFO
+export declare const PDFINFO: ProgramSpec;
 
 ### dist/programs.d.ts#PDFTOPPM
 export declare const PDFTOPPM: ProgramSpec;
@@ -400,6 +421,23 @@ export interface OcrImageOutput extends OcrText {
 
 ### dist/types.d.ts#OcrImageOutputSchema
 export declare const OcrImageOutputSchema: z.ZodType<OcrImageOutput>;
+
+### dist/types.d.ts#OcrPageCountInput
+export interface OcrPageCountInput {
+    file: string;
+    timeout?: number | undefined;
+}
+
+### dist/types.d.ts#OcrPageCountInputSchema
+export declare const OcrPageCountInputSchema: z.ZodType<OcrPageCountInput>;
+
+### dist/types.d.ts#OcrPageCountOutput
+export interface OcrPageCountOutput {
+    readonly pages: number;
+}
+
+### dist/types.d.ts#OcrPageCountOutputSchema
+export declare const OcrPageCountOutputSchema: z.ZodType<OcrPageCountOutput>;
 
 ### dist/types.d.ts#OcrPageInput
 export interface OcrPageInput {

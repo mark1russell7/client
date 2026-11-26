@@ -20,8 +20,22 @@ import {
 import shellModule from "@procedures/shell/module";
 import { ocrImage } from "./procedures/ocr/image.js";
 import { ocrPage } from "./procedures/ocr/page.js";
+import { ocrPageCount } from "./procedures/ocr/pageCount.js";
 import { createOcrRunner, type OcrHostOptions } from "./run.js";
-import { OcrImageInputSchema, OcrImageOutputSchema, OcrPageInputSchema, OcrPageOutputSchema, type OcrImageInput, type OcrImageOutput, type OcrPageInput, type OcrPageOutput } from "./types.js";
+import {
+  OcrImageInputSchema,
+  OcrImageOutputSchema,
+  OcrPageCountInputSchema,
+  OcrPageCountOutputSchema,
+  OcrPageInputSchema,
+  OcrPageOutputSchema,
+  type OcrImageInput,
+  type OcrImageOutput,
+  type OcrPageCountInput,
+  type OcrPageCountOutput,
+  type OcrPageInput,
+  type OcrPageOutput,
+} from "./types.js";
 
 /** The rule of the procedures under a root of the files: the file of the input is in the root. */
 const FILE_IN_A_ROOT: FsRootRules = { paths: ["file"] };
@@ -34,6 +48,9 @@ const PAGE_EFFECTS: Effects = { reads: ["fs", "process"], writes: ["fs", "proces
 
 /** The effects of `ocr.image`. The engine reads the image file and writes only to its standard output. */
 const IMAGE_EFFECTS: Effects = { reads: ["fs", "process"], writes: ["process"] };
+
+/** The effects of `ocr.pageCount`. `pdfinfo` reads the PDF file and writes only to its standard output. */
+const PAGE_COUNT_EFFECTS: Effects = { reads: ["fs", "process"], writes: ["process"] };
 
 /**
  * This function gives the procedures of this package with the settings of the host. The settings
@@ -71,7 +88,22 @@ export function createOcrProcedures(options: OcrHostOptions = {}): AnyProcedure[
     })
     .handler(async (input: OcrImageInput, ctx: ProcedureContext): Promise<OcrImageOutput> => ocrImage(input, ctx, runner))
     .build();
-  return [page, image];
+  const pageCount: AnyProcedure = createProcedure()
+    .path(["ocr", "pageCount"])
+    .input(OcrPageCountInputSchema)
+    .output(OcrPageCountOutputSchema)
+    .meta({
+      description: "Give the number of pages of a PDF file (pdfinfo), so a caller can read each page with ocr.page",
+      args: ["file"],
+      shorts: { timeout: "t" },
+      output: "json",
+      calls: ["shell.run"],
+      effects: PAGE_COUNT_EFFECTS,
+      fsRoot: FILE_IN_A_ROOT,
+    })
+    .handler(async (input: OcrPageCountInput, ctx: ProcedureContext): Promise<OcrPageCountOutput> => ocrPageCount(input, ctx, runner))
+    .build();
+  return [page, image, pageCount];
 }
 
 /** The procedures with the default settings: the search finds each program at each call. */

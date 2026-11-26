@@ -15,8 +15,8 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
 /** The settings of the host for the procedures of this package. The procedure input cannot change them. */
 export interface OcrHostOptions extends FindProgramOptions {
   /**
-   * The path of each program, by name: `tesseract`, `pdftotext` or `pdftoppm`. A program with no
-   * path comes from the search of `findProgram`.
+   * The path of each program, by name: `tesseract`, `pdftotext`, `pdftoppm` or `pdfinfo`. A
+   * program with no path comes from the search of `findProgram`.
    */
   readonly executables?: Readonly<Record<string, string | undefined>> | undefined;
   /** The OCR engine (default: `tesseractEngine`). */

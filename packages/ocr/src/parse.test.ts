@@ -9,6 +9,7 @@ import {
   makeLine,
   makeText,
   meanConfidence,
+  parsePdfinfoPages,
   parsePdftotextBbox,
   parseTesseractOsd,
   parseTesseractTsv,
@@ -230,5 +231,26 @@ describe("parseTesseractOsd", () => {
   it("gives the confidence 0 when the output has a turn but no confidence", () => {
     expect(parseTesseractOsd(lines("Rotate: 180"))).toEqual({ turn: 180, confidence: 0 });
     expect(parseTesseractOsd(lines("Rotate: 180", "Orientation confidence: 1.2.3"))).toEqual({ turn: 180, confidence: 0 });
+  });
+});
+
+describe("parsePdfinfoPages", () => {
+  it("reads the number of pages of the output of pdfinfo", () => {
+    const output = fixture("pdfinfo.txt");
+    expect(parsePdfinfoPages(output)).toBe(12);
+    expect(parsePdfinfoPages(output.replace(/\n/g, "\r\n"))).toBe(12);
+    expect(parsePdfinfoPages("Pages: 0\n")).toBe(0);
+    expect(parsePdfinfoPages("Pages:\t3")).toBe(3);
+  });
+
+  it("does not read the word Pages in the value of another field", () => {
+    expect(() => parsePdfinfoPages("Title:           Pages: 7 of a report\nEncrypted:       no\n")).toThrow(/no Pages line/);
+  });
+
+  it("throws for an output with no Pages line or with no whole number", () => {
+    expect(() => parsePdfinfoPages("")).toThrow("The output of pdfinfo has no Pages line with a whole number");
+    expect(() => parsePdfinfoPages("Pages:           many\n")).toThrow(/no Pages line/);
+    expect(() => parsePdfinfoPages("Pages:           2.5\n")).toThrow(/no Pages line/);
+    expect(() => parsePdfinfoPages("Pages:           99999999999999999999\n")).toThrow(/no Pages line/);
   });
 });

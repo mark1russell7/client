@@ -6,7 +6,7 @@ The text of a PDF page or of an image, as lines and words. Each line and each wo
 
 The package uses the programs of the host. It does not download a program:
 
-- `pdftotext` and `pdftoppm` of Poppler, for the PDF pages.
+- `pdftotext`, `pdftoppm` and `pdfinfo` of Poppler, for the PDF pages.
 - `tesseract` 4 or later, the first OCR engine.
 
 Each program starts as argv through the procedure `shell.run` of `@procedures/shell`. No shell starts.
@@ -31,6 +31,7 @@ Install the programs:
 |---|---|---|
 | `ocr.page` | It gives the text of one page of a PDF file. The boxes are in PDF points. | It reads `fs` and `process`. It writes `fs` (a temporary image) and `process`. |
 | `ocr.image` | It reads the text of an image file with the OCR engine. The boxes are in the pixels of the image. | It reads `fs` and `process`. It writes `process`. |
+| `ocr.pageCount` | It gives the number of pages of a PDF file, from `pdfinfo`. | It reads `fs` and `process`. It writes `process`. |
 
 `ocr.page` has three modes:
 
@@ -47,11 +48,21 @@ const page = await outputValue(await invokePath(["ocr", "page"], { file: "report
 // { page: 2, source: "text-layer", unit: "pt", width: 612, height: 792, text: "...", confidence: 1, lines: [...] }
 ```
 
+To read each page of a file, get the number of pages with `ocr.pageCount` first. The pages of `ocr.page` are the numbers from 1 to that number.
+
+```ts
+const { pages } = await outputValue(await invokePath(["ocr", "pageCount"], { file: "report.pdf" }, { registry }));
+for (let page = 1; page <= pages; page += 1) {
+  const text = await outputValue(await invokePath(["ocr", "page"], { file: "report.pdf", page }, { registry }));
+}
+```
+
 From the `mark` CLI:
 
 ```sh
 mark ocr page report.pdf --page 2
 mark ocr image photo.png --language eng+deu
+mark ocr pageCount report.pdf
 ```
 
 ## A page on its side
@@ -110,7 +121,7 @@ const registry = createRegistry(createOcrModule({ executables: { tesseract: "/op
 The search examines these paths, in this order:
 
 1. The `executables` option of `createOcrModule`.
-2. The environment variable of the program: `TESSERACT_EXE`, `PDFTOTEXT_EXE` or `PDFTOPPM_EXE`.
+2. The environment variable of the program: `TESSERACT_EXE`, `PDFTOTEXT_EXE`, `PDFTOPPM_EXE` or `PDFINFO_EXE`.
 3. For Poppler, the folder of `POPPLER_PATH`.
 4. The install folders: `Tesseract-OCR` and `poppler\Library\bin` in the program files folders of Windows, and the Homebrew folders of macOS.
 5. The folders of the `PATH`.
@@ -126,6 +137,7 @@ The parsers start no process and read no file. The root and the entry `@procedur
 - `parseTesseractTsv(tsv)` reads the TSV output of tesseract (`tesseract <image> stdout tsv`).
 - `parsePdftotextBbox(xhtml)` reads the output of `pdftotext -bbox-layout` for one page.
 - `parseTesseractOsd(output)` reads the orientation output of tesseract (`tesseract <image> stdout --psm 0`).
+- `parsePdfinfoPages(output)` gives the number of pages from the output of `pdfinfo <file>`.
 - `turnText(text, turn)` turns each box, the width and the height by 0, 90, 180 or 270 degrees in the clock direction.
 - `tableOfText(text, options)` gives the rows and the columns of a table from the boxes of its words. Refer to [A table](#a-table).
 - `scaleText(text, factor, unit)` changes the unit of the boxes. For example, the factor `72 / 300` changes the pixels of an image at 300 dots per inch to PDF points.
