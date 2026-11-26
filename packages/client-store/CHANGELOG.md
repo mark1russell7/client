@@ -1,5 +1,12 @@
 # @procedures/store
 
+## 0.68.12
+
+### Patch Changes
+
+- @procedures/client@0.68.12
+  - @procedures/collections@0.68.12
+
 ## 0.68.11
 
 ### Patch Changes
