@@ -7,7 +7,7 @@
 import { StringDecoder } from "node:string_decoder";
 
 /** The longest line of a splitter by default: 1 MiB of characters. */
-export const DEFAULT_MAX_LINE_LENGTH = 1024 * 1024;
+export const DEFAULT_MAX_LINE_LENGTH: number = 1024 * 1024;
 
 /** The options of `createLineSplitter`. */
 export interface LineSplitterOptions {
