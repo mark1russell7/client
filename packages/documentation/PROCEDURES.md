@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.ts`.
 
-**Total procedures:** 626 across 59 namespaces. Loaded 55 package register(s).
+**Total procedures:** 628 across 59 namespaces. Loaded 55 package register(s).
 
 ## Namespaces
 
@@ -23,7 +23,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`generators.*`](#generators) — 23 procedure(s)
-- [`geo.*`](#geo) — 65 procedure(s)
+- [`geo.*`](#geo) — 67 procedure(s)
 - [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`handle.*`](#handle) — 2 procedure(s)
@@ -337,6 +337,7 @@
 | `geo.geohashesInBBox` | This function gives the geohashes of the cells that cover a closed box, with one precision. The list has each cell that has a point of the box one time, with the rule of `geohash` for a point on an edge. So a cell that touches the box only on the south edge or the west edge of the box is not in the list. A cell that touches the box only on the north edge or the east edge of the box is in the list. The order is from south to north, then from west to east. A box that crosses the antimeridian is correct. |
 | `geo.geohashNeighbor` | This function gives the neighbor of a cell in a direction, with the same precision. The longitude wraps at the antimeridian. Past a pole, the result is `undefined`. |
 | `geo.geohashNeighbors` | This function gives the eight neighbors of a cell. A neighbor past a pole is `undefined`. |
+| `geo.gridRegion` | This function gives the region of a grid where each value is at `level` or more. The module documentation gives the rules. A region with no point gives an empty `MultiPolygon`. |
 | `geo.initialBearing` | This function gives the initial bearing of the great circle from `from` to `to`, in degrees clockwise from north. The result is from 0 to less than 360. |
 | `geo.intermediatePoint` | This function gives the point at a part of the way along the great circle from `from` to `to`. A part of 0 gives the start, 0.5 gives the middle, and 1 gives the end. The longitude of the result is normalized. |
 | `geo.joinLines` | This function joins lines with a common end into longer lines, for example the ways of one street. Each input line goes into one result line, forward or reversed. |
@@ -366,6 +367,7 @@
 | `geo.toGeoJsonBBox` | This function gives the GeoJSON form `[west, south, east, north]` of a box. |
 | `geo.toPosition` | This function gives the GeoJSON position `[lon, lat]` of a point. |
 | `geo.toUnitVector` | This function gives the unit vector of a point, from the center of a sphere to the point. A drawing in 3D multiplies the vector by its radius. |
+| `geo.usState` | This function finds a state, the district or a territory by its FIPS code (`"06"`) or its postal code (`"CA"` or `"ca"`). |
 | `geo.wayAccess` | This function gives the directions of a way for a travel mode, from the tags of the way. |
 
 ## gh

@@ -6,7 +6,7 @@
 npm install @procedures/systems
 ```
 
-The timer law of [systems](https://mark1russell7.github.io/systems/) for the client. The package binds the times of the middleware, the transports and the server to the symbols of the law. Then it examines the rules of the client.
+The timer law of [systems](https://metrograph-labs.github.io/systems/) for the client. The package binds the times of the middleware, the transports and the server to the symbols of the law. Then it examines the rules of the client.
 
 A timer that is too short or too long for another timer opens a window of failure. Example: when one try can take longer than the request time of the WebSocket transport, the transport ends the try first. Then the retry sees a transport error, not a timeout of the try. The law finds such an order before the application starts.
 

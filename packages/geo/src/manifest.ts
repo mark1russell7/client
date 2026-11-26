@@ -1,10 +1,10 @@
-// The manifest of @mark1russell7/geo 0.5.13, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
+// The manifest of @mark1russell7/geo 0.5.17, made from its types by `node scripts/wraps.ts generate`. Do not edit it.
 import type { ExportsManifest } from "@procedures/compiler";
 
 export const manifest: ExportsManifest = {
   "format": "procedures-exports/1",
   "package": "@mark1russell7/geo",
-  "version": "0.5.13",
+  "version": "0.5.17",
   "entry": ".",
   "namespace": [
     "geo"
@@ -81,7 +81,7 @@ export const manifest: ExportsManifest = {
         "features": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+            "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
           }
         },
         "bbox": {
@@ -148,7 +148,7 @@ export const manifest: ExportsManifest = {
         "features": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+            "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
           }
         },
         "bbox": {
@@ -221,22 +221,22 @@ export const manifest: ExportsManifest = {
               "$ref": "#/$defs/GeometryCollection"
             },
             {
-              "$ref": "#/$defs/LineString"
-            },
-            {
               "$ref": "#/$defs/MultiLineString"
             },
             {
               "$ref": "#/$defs/MultiPoint"
             },
             {
-              "$ref": "#/$defs/MultiPolygon"
+              "$ref": "#/$defs/Polygon"
+            },
+            {
+              "$ref": "#/$defs/LineString"
             },
             {
               "$ref": "#/$defs/Point"
             },
             {
-              "$ref": "#/$defs/Polygon"
+              "$ref": "#/$defs/MultiPolygon"
             }
           ]
         },
@@ -324,22 +324,22 @@ export const manifest: ExportsManifest = {
               "$ref": "#/$defs/GeometryCollection"
             },
             {
-              "$ref": "#/$defs/LineString"
-            },
-            {
               "$ref": "#/$defs/MultiLineString"
             },
             {
               "$ref": "#/$defs/MultiPoint"
             },
             {
-              "$ref": "#/$defs/MultiPolygon"
+              "$ref": "#/$defs/Polygon"
+            },
+            {
+              "$ref": "#/$defs/LineString"
             },
             {
               "$ref": "#/$defs/Point"
             },
             {
-              "$ref": "#/$defs/Polygon"
+              "$ref": "#/$defs/MultiPolygon"
             }
           ]
         },
@@ -415,16 +415,7 @@ export const manifest: ExportsManifest = {
     "GeoJson": {
       "anyOf": [
         {
-          "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
-        },
-        {
-          "$ref": "#/$defs/FeatureCollection_Feature_Geometry_null_GeoJsonProperties"
-        },
-        {
           "$ref": "#/$defs/GeometryCollection"
-        },
-        {
-          "$ref": "#/$defs/LineString"
         },
         {
           "$ref": "#/$defs/MultiLineString"
@@ -433,13 +424,22 @@ export const manifest: ExportsManifest = {
           "$ref": "#/$defs/MultiPoint"
         },
         {
-          "$ref": "#/$defs/MultiPolygon"
+          "$ref": "#/$defs/Polygon"
+        },
+        {
+          "$ref": "#/$defs/LineString"
         },
         {
           "$ref": "#/$defs/Point"
         },
         {
-          "$ref": "#/$defs/Polygon"
+          "$ref": "#/$defs/FeatureCollection_Feature_Geometry_null_GeoJsonProperties"
+        },
+        {
+          "$ref": "#/$defs/MultiPolygon"
+        },
+        {
+          "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
         }
       ]
     },
@@ -616,22 +616,22 @@ export const manifest: ExportsManifest = {
           "$ref": "#/$defs/GeometryCollection"
         },
         {
-          "$ref": "#/$defs/LineString"
-        },
-        {
           "$ref": "#/$defs/MultiLineString"
         },
         {
           "$ref": "#/$defs/MultiPoint"
         },
         {
-          "$ref": "#/$defs/MultiPolygon"
+          "$ref": "#/$defs/Polygon"
+        },
+        {
+          "$ref": "#/$defs/LineString"
         },
         {
           "$ref": "#/$defs/Point"
         },
         {
-          "$ref": "#/$defs/Polygon"
+          "$ref": "#/$defs/MultiPolygon"
         }
       ]
     },
@@ -701,6 +701,39 @@ export const manifest: ExportsManifest = {
         "type",
         "geometries"
       ]
+    },
+    "GridAxis": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "number"
+        },
+        "stop": {
+          "type": "number"
+        },
+        "num": {
+          "type": "number",
+          "description": "The count of the values, an integer of 2 or more."
+        }
+      },
+      "required": [
+        "start",
+        "stop",
+        "num"
+      ]
+    },
+    "GridRegionOptions": {
+      "type": "object",
+      "properties": {
+        "toleranceKm": {
+          "type": "number",
+          "description": "The tolerance of the simplification, in kilometres, 0 or more. The default is 0: the rings keep each position. The simplification keeps each position on the edge of the grid."
+        },
+        "radiusKm": {
+          "type": "number",
+          "description": "The radius of the sphere for the simplification, more than 0. The default is `EARTH_MEAN_RADIUS_KM`."
+        }
+      }
     },
     "ImpliedOneway": {
       "type": "object",
@@ -1477,10 +1510,10 @@ export const manifest: ExportsManifest = {
     "Region": {
       "anyOf": [
         {
-          "$ref": "#/$defs/MultiPolygon"
+          "$ref": "#/$defs/Polygon"
         },
         {
-          "$ref": "#/$defs/Polygon"
+          "$ref": "#/$defs/MultiPolygon"
         }
       ]
     },
@@ -1623,7 +1656,7 @@ export const manifest: ExportsManifest = {
             ],
             "inputs": [
               {
-                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
               }
             ],
             "output": {
@@ -1683,7 +1716,7 @@ export const manifest: ExportsManifest = {
                 "minItems": 2
               },
               {
-                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
               },
               {
                 "type": "number"
@@ -1812,7 +1845,7 @@ export const manifest: ExportsManifest = {
             {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
               }
             }
           ],
@@ -1843,7 +1876,7 @@ export const manifest: ExportsManifest = {
             ],
             "inputs": [
               {
-                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
               }
             ],
             "output": {
@@ -1886,7 +1919,7 @@ export const manifest: ExportsManifest = {
             ],
             "inputs": [
               {
-                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+                "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
               },
               {
                 "type": "number"
@@ -2095,6 +2128,69 @@ export const manifest: ExportsManifest = {
         "z"
       ]
     },
+    "UsState": {
+      "type": "object",
+      "properties": {
+        "fips": {
+          "type": "string",
+          "description": "The FIPS code of the Census Bureau, two digits, for example `\"06\"`."
+        },
+        "usps": {
+          "type": "string",
+          "description": "The code of the Postal Service, two capital letters, for example `\"CA\"`."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name, for example `\"California\"`."
+        },
+        "kind": {
+          "$ref": "#/$defs/UsStateKind"
+        }
+      },
+      "required": [
+        "fips",
+        "usps",
+        "name",
+        "kind"
+      ]
+    },
+    "UsStateKind": {
+      "enum": [
+        "district",
+        "state",
+        "territory"
+      ]
+    },
+    "ValueGrid": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/GridAxis",
+          "description": "The longitudes of the columns, from -180 to 180. The start can be more than the stop."
+        },
+        "y": {
+          "$ref": "#/$defs/GridAxis",
+          "description": "The latitudes of the rows, from -90 to 90. The start can be more than the stop."
+        },
+        "values": {
+          "type": "object",
+          "properties": {
+            "length": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "length"
+          ],
+          "description": "The values, row by row: the value of the column `i` and the row `j` is `values[j * x.num + i]`. This is the order of the axis names `[\"y\", \"x\"]` of CoverageJSON. `NaN` or `null` is no value."
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "values"
+      ]
+    },
     "WayAccess": {
       "enum": [
         "backward",
@@ -2122,10 +2218,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ],
             "description": "The polygon. The holes of a polygon must be inside its exterior, and the polygons of a MultiPolygon\nmust not overlap."
@@ -2366,10 +2462,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           },
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           }
         ]
       },
@@ -2419,10 +2515,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           },
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           }
         ]
       },
@@ -2506,10 +2602,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           },
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           }
         ]
       },
@@ -2558,10 +2654,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           },
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           }
         ]
       },
@@ -2589,10 +2685,10 @@ export const manifest: ExportsManifest = {
             "items": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/MultiPolygon"
+                  "$ref": "#/$defs/Polygon"
                 },
                 {
-                  "$ref": "#/$defs/Polygon"
+                  "$ref": "#/$defs/MultiPolygon"
                 }
               ]
             },
@@ -3035,10 +3131,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ]
           }
@@ -3359,6 +3455,55 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "gridRegion",
+      "path": [
+        "geo",
+        "gridRegion"
+      ],
+      "description": "This function gives the region of a grid where each value is at `level` or more. The module documentation gives the rules. A region with no point gives an empty `MultiPolygon`.",
+      "params": [
+        "grid",
+        "level",
+        "options"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "grid": {
+            "$ref": "#/$defs/ValueGrid",
+            "description": "The grid of values."
+          },
+          "level": {
+            "type": "number",
+            "description": "The level, a finite number."
+          },
+          "options": {
+            "$ref": "#/$defs/GridRegionOptions",
+            "description": "The tolerance of the simplification."
+          }
+        },
+        "required": [
+          "grid",
+          "level"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Polygon"
+          },
+          {
+            "$ref": "#/$defs/MultiPolygon"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "initialBearing",
       "path": [
         "geo",
@@ -3639,10 +3784,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ]
           }
@@ -3808,10 +3953,10 @@ export const manifest: ExportsManifest = {
           "a": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ],
             "description": "The first polygon. The holes of a polygon must be inside its exterior, and the polygons of a\nMultiPolygon must not overlap."
@@ -3819,10 +3964,10 @@ export const manifest: ExportsManifest = {
           "b": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ],
             "description": "The second polygon, with the same rules."
@@ -3925,10 +4070,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ]
           },
@@ -3967,20 +4112,20 @@ export const manifest: ExportsManifest = {
           "a": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ]
           },
           "b": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ]
           }
@@ -4015,10 +4160,10 @@ export const manifest: ExportsManifest = {
           "polygon": {
             "anyOf": [
               {
-                "$ref": "#/$defs/MultiPolygon"
+                "$ref": "#/$defs/Polygon"
               },
               {
-                "$ref": "#/$defs/Polygon"
+                "$ref": "#/$defs/MultiPolygon"
               }
             ]
           }
@@ -4031,10 +4176,10 @@ export const manifest: ExportsManifest = {
       "output": {
         "anyOf": [
           {
-            "$ref": "#/$defs/MultiPolygon"
+            "$ref": "#/$defs/Polygon"
           },
           {
-            "$ref": "#/$defs/Polygon"
+            "$ref": "#/$defs/MultiPolygon"
           }
         ]
       },
@@ -4113,7 +4258,7 @@ export const manifest: ExportsManifest = {
               {
                 "type": "array",
                 "items": {
-                  "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties_2"
+                  "$ref": "#/$defs/Feature_Geometry_null_GeoJsonProperties"
                 }
               }
             ],
@@ -4572,6 +4717,43 @@ export const manifest: ExportsManifest = {
       }
     },
     {
+      "name": "usState",
+      "path": [
+        "geo",
+        "usState"
+      ],
+      "description": "This function finds a state, the district or a territory by its FIPS code (`\"06\"`) or its postal code (`\"CA\"` or `\"ca\"`).",
+      "params": [
+        "code"
+      ],
+      "input": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UsState"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "effects": {
+        "reads": [],
+        "writes": []
+      }
+    },
+    {
       "name": "wayAccess",
       "path": [
         "geo",
@@ -4667,7 +4849,7 @@ export const manifest: ExportsManifest = {
     "classes": [
       "GeoError"
     ],
-    "values": 20,
-    "types": 55
+    "values": 21,
+    "types": 60
   }
 };
