@@ -1,5 +1,13 @@
 # @procedures/geo
 
+## 0.68.14
+
+### Patch Changes
+
+- a842986: `geo.addressPoint` gives the point of a street address of the United States from the Census Geocoder, with the pure functions `censusAddressExchange` and `censusMatches`. The point is on the address range of the street line, near the road, not in the lot. The procedure is not an MCP tool of `@procedures/bundle-assistant`.
+- @procedures/client@0.68.14
+  - @procedures/compiler@0.68.14
+
 ## 0.68.13
 
 ### Patch Changes
