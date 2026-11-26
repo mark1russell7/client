@@ -7,6 +7,7 @@ import { afterEach, describe, it, expect } from "vitest";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PassThrough, Readable } from "node:stream";
 import { ProcessRegistry, runCommand, streamCommand, type CommandStreamItem } from "./index.js";
 
 function alive(pid: number): boolean {
@@ -252,6 +253,27 @@ describe("streamCommand", () => {
     const parts = items.filter((item) => item.type === "stdout");
     expect(parts.length).toBe(5);
     expect(parts.every((item) => item.type === "stdout" && item.line.length === 1000)).toBe(true);
+  });
+
+  it("pipes a stream to stdin, and the end of the stream ends stdin", async () => {
+    const upper = "process.stdin.setEncoding('utf8'); let all = ''; process.stdin.on('data', (d) => { all += d; }); process.stdin.on('end', () => console.log(all.toUpperCase()));";
+    const input = Readable.from(["a\nb", "\nc"]);
+    const lines: string[] = [];
+    for await (const item of streamCommand(process.execPath, { args: ["-e", upper], input })) {
+      if (item.type === "stdout") lines.push(item.line);
+    }
+    expect(lines).toEqual(["A", "B", "C"]);
+  });
+
+  it("leaves the stream of the caller open when the program ends first", async () => {
+    const input = new PassThrough();
+    input.write("x\n");
+    const items: CommandStreamItem[] = [];
+    for await (const item of streamCommand(process.execPath, { args: ["-e", "process.exit(0)"], input })) items.push(item);
+    expect(items.at(-1)).toMatchObject({ type: "exit", exitCode: 0 });
+    expect(input.destroyed).toBe(false);
+    expect(input.listenerCount("data")).toBe(0);
+    input.end();
   });
 
   it("kills the process tree when the reader stops", async () => {

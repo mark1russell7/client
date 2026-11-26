@@ -48,7 +48,8 @@ The wrapper packages start their programs with the helpers of `@procedures/shell
 | Helper | What it does |
 |---|---|
 | `runCommand(command, options)` | It runs a program to its end and gives `exitCode`, `stdout`, `stderr` and `duration`. It does not throw. |
-| `streamCommand(command, options)` | It gives each output line while the program runs, then an `exit` item. |
+| `streamCommand(command, options)` | It gives each output line while the program runs, then an `exit` item. Its `input` is text, bytes or a stream for stdin. |
+| `createLineSplitter(options)` | It splits chunks of output into lines, as `streamCommand` does, for a caller with its own pipes. It has no I/O. |
 | `processes` | It records a long-running program: `start`, `list`, `waitFor`, `output`, `subscribe`, `follow`, `stop`. |
 | `killTree(child)` | It kills a child process and all the processes that it started. |
 | `spawnProgram(command, args, options)` | It starts a program that the caller keeps, for example a detached process with files as its standard input and output. It takes the options of `spawn` of Node, without `shell`, and it gives the child. |
@@ -62,6 +63,8 @@ The rules of the helpers:
 - The `timeout` and the `signal` kill the whole process tree. Windows uses `taskkill /T /F`. The other systems use a process group.
 - Each output stream has a limit (`maxOutputBytes`, 64 MiB by default). The helper keeps the first bytes, or the last bytes with `keep: "tail"`.
 - A program without an `input` gets an empty stdin.
+- `streamCommand` pipes an `input` stream to stdin. The end of the stream ends stdin. The helper does not destroy the stream.
+- A line ends at `\n` or `\r\n`. A line longer than `maxLineLength` comes out in parts.
 - When the reader of `streamCommand` is slow, the helper stops reading the pipes, so the program waits.
 - When the host ends, the helpers kill each child that still runs. `spawnProgram` and `spawnProgramSync` do not record the child, so the caller decides when it stops.
 - On Windows, a program name with no folder starts only from a folder of `PATH`, not from the working folder. So a `git.exe` in a cloned repository does not start when a tool runs `git` in its folder. When no folder of `PATH` has the program, the start fails with ENOENT.

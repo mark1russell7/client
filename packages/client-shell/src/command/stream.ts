@@ -7,7 +7,8 @@
  * the queue had no limit: a program with a large output filled the memory of the host.
  */
 
-import { StringDecoder } from "node:string_decoder";
+import type { Readable } from "node:stream";
+import { createLineSplitter, DEFAULT_MAX_LINE_LENGTH } from "./lines.js";
 import { endCommand, startChild, type SpawnOptions } from "./spawn.js";
 import { unknownEncoding } from "./run.js";
 
@@ -24,8 +25,11 @@ export type CommandStreamItem =
     };
 
 export interface StreamCommandOptions extends SpawnOptions {
-  /** Text or bytes to write to stdin. Without it, stdin is empty. */
-  input?: string | Buffer | undefined;
+  /**
+   * The stdin of the program: text, bytes, or a stream that the helper pipes to stdin. The end of
+   * the stream ends stdin. The helper does not end or destroy the stream. Without it, stdin is empty.
+   */
+  input?: string | Buffer | Readable | undefined;
   /** After this many milliseconds, the process tree is killed. */
   timeout?: number | undefined;
   /** When the signal aborts, the process tree is killed. */
@@ -39,7 +43,6 @@ export interface StreamCommandOptions extends SpawnOptions {
 }
 
 const DEFAULT_HIGH_WATER_MARK = 1000;
-const DEFAULT_MAX_LINE_LENGTH = 1024 * 1024;
 
 /**
  * This function runs `command` and yields each line of stdout and stderr, then one exit item.
@@ -53,7 +56,6 @@ export async function* streamCommand(
   const started = Date.now();
   const highWaterMark = Math.max(1, options.highWaterMark ?? DEFAULT_HIGH_WATER_MARK);
   const lowWaterMark = Math.floor(highWaterMark / 2);
-  const maxLineLength = Math.max(1, options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH);
   const encoding = options.encoding ?? "utf8";
   // An unknown encoding starts nothing: the decoders below are made after the start of the program
   if (!Buffer.isEncoding(encoding)) throw new TypeError(unknownEncoding(encoding));
@@ -96,36 +98,22 @@ export async function* streamCommand(
     notify();
   };
 
-  // A decoder for each stream keeps a character whose bytes arrive in two chunks (deep dive WRP-2)
-  const partial = { stdout: "", stderr: "" };
-  const decoders = { stdout: new StringDecoder(encoding), stderr: new StringDecoder(encoding) };
-  const emit = (type: "stdout" | "stderr", text: string): void => {
-    if (text.length <= maxLineLength) {
-      push({ type, line: text });
-      return;
-    }
-    for (let at = 0; at < text.length; at += maxLineLength) {
-      push({ type, line: text.slice(at, at + maxLineLength) });
-    }
-  };
+  // A splitter for each stream keeps a character whose bytes arrive in two chunks (deep dive WRP-2)
+  const lineOptions = { maxLineLength: options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH, encoding };
+  const splitters = { stdout: createLineSplitter(lineOptions), stderr: createLineSplitter(lineOptions) };
   const onData = (type: "stdout" | "stderr") => (data: Buffer): void => {
-    const lines = (partial[type] + decoders[type].write(data)).split(/\r?\n/);
-    let rest = lines.pop() ?? "";
-    for (const line of lines) emit(type, line);
-    // A line without its end yet: give the full parts now, keep the remainder
-    if (rest.length >= maxLineLength) {
-      const whole = rest.length - (rest.length % maxLineLength);
-      emit(type, rest.slice(0, whole));
-      rest = rest.slice(whole);
-    }
-    partial[type] = rest;
+    for (const line of splitters[type].push(data)) push({ type, line });
   };
   child.stdout!.on("data", onData("stdout"));
   child.stderr!.on("data", onData("stderr"));
 
-  if (options.input !== undefined) {
-    child.stdin!.on("error", () => {});
-    child.stdin!.end(options.input);
+  const input = options.input;
+  const stdin = child.stdin;
+  const piped = input !== undefined && typeof input !== "string" && !Buffer.isBuffer(input) ? input : undefined;
+  if (input !== undefined && stdin) {
+    stdin.on("error", () => {});
+    if (piped) piped.pipe(stdin);
+    else stdin.end(input);
   }
 
   const timer = options.timeout !== undefined
@@ -148,8 +136,7 @@ export async function* streamCommand(
   });
   child.on("close", (code, signal) => {
     for (const type of ["stdout", "stderr"] as const) {
-      const rest = partial[type] + decoders[type].end();
-      if (rest) emit(type, rest);
+      for (const line of splitters[type].flush()) push({ type, line });
     }
     const exit: CommandStreamItem = { type: "exit", exitCode: code ?? 1, duration: Date.now() - started };
     const endSignal = signal ?? (timedOut || aborted ? "SIGTERM" : undefined);
@@ -178,6 +165,8 @@ export async function* streamCommand(
   } finally {
     if (timer) clearTimeout(timer);
     options.signal?.removeEventListener("abort", onAbort);
+    // The stream of the caller stays open: only its pipe to the program ends
+    if (piped && stdin) piped.unpipe(stdin);
     // The reader stopped early: end the program and its descendants. The pipes read again, so
     // they can close.
     if (!ended) {

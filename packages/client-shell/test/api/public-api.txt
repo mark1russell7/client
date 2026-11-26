@@ -20,6 +20,7 @@ type CliToolOutputFields: dist/cli/output.d.ts#CliToolOutputFields
 type CommandOptions: dist/command/run.d.ts#CommandOptions
 type CommandResult: dist/command/run.d.ts#CommandResult
 type CommandStreamItem: dist/command/stream.d.ts#CommandStreamItem
+DEFAULT_MAX_LINE_LENGTH: dist/command/lines.d.ts#DEFAULT_MAX_LINE_LENGTH
 DEFAULT_MAX_OUTPUT_BYTES: dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
 EXEC_MAX_BUFFER: dist/command/exec.d.ts#EXEC_MAX_BUFFER
 type ExecProgramError: dist/command/exec.d.ts#ExecProgramError
@@ -28,6 +29,8 @@ type ExecProgramSyncOptions: dist/command/exec.d.ts#ExecProgramSyncOptions
 FLAG_NAME: dist/cli/argv.d.ts#FLAG_NAME
 FOLLOW_BUFFER_BYTES: dist/command/processes.d.ts#FOLLOW_BUFFER_BYTES
 type FollowOptions: dist/command/processes.d.ts#FollowOptions
+type LineSplitter: dist/command/lines.d.ts#LineSplitter
+type LineSplitterOptions: dist/command/lines.d.ts#LineSplitterOptions
 type ManagedProcessInfo: dist/command/processes.d.ts#ManagedProcessInfo
 type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
 type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
@@ -56,6 +59,7 @@ cliArg: dist/cli/argv.d.ts#cliArg
 cliToolJsonOutputSchema: dist/cli/output.d.ts#cliToolJsonOutputSchema
 cliToolOutputFields: dist/cli/output.d.ts#cliToolOutputFields
 cliToolOutputSchema: dist/cli/output.d.ts#cliToolOutputSchema
+createLineSplitter: dist/command/lines.d.ts#createLineSplitter
 defineCliTool: dist/cli/tool.d.ts#defineCliTool
 execPathProgram: dist/cli/program.d.ts#execPathProgram
 execProgram: dist/command/exec.d.ts#execProgram
@@ -93,6 +97,7 @@ shellModule: dist/module.d.ts#shellModule
 type CommandOptions: dist/command/run.d.ts#CommandOptions
 type CommandResult: dist/command/run.d.ts#CommandResult
 type CommandStreamItem: dist/command/stream.d.ts#CommandStreamItem
+DEFAULT_MAX_LINE_LENGTH: dist/command/lines.d.ts#DEFAULT_MAX_LINE_LENGTH
 DEFAULT_MAX_OUTPUT_BYTES: dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
 EXEC_MAX_BUFFER: dist/command/exec.d.ts#EXEC_MAX_BUFFER
 type ExecProgramError: dist/command/exec.d.ts#ExecProgramError
@@ -100,6 +105,8 @@ type ExecProgramOptions: dist/command/exec.d.ts#ExecProgramOptions
 type ExecProgramSyncOptions: dist/command/exec.d.ts#ExecProgramSyncOptions
 FOLLOW_BUFFER_BYTES: dist/command/processes.d.ts#FOLLOW_BUFFER_BYTES
 type FollowOptions: dist/command/processes.d.ts#FollowOptions
+type LineSplitter: dist/command/lines.d.ts#LineSplitter
+type LineSplitterOptions: dist/command/lines.d.ts#LineSplitterOptions
 type ManagedProcessInfo: dist/command/processes.d.ts#ManagedProcessInfo
 type ProcessFollowItem: dist/command/processes.d.ts#ProcessFollowItem
 type ProcessOutputChunk: dist/command/processes.d.ts#ProcessOutputChunk
@@ -111,6 +118,7 @@ type SpawnOptions: dist/command/spawn.d.ts#SpawnOptions
 type StartProcessOptions: dist/command/processes.d.ts#StartProcessOptions
 type StopResult: dist/command/processes.d.ts#StopResult
 type StreamCommandOptions: dist/command/stream.d.ts#StreamCommandOptions
+createLineSplitter: dist/command/lines.d.ts#createLineSplitter
 execProgram: dist/command/exec.d.ts#execProgram
 execProgramSync: dist/command/exec.d.ts#execProgramSync
 killTree: dist/command/tree-kill.d.ts#killTree
@@ -322,6 +330,24 @@ export declare function execProgramSync(command: string, args: readonly string[]
 ### dist/command/exec.d.ts#programError
 export declare function programError(result: SpawnSyncReturns<string | Buffer>, words: readonly string[]): ProgramError | undefined;
 
+### dist/command/lines.d.ts#DEFAULT_MAX_LINE_LENGTH
+export declare const DEFAULT_MAX_LINE_LENGTH: number;
+
+### dist/command/lines.d.ts#LineSplitter
+export interface LineSplitter {
+    push(chunk: string | Uint8Array): string[];
+    flush(): string[];
+}
+
+### dist/command/lines.d.ts#LineSplitterOptions
+export interface LineSplitterOptions {
+    maxLineLength?: number | undefined;
+    encoding?: BufferEncoding | undefined;
+}
+
+### dist/command/lines.d.ts#createLineSplitter
+export declare function createLineSplitter(options?: LineSplitterOptions): LineSplitter;
+
 ### dist/command/output.d.ts#DEFAULT_MAX_OUTPUT_BYTES
 export declare const DEFAULT_MAX_OUTPUT_BYTES: number;
 
@@ -487,7 +513,7 @@ export type CommandStreamItem = {
 
 ### dist/command/stream.d.ts#StreamCommandOptions
 export interface StreamCommandOptions extends SpawnOptions {
-    input?: string | Buffer | undefined;
+    input?: string | Buffer | Readable | undefined;
     timeout?: number | undefined;
     signal?: AbortSignal | undefined;
     highWaterMark?: number | undefined;
