@@ -244,6 +244,8 @@ jobs:
       # The version pull request of a dispatch run: a branch and a pull request. No id-token: this job runs the code of this repository.
       contents: write
       pull-requests: write
+      # The start of the held checks of the version pull request with workflow_dispatch
+      actions: write
     outputs:
       # version: changesets wait, and the job opened or updated the version pull request.
       # publish: packages.txt names the versions to publish. none: npm has each version.
@@ -318,6 +320,29 @@ jobs:
           version-script: pnpm exec changeset version
           pr-title: Version the packages
           commit-message: Version the packages
+      # GitHub holds each pull_request run of the push of the workflow token until a person approves
+      # it (#796 and #798 on 2026-11-26). The script of the template starts each held workflow again
+      # with workflow_dispatch on the branch: a dispatch of the workflow token needs no approval, and
+      # its check runs land on the head commit with the same names (RELEASING.md of the template,
+      # "A release with Changesets"). The script comes from a pinned commit of the template, out of
+      # the working tree.
+      - name: Get the release scripts of the template
+        if: steps.changesets.outputs.pr-number != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mark1russell7/template
+          ref: 8855485a0255104373c0a34ee8da7c3b6a53c17e # main
+          path: .release-template
+          sparse-checkout: scripts/release
+          persist-credentials: false
+      - name: Start the held checks of the version pull request
+        if: steps.changesets.outputs.pr-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.changesets.outputs.pr-number }}
+        run: |
+          mv .release-template "$RUNNER_TEMP/release-template"
+          node "$RUNNER_TEMP/release-template/scripts/release/version-pr.ts" checks "$PR"
       # pnpm packs each version that is not on npm, and the script writes the plan of the GitHub
       # releases. The npm CLI of the publish job publishes the tarballs: the publish of pnpm 12 got
       # HTTP 404 on 2026-10-16 (scripts/publish-ci.ts tells more).
