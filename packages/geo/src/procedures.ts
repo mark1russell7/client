@@ -1,6 +1,6 @@
 /**
  * The procedures of `@procedures/geo`: `geo.geocode`, `geo.route`, `geo.osmFeatures`,
- * `geo.arcgisFeatures`, `geo.soilAtPoint`, `geo.distance` and `geo.geohash`.
+ * `geo.arcgisFeatures`, `geo.soilAtPoint`, `geo.addressPoint`, `geo.distance` and `geo.geohash`.
  *
  * The procedures that use the network send their requests with the `fetch` of the module. The default is
  * the global `fetch`, so the root stays safe for a browser. A Node host that takes calls from
@@ -13,12 +13,17 @@ import * as z from "zod";
 import type { Pace } from "polite-crawler/api";
 import { drivingRoute, geocode, type GeocodeResult } from "./geo.js";
 import { geoPace, type GeoFetch } from "./polite.js";
+import { geoAddressPoint } from "./procedures/geo/addressPoint.js";
 import { geoArcgisFeatures } from "./procedures/geo/arcgisFeatures.js";
 import { geoDistance } from "./procedures/geo/distance.js";
 import { geoGeohash } from "./procedures/geo/geohash.js";
 import { geoOsmFeatures } from "./procedures/geo/osmFeatures.js";
 import { geoSoilAtPoint } from "./procedures/geo/soilAtPoint.js";
 import {
+  GeoAddressPointInputSchema,
+  GeoAddressPointOutputSchema,
+  type GeoAddressPointInput,
+  type GeoAddressPointOutput,
   GeoArcgisFeaturesInputSchema,
   GeoArcgisFeaturesOutputSchema,
   GeoOsmFeaturesInputSchema,
@@ -56,7 +61,7 @@ export interface GeoProceduresOptions {
    */
   readonly fetch?: GeoFetch | undefined;
   /**
-   * The pace of the map data procedures (`geo.osmFeatures`, `geo.arcgisFeatures`, `geo.soilAtPoint`): one request in
+   * The pace of the map data procedures (`geo.osmFeatures`, `geo.arcgisFeatures`, `geo.soilAtPoint`, `geo.addressPoint`): one request in
    * progress for each host, and a rest between two requests. The default is the pace of the process
    * (`geoPace()`). Give the pace of your other API clients to share it.
    */
@@ -204,6 +209,24 @@ function soilAtPointProcedure(fetch: GeoFetch | undefined, pace: Pace | undefine
     .build();
 }
 
+function addressPointProcedure(fetch: GeoFetch | undefined, pace: Pace | undefined): AnyProcedure {
+  return createProcedure()
+    .path(["geo", "addressPoint"])
+    .input(GeoAddressPointInputSchema)
+    .output(GeoAddressPointOutputSchema)
+    .meta({
+      description:
+        "Find the point of a street address of the United States on its address range (the Census Geocoder). The point is on the street line, near the road, not in the lot",
+      output: "json",
+      effects: NETWORK_READ,
+    })
+    .handler(
+      async (input: GeoAddressPointInput, ctx?: ProcedureContext): Promise<GeoAddressPointOutput> =>
+        geoAddressPoint(input, { fetch: fetch ?? globalFetch, pace: pace ?? geoPace(), signal: ctx?.signal })
+    )
+    .build();
+}
+
 export const geoGeocodeProcedure: AnyProcedure = geocodeProcedure(undefined);
 
 export const geoRouteProcedure: AnyProcedure = routeProcedure(undefined);
@@ -213,6 +236,8 @@ export const geoOsmFeaturesProcedure: AnyProcedure = osmFeaturesProcedure(undefi
 export const geoArcgisFeaturesProcedure: AnyProcedure = arcgisFeaturesProcedure(undefined, undefined);
 
 export const geoSoilAtPointProcedure: AnyProcedure = soilAtPointProcedure(undefined, undefined);
+
+export const geoAddressPointProcedure: AnyProcedure = addressPointProcedure(undefined, undefined);
 
 // =============================================================================
 // geo.distance
@@ -260,6 +285,7 @@ export const geoProcedures: AnyProcedure[] = [
   geoOsmFeaturesProcedure,
   geoArcgisFeaturesProcedure,
   geoSoilAtPointProcedure,
+  geoAddressPointProcedure,
   geoDistanceProcedure,
   geoGeohashProcedure,
 ];
@@ -276,6 +302,7 @@ export function createGeoProcedures(options: GeoProceduresOptions = {}): AnyProc
     osmFeaturesProcedure(options.fetch, options.pace),
     arcgisFeaturesProcedure(options.fetch, options.pace),
     soilAtPointProcedure(options.fetch, options.pace),
+    addressPointProcedure(options.fetch, options.pace),
     geoDistanceProcedure,
     geoGeohashProcedure,
   ];

@@ -3,6 +3,7 @@
  */
 
 import type { SoilComponent } from "./soil.js";
+import type { CensusMatch } from "./census.js";
 import * as z from "zod";
 import type { Point } from "./geo.js";
 import type { GeohashCell } from "@mark1russell7/geo";
@@ -244,4 +245,48 @@ export const GeoSoilAtPointOutputSchema: z.ZodType<GeoSoilAtPointOutput> = z.obj
     )
     .describe("The major components of the map unit at the point, the largest first. An empty list: the survey has no map unit at the point"),
   attribution: z.string().describe("The citation of the soil data (SSURGO, public domain)"),
+});
+
+/** The input of `geo.addressPoint`: a street address of the United States in parts, and the User-Agent of the request. */
+export interface GeoAddressPointInput {
+  street: string;
+  city?: string | undefined;
+  state?: string | undefined;
+  zip?: string | undefined;
+  userAgent: string;
+  timeoutMs?: number | undefined;
+}
+
+const addressPart = (what: string) => z.string().trim().min(1).max(200).optional().describe(what);
+
+export const GeoAddressPointInputSchema: z.ZodType<GeoAddressPointInput> = z
+  .object({
+    street: z.string().trim().min(1).max(200).describe("The house number and the street name, for example 12 Main St"),
+    city: addressPart("The city or the town"),
+    state: addressPart("The state, as a code (for example VT) or as a name"),
+    zip: z.string().regex(/^d{5}(-d{4})?$/).optional().describe("The ZIP code"),
+    userAgent,
+    timeoutMs: z.number().int().positive().max(120_000).optional().describe("The time limit of the request, in milliseconds (default: 30000)"),
+  })
+  .refine((input) => input.city !== undefined || input.zip !== undefined, { message: "Give the city or the ZIP code of the address", path: ["city"] });
+
+/** The output of `geo.addressPoint`: the matches of the geocoder (an empty list: no match), and the citation of the data. */
+export interface GeoAddressPointOutput {
+  matches: CensusMatch[];
+  attribution: string;
+}
+
+export const GeoAddressPointOutputSchema: z.ZodType<GeoAddressPointOutput> = z.object({
+  matches: z
+    .array(
+      z.object({
+        lat: z.number().describe("The latitude of the point on the address range, in degrees"),
+        lon: z.number().describe("The longitude of the point on the address range, in degrees"),
+        matchedAddress: z.string().describe("The address that the geocoder matched"),
+        side: z.enum(["L", "R"]).nullable().describe("The side of the street line that holds the number"),
+        tigerLineId: z.string().nullable().describe("The id of the TIGER/Line edge of the address range"),
+      })
+    )
+    .describe("The matches of the geocoder. The point is on the street line, not in the lot. An empty list: no address range holds the address"),
+  attribution: z.string().describe("The citation of the data of the Census Geocoder"),
 });
