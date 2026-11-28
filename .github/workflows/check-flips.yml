@@ -104,7 +104,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The action of the template installs Chromium from a cache, with a time limit and a second try.
       - name: Install Chromium for Playwright
-        uses: mark1russell7/template/.github/actions/setup-playwright@7c83f30551e066c06852ea75bf0140eadfc49961 # main
+        uses: mark1russell7/template/.github/actions/setup-playwright@5d70553c6998c5f6f0fed13dc4528f6a207f2f4a # main
         with:
           browsers: chromium
           command: pnpm --filter @procedures/site exec playwright
